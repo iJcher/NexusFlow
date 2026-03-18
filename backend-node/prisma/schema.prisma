@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FlowEntity {
+  id               BigInt    @id
+  displayName      String    @default("")
+  flowType         Int       @default(0)
+  description      String    @default("")
+  configInfoForRun String?
+  configInfoForWeb String?
+  lastModified     DateTime? @updatedAt
+  lastModifyBy     String?
+
+  @@index([flowType])
+  @@map("FlowEntity")
+}
+
+model FlowLLMProviderEntity {
+  id           BigInt @id
+  platformName String
+  llmNames     String
+  llmAPIUrl    String
+  llmAPIKey    String
+
+  @@map("FlowLLMProviderEntity")
+}
+
+model FlowChatConversationEntity {
+  conversationId   String   @id
+  user             String
+  flowId           BigInt
+  title            String   @default("")
+  isTop            Boolean  @default(false)
+  messageCount     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  variables        String?
+
+  @@unique([conversationId, user])
+  @@map("FlowChatConversationEntity")
+}
+
+model FlowChatMessageEntity {
+  id               BigInt   @id
+  user             String
+  flowId           BigInt
+  conversationId   String
+  flowInstanceId   BigInt
+  question         String   @default("")
+  answer           String   @default("")
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  createdAt        DateTime @default(now())
+  files            String?
+
+  @@index([user, conversationId, createdAt])
+  @@map("FlowChatMessageEntity")
+}
+
+model UserEntity {
+  id                BigInt    @id
+  phoneNumber       String    @unique
+  passwordHash      String
+  passwordSalt      String
+  nickName          String
+  lastLoginIp       String    @default("")
+  lastLoginTime     DateTime  @default(now())
+  registerTime      DateTime  @default(now())
+  source            String?
+  isDeleted         Boolean   @default(false)
+  isEnable          Boolean?  @default(true)
+  lockoutEndDateUtc DateTime?
+  lockoutEnabled    Boolean   @default(false)
+  accessFailedCount Int?      @default(0)
+  role              Int       @default(1)
+
+  @@map("UserEntity")
+}
