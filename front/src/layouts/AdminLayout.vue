@@ -12,7 +12,7 @@
     <!-- 顶部导航栏 -->
     <header class="top-bar">
       <div class="flex items-center gap-6">
-        <h1 class="brand-text" @click="activeTab = 'ai-flow'">
+        <h1 class="brand-text" @click="navigateTo('ai-flow')">
           <span class="brand-nexus">Nexus</span><span class="brand-flow">Flow</span>
         </h1>
 
@@ -21,7 +21,7 @@
             v-for="tab in tabs"
             :key="tab.key"
             :class="['tab-item', { active: activeTab === tab.key }]"
-            @click="activeTab = tab.key"
+            @click="navigateTo(tab.key)"
           >
             <el-icon :size="16"><component :is="tab.icon" /></el-icon>
             <span>{{ tab.label }}</span>
@@ -40,28 +40,30 @@
 
     <!-- 主内容区域 -->
     <main class="main-content">
-      <FlowList v-if="activeTab === 'logic-flow'" flow-type="logic" key="logic-flow" />
-      <FlowList v-else-if="activeTab === 'ai-flow'" flow-type="ai" key="ai-flow" />
-      <FlowList v-else-if="activeTab === 'approval-flow'" flow-type="approval" key="approval-flow" />
-      <LLMProviderList v-else-if="activeTab === 'llm-provider'" key="llm-provider" />
+      <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, markRaw } from 'vue';
+import { computed, markRaw } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { Share, MagicStick, CircleCheck, Setting } from '@element-plus/icons-vue';
-
-import FlowList from '@/views/flow/FlowList.vue';
-import LLMProviderList from '@/views/llm/LLMProviderList.vue';
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 
-const activeTab = ref('ai-flow');
+const activeTab = computed(() => {
+  const path = route.path;
+  const tab = tabs.value.find(t => path.endsWith(t.key));
+  return tab?.key ?? 'ai-flow';
+});
+
 const userInfo = computed(() => authStore.getLoginUserInfo);
 
 const tabs = computed(() => [
@@ -70,6 +72,10 @@ const tabs = computed(() => [
   { key: 'approval-flow', label: t('nav.approvalFlow'), icon: markRaw(CircleCheck) },
   { key: 'llm-provider', label: t('layout.modelManagement'), icon: markRaw(Setting) },
 ]);
+
+const navigateTo = (tabKey: string) => {
+  router.push(`/dashboard/${tabKey}`);
+};
 
 const handleLogout = () => {
   authStore.signOut();
@@ -156,9 +162,10 @@ const handleLogout = () => {
 /* ---- 品牌文字 ---- */
 .brand-text {
   margin: 0;
-  font-size: 20px;
+  font-family: 'DongFangDaKai', sans-serif;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   cursor: pointer;
   user-select: none;
   position: relative;

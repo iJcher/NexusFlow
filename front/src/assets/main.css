@@ -1,5 +1,14 @@
 /* NexusFlow Dark Theme — 覆盖 Element Plus 根变量 + 组件样式 */
 
+@font-face {
+  font-family: 'DongFangDaKai';
+  src: url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff2') format('woff2'),
+       url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   /* 自定义变量 */
   --nf-bg-base: #0d1117;
