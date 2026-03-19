@@ -468,15 +468,24 @@ body {
 .el-dropdown-menu {
   background-color: #161b22 !important;
   border-color: #21262d !important;
+  --el-dropdown-menuItem-hover-fill: #1c2128;
+  --el-dropdown-menuItem-hover-color: #00d4aa;
 }
 
 .el-dropdown-menu__item {
   color: #e7e9ea !important;
+  background-color: transparent !important;
 }
 
-.el-dropdown-menu__item:hover {
+.el-dropdown-menu__item:hover,
+.el-dropdown-menu__item:focus {
   background-color: #1c2128 !important;
   color: #00d4aa !important;
+}
+
+.el-dropdown-menu__item.is-disabled {
+  color: #484f58 !important;
+  background-color: transparent !important;
 }
 
 /* ===== LogicFlow 节点样式 ===== */
