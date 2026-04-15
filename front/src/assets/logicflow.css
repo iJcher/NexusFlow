@@ -1,0 +1,95 @@
+/* LogicFlow node styles (global, used by innerHTML rendering) */
+
+.dify-node {
+  background: var(--nf-bg-card);
+  border: 1.5px solid var(--nf-border);
+  border-radius: 10px;
+  box-shadow: var(--nf-shadow);
+  padding: 12px;
+  min-width: 200px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  transition: all 0.15s ease;
+}
+
+.dify-node:hover {
+  box-shadow: var(--nf-shadow-md);
+  border-color: var(--nf-border-light);
+}
+
+.dify-node.selected {
+  border-color: var(--nf-accent) !important;
+  box-shadow: 0 0 0 3px var(--nf-accent-muted) !important;
+}
+
+.node-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.node-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.node-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--nf-text-primary);
+  flex: 1;
+}
+
+.node-badge {
+  background: var(--nf-accent-muted);
+  color: var(--nf-accent);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-weight: 600;
+  border: 1px solid var(--nf-accent-muted);
+}
+
+.node-info {
+  font-size: 12px;
+  color: var(--nf-text-secondary);
+  margin-bottom: 4px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.node-info:last-child { margin-bottom: 0; }
+
+.info-text {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.start-node { border-color: #2dd4bf; }
+.start-node .node-icon { background: linear-gradient(135deg, #2dd4bf, #06b6d4); color: white; }
+
+.reply-node { border-color: #0891b2; }
+.reply-node .node-icon { background: linear-gradient(135deg, #0891b2, #0e7490); color: white; }
+
+.condition-node { border-color: #f59e0b; }
+.condition-node .node-icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+
+.assign-variable-node { border-color: #38bdf8; }
+.assign-variable-node .node-icon { background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; }
+
+.llm-node { border-color: #06b6d4; }
+.llm-node .node-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+
+.jscode-node { border-color: #f59e0b; }
+.jscode-node .node-icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+
+.http-node { border-color: #818cf8; }
+.http-node .node-icon { background: linear-gradient(135deg, #818cf8, #6366f1); color: white; }

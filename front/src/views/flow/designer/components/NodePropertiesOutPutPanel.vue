@@ -1,8 +1,8 @@
 <template>
   <!-- 使用与property-group相同的结构 -->
   <div v-if="hasOutput" class="mb-4">
-    <div class="flex-between mb-3">
-      <h4 class="m-0 text-3.5 font-600 text-nf-text-primary leading-5 pb-1.5 border-b border-nf-border flex-1">{{ t('flowComponents.nodeOutput') }}</h4>
+    <div class="flex-between mb-2.5">
+      <h4 class="m-0 text-11px font-600 uppercase tracking-0.6px text-nf-text-muted leading-4 flex-1">{{ t('flowComponents.nodeOutput') }}</h4>
       <el-button
         v-if="isEditable"
         type="primary"
@@ -215,7 +215,6 @@ const validateOutputName = (index: number) => {
 </script>
 
 <style scoped>
-/* 使用与NodePropertiesPanel相同的样式 */
 .property-group {
   margin-bottom: 16px;
 }
@@ -231,10 +230,10 @@ const validateOutputName = (index: number) => {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #e7e9ea;
+  color: var(--nf-text-primary);
   line-height: 20px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #21262d;
+  border-bottom: 1px solid var(--nf-border);
   flex: 1;
 }
 
@@ -250,7 +249,6 @@ const validateOutputName = (index: number) => {
   gap: 12px;
 }
 
-/* 属性名区域 - 更宽 */
 .output-name {
   flex: 1;
   min-width: 0;
@@ -261,7 +259,7 @@ const validateOutputName = (index: number) => {
 .output-name span {
   width: 100%;
   font-size: 13px;
-  color: #8b949e;
+  color: var(--nf-text-secondary);
 }
 
 .output-name :deep(.el-input) {
@@ -278,7 +276,6 @@ const validateOutputName = (index: number) => {
   line-height: 28px;
 }
 
-/* 类型选择区域 - 更窄 */
 .output-type {
   width: 140px;
   flex-shrink: 0;
@@ -289,12 +286,12 @@ const validateOutputName = (index: number) => {
 .output-type-badge {
   display: inline-block;
   font-size: 12px;
-  color: #00d4aa;
+  color: var(--nf-accent);
   padding: 2px 8px;
-  background: rgba(0, 212, 170, 0.15);
-  border: 1px solid #21262d;
+  background: var(--nf-accent-muted);
+  border: 1px solid var(--nf-border);
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
 .output-type :deep(.el-select) {
@@ -314,28 +311,27 @@ const validateOutputName = (index: number) => {
 .empty-state {
   padding: 12px;
   text-align: center;
-  background: #161b22;
-  border-radius: 4px;
+  background: var(--nf-bg-card);
+  border-radius: 6px;
 }
 
 .empty-text {
   font-size: 12px;
-  color: #484f58;
+  color: var(--nf-text-muted);
 }
 
-/* 错误提示 */
 .error-tips {
   margin-top: 8px;
   padding: 8px 12px;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid #21262d;
-  border-radius: 4px;
+  background: var(--nf-danger-muted);
+  border: 1px solid var(--nf-border);
+  border-radius: 6px;
 }
 
 .error-text {
   display: block;
   font-size: 12px;
-  color: #f56c6c;
+  color: var(--nf-danger);
   line-height: 1.6;
   margin-bottom: 4px;
 }
@@ -344,18 +340,17 @@ const validateOutputName = (index: number) => {
   margin-bottom: 0;
 }
 
-/* 输入框错误状态 */
 .output-name :deep(.el-input.is-error .el-input__wrapper) {
-  border-color: #f56c6c !important;
-  box-shadow: 0 0 0 1px #f56c6c inset !important;
+  border-color: var(--nf-danger) !important;
+  box-shadow: 0 0 0 1px var(--nf-danger) inset !important;
 }
 
 .output-name :deep(.el-input.is-error .el-input__wrapper:hover) {
-  border-color: #f56c6c !important;
+  border-color: var(--nf-danger) !important;
 }
 
 .output-name :deep(.el-input.is-error .el-input__wrapper.is-focus) {
-  border-color: #f56c6c !important;
-  box-shadow: 0 0 0 1px #f56c6c inset !important;
+  border-color: var(--nf-danger) !important;
+  box-shadow: 0 0 0 1px var(--nf-danger) inset !important;
 }
 </style>

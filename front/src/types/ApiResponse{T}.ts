@@ -2,7 +2,7 @@
  * 通用API响应类型
  * @template T - 响应数据的类型
  */
-export type TApiResponse<T = any> = {
+export type TApiResponse<T = unknown> = {
   /** 错误码，0表示成功 */
   errCode: number;
   /** 响应数据 */
@@ -17,7 +17,7 @@ export type TApiResponse<T = any> = {
  * 分页数据类型
  * @template T - 分页项的类型
  */
-export interface Paged<T = any> {
+export interface Paged<T = unknown> {
   items: T[]
   total: number
 }

@@ -1,24 +1,3 @@
-<!--
-  VariableSelector - 变量选择器组件
-  
-  作用：
-  通用的变量选择对话框组件，用于在表达式编辑器中选择变量、参数、系统变量和节点输出。
-  样式参考 Dify，支持搜索、分组显示和图标标识。
-  
-  支持的变量类型：
-  - 节点输出：其他节点的输出变量
-  - 输入参数：流程的输入参数
-  - 会话变量：流程中定义的变量
-  - 系统变量：系统预定义的变量
-  
-  使用方式：
-  ```vue
-  <VariableSelector
-    v-model:visible="selectorVisible"
-    @select="handleVariableSelect"
-  />
-  ```
--->
 <template>
   <el-dialog
     v-model="visible"
@@ -47,7 +26,7 @@
         <div v-for="nodeGroup in filteredNodeOutputGroups" :key="nodeGroup.nodeId" class="node-output-group">
           <!-- 节点名称（不可选） -->
           <div class="node-group-title">
-            <span class="node-icon-small">■</span>
+            <el-icon :size="12" class="node-icon-small"><Promotion /></el-icon>
             <span class="node-name-text">{{ nodeGroup.nodeName }}</span>
           </div>
           <!-- 节点输出属性（可选） -->
@@ -58,7 +37,7 @@
             @click="handleSelect(output)"
           >
             <div class="variable-info">
-              <span class="variable-icon node-icon">{x}</span>
+              <el-icon class="variable-icon node-icon" :size="12"><Connection /></el-icon>
               <span class="variable-name">{{ output.outputName }}</span>
             </div>
             <span class="variable-type">{{ output.type }}</span>
@@ -76,7 +55,7 @@
           @click="handleSelect({ key: variable.name, label: variable.name, type: getVariableTypeLabel(variable.typeName), category: 'input' })"
         >
           <div class="variable-info">
-            <span class="variable-icon input-icon">{x}</span>
+            <el-icon class="variable-icon input-icon" :size="12"><Document /></el-icon>
             <span class="variable-name">{{ variable.name }}</span>
           </div>
           <span class="variable-type">{{ getVariableTypeLabel(variable.typeName) }}</span>
@@ -93,7 +72,7 @@
           @click="handleSelect({ key: variable.name, label: variable.name, type: getVariableTypeLabel(variable.typeName), category: 'session' })"
         >
           <div class="variable-info">
-            <span class="variable-icon session-icon">↗</span>
+            <el-icon class="variable-icon session-icon" :size="12"><Collection /></el-icon>
             <span class="variable-name">{{ variable.name }}</span>
           </div>
           <span class="variable-type">{{ getVariableTypeLabel(variable.typeName) }}</span>
@@ -110,7 +89,7 @@
           @click="handleSelect(variable)"
         >
           <div class="variable-info">
-            <span class="variable-icon system-icon">⊙</span>
+            <el-icon class="variable-icon system-icon" :size="12"><Setting /></el-icon>
             <span class="variable-name">{{ variable.label }}</span>
           </div>
           <span class="variable-type">{{ variable.type }}</span>
@@ -118,10 +97,7 @@
       </div>
 
       <!-- 空状态 -->
-      <div v-if="isEmpty" class="empty-state">
-        <span class="empty-icon">🔍</span>
-        <p class="empty-text">{{ t('flowComponents.noVariableFound') }}</p>
-      </div>
+      <el-empty v-if="isEmpty" :description="t('flowComponents.noVariableFound')" :image-size="64" />
     </div>
 
   </el-dialog>
@@ -130,7 +106,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Search } from '@element-plus/icons-vue';
+import { Search, Promotion, Connection, Document, Collection, Setting } from '@element-plus/icons-vue';
 import { useFlowDesignerStore } from '@/stores/flowDesigner';
 import type { AnyVariable, VariableItemType } from '@/types/flow-designer/Parameters/Variable';
 
@@ -309,15 +285,9 @@ watch(visible, (newValue) => {
 .variable-selector-dialog {
   :deep(.el-dialog__header) {
     padding: 16px 20px;
-    border-bottom: 1px solid #21262d;
-    
-    .el-dialog__title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #e7e9ea;
-    }
+    border-bottom: 1px solid var(--nf-border);
   }
-  
+
   :deep(.el-dialog__body) {
     padding: 0;
     overflow: hidden;
@@ -328,103 +298,68 @@ watch(visible, (newValue) => {
 
 .search-container {
   padding: 16px 20px;
-  border-bottom: 1px solid #21262d;
-  
-  .search-input {
-    :deep(.el-input__wrapper) {
-      background: #161b22;
-      box-shadow: none;
-      border: 1px solid #21262d;
-      
-      &:hover {
-        border-color: #2f3336;
-      }
-      
-      &.is-focus {
-        border-color: #00d4aa;
-        background: #1c2128;
-      }
-    }
-  }
+  border-bottom: 1px solid var(--nf-border);
 }
 
 .variable-list {
   max-height: 500px;
   overflow-y: auto;
   padding: 12px 0;
-  
+
   .variable-group {
     margin-bottom: 16px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-    
+
+    &:last-child { margin-bottom: 0; }
+
     .group-title {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
-      color: #8b949e;
+      color: var(--nf-text-muted);
       text-transform: uppercase;
-      padding: 8px 20px 8px 20px;
+      padding: 8px 20px;
       letter-spacing: 0.5px;
     }
-    
-    // 节点输出分组容器
+
     .node-output-group {
       margin-bottom: 12px;
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
-      // 节点名称标题（不可选）
+      &:last-child { margin-bottom: 0; }
+
       .node-group-title {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 8px 20px;
-        background: rgba(0, 212, 170, 0.08);
-        border-left: 3px solid #00d4aa;
-        
+        background: var(--nf-accent-muted);
+        border-left: 3px solid var(--nf-accent);
+
         .node-icon-small {
-          color: #00d4aa;
-          font-size: 10px;
+          color: var(--nf-accent);
         }
-        
+
         .node-name-text {
           font-size: 13px;
           font-weight: 600;
-          color: #e7e9ea;
+          color: var(--nf-text-primary);
         }
       }
     }
-    
+
     .variable-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 10px 20px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      
-      &:hover {
-        background: rgba(0, 212, 170, 0.08);
-      }
-      
-      &:active {
-        background: rgba(0, 212, 170, 0.12);
-      }
-      
-      // 嵌套的变量项（节点输出属性）
+      transition: background-color 0.15s ease;
+
+      &:hover { background: var(--nf-accent-muted); }
+
       &.variable-item-nested {
-        padding-left: 48px; // 增加左侧缩进
-        background: #1c2128;
-        
-        &:hover {
-          background: rgba(0, 212, 170, 0.08);
-        }
+        padding-left: 48px;
+        background: var(--nf-bg-elevated);
+        &:hover { background: var(--nf-accent-muted); }
       }
-      
+
       .variable-info {
         display: flex;
         align-items: center;
@@ -432,7 +367,7 @@ watch(visible, (newValue) => {
         flex: 1;
         min-width: 0;
       }
-      
+
       .variable-icon {
         flex-shrink: 0;
         width: 20px;
@@ -440,92 +375,61 @@ watch(visible, (newValue) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
-        font-weight: 600;
         border-radius: 4px;
-        
+
         &.node-icon {
-          color: #00d4aa;
-          background: rgba(0, 212, 170, 0.15);
-          border: 1px solid #21262d;
+          color: var(--nf-accent);
+          background: var(--nf-accent-muted);
+          border: 1px solid var(--nf-border);
         }
-        
+
         &.input-icon {
-          color: #00b4d8;
-          background: rgba(0, 180, 216, 0.15);
-          border: 1px solid #21262d;
+          color: var(--nf-accent2);
+          background: rgba(8, 145, 178, 0.12);
+          border: 1px solid var(--nf-border);
         }
-        
+
         &.session-icon {
-          color: #00b4d8;
-          background: rgba(0, 180, 216, 0.15);
-          border: 1px solid #21262d;
+          color: var(--nf-accent2);
+          background: rgba(8, 145, 178, 0.12);
+          border: 1px solid var(--nf-border);
         }
-        
+
         &.system-icon {
-          color: #dc2626;
-          background: rgba(220, 38, 38, 0.15);
-          border: 1px solid #21262d;
+          color: var(--nf-danger);
+          background: var(--nf-danger-muted);
+          border: 1px solid var(--nf-border);
         }
       }
-      
+
       .variable-name {
         flex: 1;
         font-size: 13px;
         font-weight: 500;
-        color: #e7e9ea;
+        color: var(--nf-text-primary);
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      
+
       .variable-type {
         flex-shrink: 0;
         font-size: 12px;
-        color: #484f58;
+        color: var(--nf-text-muted);
         font-weight: 400;
         margin-left: 12px;
       }
     }
   }
-  
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 20px;
-    
-    .empty-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-      opacity: 0.5;
-    }
-    
-    .empty-text {
-      font-size: 14px;
-      color: #484f58;
-      margin: 0;
-    }
-  }
+
 }
 
-// 滚动条样式
-.variable-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.variable-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+.variable-list::-webkit-scrollbar { width: 4px; }
+.variable-list::-webkit-scrollbar-track { background: transparent; }
 .variable-list::-webkit-scrollbar-thumb {
-  background: #2f3336;
-  border-radius: 3px;
-  
-  &:hover {
-    background: #484f58;
-  }
+  background: var(--nf-scrollbar);
+  border-radius: 2px;
+  &:hover { background: var(--nf-scrollbar-hover); }
 }
 </style>

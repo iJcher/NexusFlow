@@ -5,7 +5,7 @@
     @visible-change="handleVisibleChange"
   >
     <el-button class="flex items-center gap-1 font-500 text-nf-text-primary" :loading="isLoading" text>
-      运行日志
+      {{ t('flowDesigner.executionLog') }}
       <el-icon class="el-icon--right">
         <ArrowDown />
       </el-icon>
@@ -21,21 +21,21 @@
           >
             <div class="flex flex-col gap-1.5">
               <div class="flex-between text-sm text-nf-text-primary">
-                <span class="font-600">{{ log.displayName || '未命名运行' }}</span>
+                <span class="font-600">{{ log.displayName || t('flowDesigner.unnamedRun') }}</span>
                 <el-tag size="small" :type="log.isSuccess ? 'success' : 'danger'">
-                  {{ log.isSuccess ? '成功' : '失败' }}
+                  {{ log.isSuccess ? t('common.success') : t('common.failed') }}
                 </el-tag>
               </div>
               <div class="flex flex-col text-3 text-nf-text-secondary gap-0.5">
                 <span>{{ formatDatetime(log.createdTime) }}</span>
-                <span>耗时：{{ formatDuration(log.runDurationMs) }}</span>
-                <span>用户：{{ log.runUser || '系统' }}</span>
+                <span>{{ t('flowDesigner.duration') }}{{ formatDuration(log.runDurationMs) }}</span>
+                <span>{{ t('flowDesigner.user') }}{{ log.runUser || t('flowDesigner.system') }}</span>
               </div>
             </div>
           </el-dropdown-item>
         </template>
         <el-dropdown-item v-else disabled class="text-nf-text-muted cursor-default">
-          暂无运行日志
+          {{ t('flowDesigner.noExecutionLogs') }}
         </el-dropdown-item>
       </el-dropdown-menu>
     </template>
@@ -88,12 +88,12 @@ const fetchExecutionLogs = async () => {
       executionLogs.value = response.data ?? [];
     } else {
       executionLogs.value = [];
-      ElMessage.error(response.errMsg || '获取运行日志失败');
+      ElMessage.error(response.errMsg || t('flowDesigner.fetchLogsFailed'));
     }
   } catch (error) {
-    console.error('获取运行日志失败:', error);
+    console.error('Fetch execution logs failed:', error);
     executionLogs.value = [];
-    ElMessage.error('获取运行日志失败');
+    ElMessage.error(t('flowDesigner.fetchLogsFailed'));
   } finally {
     isLoading.value = false;
   }
@@ -101,7 +101,7 @@ const fetchExecutionLogs = async () => {
 
 const openRunLogWindow = (logId: number) => {
   if (!hasFlowId.value) {
-    ElMessage.warning('请先保存流程');
+    ElMessage.warning(t('flowDesigner.saveFlowFirst'));
     return;
   }
 

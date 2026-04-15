@@ -12,7 +12,7 @@ export interface NodeConfig {
   icon: string;           // Element Plus 图标组件名
   category: string;       // 节点分类（用于过滤）
   description: string;    // 节点描述
-  nodeClass?: any;        // 节点类（延迟加载）
+  nodeClass?: { type: string; view: unknown; model: unknown };
 }
 
 // 节点分类
@@ -77,6 +77,13 @@ export const ALL_NODES: NodeConfig[] = [
     category: NodeCategory.AI,
     description: 'Send reply message',
   },
+  {
+    typeName: 'ResultNode',
+    name: 'Result',
+    icon: 'Promotion',
+    category: NodeCategory.BASIC,
+    description: 'Run workflow and show real-time result',
+  },
   // {
   //   typeName: 'KnowledgeNode',
   //   name: 'Knowledge',
@@ -117,14 +124,10 @@ export const APPROVAL_FLOW_NODES = ALL_NODES.filter(node =>
   [NodeCategory.BASIC, NodeCategory.APPROVAL].includes(node.category as NodeCategory)
 );
 
-// 流程类型
-export type FlowType = 'logic' | 'ai' | 'approval';
+export type FlowTypeKey = 'logic' | 'ai' | 'approval';
 
-/**
- * 根据流程类型获取可用节点配置
- */
-export function getAvailableNodes(flowType: FlowType): NodeConfig[] {
-  const nodeMap: Record<FlowType, NodeConfig[]> = {
+export function getAvailableNodes(flowType: FlowTypeKey): NodeConfig[] {
+  const nodeMap: Record<FlowTypeKey, NodeConfig[]> = {
     'logic': LOGIC_FLOW_NODES,
     'ai': AI_FLOW_NODES,
     'approval': APPROVAL_FLOW_NODES,
@@ -167,4 +170,5 @@ export const ICON_COMPONENTS = {
   'Collection': 'Collection',
   'CircleCheck': 'CircleCheck',
   'Bell': 'Bell',
+  'Promotion': 'Promotion',
 };

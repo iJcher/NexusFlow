@@ -6,9 +6,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/home/index.vue'),
-      meta: { layout: 'simple', requiresAuth: false }
+      redirect: '/about'
     },
     {
       path: '/login',
@@ -17,34 +15,48 @@ const router = createRouter({
       meta: { layout: 'simple', requiresAuth: false }
     },
     {
-      path: '/dashboard',
+      path: '/about',
+      name: 'about',
       component: () => import('@/layouts/AdminLayout.vue'),
-      meta: { layout: 'none', requiresAuth: true },
-      redirect: '/dashboard/ai-flow',
+      meta: { requiresAuth: true },
       children: [
-        {
-          path: 'logic-flow',
-          name: 'logicFlow',
-          component: () => import('@/views/dashboard/flow-list/index.vue'),
-          props: { flowType: 'logic' }
-        },
-        {
-          path: 'ai-flow',
-          name: 'aiFlow',
-          component: () => import('@/views/dashboard/flow-list/index.vue'),
-          props: { flowType: 'ai' }
-        },
-        {
-          path: 'approval-flow',
-          name: 'approvalFlow',
-          component: () => import('@/views/dashboard/flow-list/index.vue'),
-          props: { flowType: 'approval' }
-        },
-        {
-          path: 'llm-provider',
-          name: 'llmProvider',
-          component: () => import('@/views/dashboard/llm-provider/index.vue')
-        }
+        { path: '', component: () => import('@/views/about/index.vue') }
+      ]
+    },
+    {
+      path: '/studio',
+      name: 'studio',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/studio/index.vue') }
+      ]
+    },
+    {
+      path: '/templates',
+      name: 'templates',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/templates/index.vue') }
+      ]
+    },
+    {
+      path: '/knowledge',
+      name: 'knowledge',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/knowledge/index.vue') }
+      ]
+    },
+    {
+      path: '/models',
+      name: 'models',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/dashboard/llm-provider/index.vue') }
       ]
     },
     {

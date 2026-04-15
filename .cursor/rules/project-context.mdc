@@ -1,0 +1,88 @@
+---
+description: 项目背景、学习目标和开发约定，每次对话自动加载
+globs:
+  - "**/*"
+---
+
+# NexusFlow 项目上下文
+
+## 关于我
+
+- 前端开发者，熟悉 Vue 3 + TypeScript + Composition API
+- 正在系统学习后端开发（NestJS + Prisma）
+- 这个项目是我准备放在简历上的作品，为了做到知根知底，我选择从零手动复现整个项目
+
+## 项目说明
+
+NexusFlow 是一个**可视化工作流编辑器 + AI 对话运行时**（类似 Dify），支持在画布上设计工作流图，通过 SSE 流式执行并以 Chat 形式呈现结果。
+
+### 目录结构
+
+```
+NexusFlow/
+├── front/                  ← 原始前端源码（Vue 3 + LogicFlow 画布）
+├── backend-node/           ← 原始后端源码（NestJS + Prisma v6 + SQLite）
+├── myfront/                ← 我正在复刻的前端
+│   └── practice_workflow/  ← 前端练习项目
+├── mybackend/              ← 我正在复刻的后端
+│   └── workflow-test/      ← 后端练习项目（NestJS + Prisma v7 + PostgreSQL）
+└── .cursor/
+```
+
+- `front/` 和 `backend-node/` 是**参考源码**，不要修改
+- 以 `my` 开头的目录是**我正在复刻的代码**，所有开发工作在这里进行
+
+### 原始项目已完成的功能
+
+- 用户认证（手机号注册/登录 + JWT）
+- 工作流 CRUD（逻辑流/AI流/审批流，flowType 0/1/2）
+- 可视化流程设计器（LogicFlow 画布 + 节点属性面板 + 表达式编辑器）
+- 工作流运行时引擎（SSE 流式执行）
+- 节点类型：Start、End、Condition、AssignVariable、JSCode、HTTP、LLM、Reply
+- LLM 供应商管理（平台名称、模型列表、API URL/Key）
+- 对话/消息持久化（会话列表、历史消息、置顶/重命名/删除）
+- Chat 测试页面（流式对话、文件附件）
+
+### 原始项目未完成的功能
+
+- 审批流节点（前端节点配置已注释，后端无 ApprovalNode）
+- 知识库节点（前端已注释，后端未实现）
+- 执行日志（前端有 API 调用，后端缺路由和数据表）
+
+## 我的复刻进度
+
+### 后端（mybackend/workflow-test/）
+- [x] NestJS 项目创建
+- [x] Prisma v7 + PostgreSQL 配置
+- [x] User model + PrismaService + UsersService
+- [x] createUser 接口（POST /createUser）
+- [x] Apifox 测试通过
+- [ ] 补全 User CRUD 接口（GET/PUT/DELETE）
+- [ ] 按模块拆分目录结构
+- [ ] 用户认证（注册/登录/JWT）
+- [ ] 工作流模块
+- [ ] 工作流运行时引擎
+- [ ] LLM 供应商模块
+- [ ] 对话/消息模块
+
+### 前端（myfront/practice_workflow/）
+- [x] Vite + Vue 3 + TypeScript 项目创建
+- [ ] 尚未开始业务开发
+
+## 开发环境
+
+- Windows 10（10.0.26200）
+- Node.js v24.13.0
+- 包管理器：pnpm
+- 没有 Visual Studio Build Tools（原生 C++ 模块编译会失败，避免使用 better-sqlite3 等原生包）
+- Prisma v7 使用 `pnpx prisma dev` 启动本地 PostgreSQL，开发时需要保持该终端开着
+- 数据库同步使用 `pnpx prisma db push`（不用 migrate dev，因为影子数据库配置有兼容问题）
+
+## 交互偏好
+
+- 回答用中文
+- 使用 pnpm 运行终端命令
+- 引导式学习：一步步教我，不要直接帮我写完所有代码
+- 解释要说清楚「为什么这么做」，不要只给命令和代码
+- 遇到新概念时先解释原理，再给出实践步骤
+- 我可以参考 `front/` 和 `backend-node/` 的源码来理解原始实现

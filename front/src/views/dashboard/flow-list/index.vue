@@ -5,16 +5,17 @@
 <template>
   <div class="nf-page">
     <div class="nf-page-header">
-      <h2 class="nf-page-title">{{ t(`nav.${flowTypeMap[props.flowType]}`) }}</h2>
+      <div>
+        <h2 class="nf-page-title">{{ t(`nav.${flowTypeMap[props.flowType]}`) }}</h2>
+        <p class="nf-page-subtitle">{{ t('flowList.subtitle') }}</p>
+      </div>
       <el-button type="primary" :icon="Plus" @click="createFlow">{{ t(`flowList.create${flowTypeMap[props.flowType].charAt(0).toUpperCase() + flowTypeMap[props.flowType].slice(1)}`) }}</el-button>
     </div>
 
-    <el-card class="nf-card rounded-1" shadow="never">
-      <template #default>
+    <div class="nf-card overflow-hidden">
         <el-table 
           :data="flowList" 
           v-loading="loading"
-          stripe
           style="width: 100%"
           @row-dblclick="handleRowDblClick"
         >
@@ -76,10 +77,9 @@
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
-          class="flex justify-end p-4 bg-nf-card border-t border-nf-border"
+          class="flex justify-end p-4 border-t border-nf-border"
         />
-      </template>
-    </el-card>
+    </div>
 
     <el-dialog 
       v-model="dialogVisible" 
@@ -358,10 +358,6 @@ watch(() => t('flowList.id'), () => {});
 </script>
 
 <style scoped>
-:deep(.el-card__body) {
-  padding: 0;
-}
-
 :deep(.el-table__row) {
   cursor: pointer;
 }

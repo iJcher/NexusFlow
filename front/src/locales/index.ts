@@ -33,10 +33,9 @@ const i18n = createI18n({
   globalInjection: true
 })
 
-// Element Plus 语言映射
-export const elementLocales: Record<Language, any> = {
+export const elementLocales: Record<Language, typeof zhCnElementPlus> = {
   'zh-CN': zhCnElementPlus,
-  'en-US': enElementPlus
+  'en-US': enElementPlus,
 }
 
 // 切换语言的辅助函数

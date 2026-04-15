@@ -13,7 +13,7 @@ export interface FlowNode {
   type: string;
   x: number;
   y: number;
-  properties: NodeBase & Record<string, any>;
+  properties: NodeBase;
 }
 
 // 连接线数据接口
@@ -243,19 +243,18 @@ export const useFlowDesignerStore = defineStore('flowDesigner', () => {
         y: node.y,
         properties: node.properties
       })),
-      edges: currentFlow.value.edges.map(edge => {
-        const edgeData: any = {
+      edges: currentFlow.value.edges.map((edge) => {
+        const edgeData: Record<string, unknown> = {
           id: edge.id,
           sourceNodeId: edge.sourceNodeId,
-          targetNodeId: edge.targetNodeId
+          targetNodeId: edge.targetNodeId,
         };
-        
-        // 只有当锚点信息存在时才添加（避免undefined导致LogicFlow报错）
+
         if (edge.sourceAnchorId) edgeData.sourceAnchorId = edge.sourceAnchorId;
         if (edge.targetAnchorId) edgeData.targetAnchorId = edge.targetAnchorId;
         if (edge.startPoint) edgeData.startPoint = edge.startPoint;
         if (edge.endPoint) edgeData.endPoint = edge.endPoint;
-        
+
         return edgeData;
       })
     };
@@ -264,25 +263,25 @@ export const useFlowDesignerStore = defineStore('flowDesigner', () => {
   /**
    * 从LogicFlow数据同步到状态管理
    */
-  const syncFromLogicFlow = (data: { nodes: any[]; edges: any[] }) => {
+  const syncFromLogicFlow = (data: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
     if (!currentFlow.value) return;
-    
-    // 同步节点数据
+
     currentFlow.value.nodes = data.nodes.map(node => ({
       id: node.id,
       type: node.type,
       x: node.x,
       y: node.y,
-      properties: node.properties || {}
+      properties: node.properties || {} as NodeBase,
     }));
-    
-    // 同步连接线数据
+
     currentFlow.value.edges = data.edges.map(edge => ({
       id: edge.id,
       sourceNodeId: edge.sourceNodeId,
       targetNodeId: edge.targetNodeId,
+      sourceAnchorId: edge.sourceAnchorId,
+      targetAnchorId: edge.targetAnchorId,
       startPoint: edge.startPoint,
-      endPoint: edge.endPoint
+      endPoint: edge.endPoint,
     }));
   };
 

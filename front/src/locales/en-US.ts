@@ -23,16 +23,40 @@ export default {
     status: 'Status',
     actions: 'Actions',
     createdTime: 'Created Time',
-    updatedTime: 'Updated Time'
+    updatedTime: 'Updated Time',
+    success: 'Success',
+    failed: 'Failed',
+    languageSwitched: 'Language switched',
   },
 
-  // Navigation
+  login: {
+    phonePlaceholder: 'Enter phone number',
+    passwordPlaceholder: 'Enter password',
+    phoneRequired: 'Please enter phone number',
+    phoneInvalid: 'Please enter a valid phone number',
+    passwordRequired: 'Please enter password',
+    passwordMinLength: 'Password must be at least 6 characters',
+    loggingIn: 'Logging in...',
+    registerOrLogin: 'Register / Login',
+    loginSuccess: 'Login successful',
+    welcomeBack: 'Welcome back',
+    formSubtitle: 'Sign in to continue with NexusFlow',
+    brandTagline: 'Visual workflow orchestration platform for seamless AI & business logic',
+    feature1: 'Visual drag-and-drop flow design',
+    feature2: 'Multi-model LLM integration',
+    feature3: 'Real-time chat testing & debugging',
+  },
+
   nav: {
     home: 'Home',
     logicFlow: 'Logic Flow',
     aiFlow: 'AI Flow',
     approvalFlow: 'Approval Flow',
     about: 'About',
+    studio: 'Studio',
+    templates: 'Templates',
+    knowledge: 'Knowledge',
+    models: 'Models',
     llmProvider: 'LLM Provider'
   },
 
@@ -209,7 +233,78 @@ export default {
     user: 'User',
     logout: 'Logout',
     modelManagement: 'Model Management',
-    about: 'About'
+    about: 'About',
+    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.'
+  },
+
+  // Studio
+  studio: {
+    title: 'Workflows',
+    subtitle: 'Manage and orchestrate your workflows',
+    all: 'All',
+    createWorkflow: 'Create Workflow',
+    searchPlaceholder: 'Search workflows...',
+    emptyTitle: 'No workflows yet',
+    emptyDesc: 'Click the create button to build your first workflow',
+    saveAsTemplate: 'Save as Template',
+    saveAsTemplateSuccess: 'Saved as template',
+    createDialog: {
+      title: 'Create Workflow',
+      fromBlank: 'Blank',
+      fromTemplate: 'From Template',
+      selectType: 'Select Flow Type',
+      name: 'Workflow Name',
+      namePlaceholder: 'Enter workflow name',
+      description: 'Description',
+      descPlaceholder: 'Enter workflow description',
+      nameRequired: 'Please enter workflow name',
+    },
+    card: {
+      lastModified: 'Last modified',
+      edit: 'Edit Info',
+      copy: 'Copy',
+      delete: 'Delete',
+    }
+  },
+
+  // Templates
+  templates: {
+    title: 'Templates',
+    subtitle: 'Use preset templates to quickly create workflows',
+    official: 'Official Templates',
+    myTemplates: 'My Templates',
+    useTemplate: 'Use Template',
+    deleteTemplate: 'Delete Template',
+    deleteConfirm: 'Are you sure to delete template "{name}"?',
+    emptyOfficial: 'No official templates',
+    emptyMy: 'No custom templates yet, save workflows as templates from Studio',
+    templateUsed: 'Workflow created from template',
+    preview: 'Preview',
+  },
+
+  // Knowledge
+  knowledge: {
+    title: 'Knowledge Base',
+    subtitle: 'Manage knowledge bases to provide context for AI workflows',
+    create: 'Create Knowledge Base',
+    emptyTitle: 'No knowledge bases',
+    emptyDesc: 'Create a knowledge base to get started',
+    name: 'Knowledge Base Name',
+    namePlaceholder: 'Enter knowledge base name',
+    description: 'Description',
+    descPlaceholder: 'Enter description',
+    nameRequired: 'Please enter knowledge base name',
+    comingSoon: 'Knowledge base feature is coming soon',
+  },
+
+  // About
+  about: {
+    tagline: 'Visual Workflow Orchestration Platform',
+    featuresTitle: 'Core Features',
+    quickstartTitle: 'Quick Start',
+    quickstartSubtitle: 'Create and run your first AI workflow in three steps',
+    flowDemoTitle: 'Flow Demo',
+    flowDemoSubtitle: 'Understand how workflows execute at a glance',
   },
 
   // Flow List
@@ -251,7 +346,8 @@ export default {
     loadFailed: 'Failed to load {type} list',
     invalidFlowId: 'Invalid flow ID',
     unnamedFlow: 'Unnamed Flow',
-    copySuffix: 'Copy'
+    copySuffix: 'Copy',
+    subtitle: 'Manage and orchestrate your workflows'
   },
 
   // Flow Designer
@@ -262,7 +358,11 @@ export default {
     approvalFlowTitle: 'Approval Flow Designer',
     close: 'Close',
     run: 'Run',
+    stop: 'Stop',
     save: 'Save',
+    enterQuery: 'Enter your query...',
+    saveFirst: 'Save flow first',
+    resultWillAppear: 'Result will appear here',
     unnamedFlow: 'Unnamed Flow',
     flowIdNotExist: 'Flow ID does not exist',
     processConfig: 'Process Configuration',
@@ -293,7 +393,17 @@ export default {
     flowSaveSuccess: 'Flow saved successfully',
     saveFlowFailed: 'Failed to save flow',
     nodePropertiesSaved: 'Node properties saved',
-    updateNodePropertiesFailed: 'Failed to update node properties'
+    updateNodePropertiesFailed: 'Failed to update node properties',
+    selectAtLeastTwo: 'Select at least 2 nodes',
+    groupCreated: 'Group created',
+    executionLog: 'Execution Log',
+    unnamedRun: 'Unnamed Run',
+    duration: 'Duration: ',
+    user: 'User: ',
+    system: 'System',
+    noExecutionLogs: 'No execution logs',
+    fetchLogsFailed: 'Failed to fetch execution logs',
+    saveFlowFirst: 'Please save the flow first',
   },
 
   // Flow Chat Test
@@ -457,7 +567,17 @@ export default {
     nodeConfiguration: 'Node Configuration',
     selectNode: 'Please select a node to view properties',
     save: 'Save',
-    
+
+    nodeStart: 'Start',
+    nodeReply: 'Reply',
+    nodeCondition: 'Condition',
+    nodeForLoop: 'For Loop',
+    nodeAssign: 'Assign',
+    nodeLLM: 'LLM',
+    nodeJSCode: 'JS Code',
+    nodeHTTP: 'HTTP',
+    nodeResult: 'Result',
+
     // Node Output Panel
     noOutputDefined: 'No output defined',
     outputType: 'Output Type',
@@ -556,6 +676,7 @@ export default {
   // LLM Provider Management
   llmProviderMgmt: {
     title: 'LLM Provider Management',
+    subtitle: 'Configure and manage LLM API connections',
     add: 'Add Provider',
     edit: 'Edit',
     delete: 'Delete',

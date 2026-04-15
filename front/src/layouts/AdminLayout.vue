@@ -1,85 +1,88 @@
-<!--
-  管理后台布局组件
-  顶部 Tab 栏导航 + 主题色渐变背景 + 光斑点缀
--->
 <template>
   <div class="admin-layout">
-    <!-- 背景光斑装饰 -->
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div class="bg-orb orb-3"></div>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="topbar-left" @click="$router.push('/about')">
+          <img src="@/assets/images/logo.png" alt="NexusFlow" class="topbar-logo" />
 
-    <!-- 顶部导航栏 -->
-    <header class="top-bar">
-      <div class="flex items-center gap-6">
-        <h1 class="brand-text" @click="navigateTo('ai-flow')">
-          <span class="brand-nexus">Nexus</span><span class="brand-flow">Flow</span>
-        </h1>
+        </div>
 
-        <nav class="tab-nav">
-          <button
+        <nav class="topbar-nav">
+          <router-link
             v-for="tab in tabs"
-            :key="tab.key"
-            :class="['tab-item', { active: activeTab === tab.key }]"
-            @click="navigateTo(tab.key)"
+            :key="tab.path"
+            :to="tab.path"
+            :class="['nav-tab', { active: isActive(tab.path) }]"
           >
             <el-icon :size="16"><component :is="tab.icon" /></el-icon>
             <span>{{ tab.label }}</span>
-          </button>
+          </router-link>
         </nav>
-      </div>
 
-      <div class="flex items-center gap-3">
-        <LanguageSwitcher />
-        <span class="text-sm text-[#c9d1d9]">{{ userInfo?.name || t('layout.user') }}</span>
-        <el-button type="danger" size="small" @click="handleLogout">
-          {{ t('layout.logout') }}
-        </el-button>
+        <div class="topbar-right">
+          <ThemeToggle />
+          <LanguageSwitcher />
+          <el-dropdown trigger="click" @command="handleCommand">
+            <div class="user-avatar">
+              {{ (userInfo?.name || 'U').charAt(0).toUpperCase() }}
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  {{ userInfo?.name || t('layout.user') }}
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  {{ t('layout.logout') }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </div>
     </header>
 
-    <!-- 主内容区域 -->
     <main class="main-content">
       <router-view />
     </main>
+
+    <footer class="app-footer">
+      <span>{{ t('layout.copyright') }}</span>
+    </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
-import { useAuthStore } from '@/stores/auth';
-import { Share, MagicStick, CircleCheck, Setting } from '@element-plus/icons-vue';
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
+import { computed, markRaw } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
+import { InfoFilled, DataBoard, Files, Collection, Setting, SwitchButton } from '@element-plus/icons-vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
-const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
-const activeTab = computed(() => {
-  const path = route.path;
-  const tab = tabs.value.find(t => path.endsWith(t.key));
-  return tab?.key ?? 'ai-flow';
-});
-
-const userInfo = computed(() => authStore.getLoginUserInfo);
+const userInfo = computed(() => authStore.getLoginUserInfo)
 
 const tabs = computed(() => [
-  { key: 'logic-flow', label: t('nav.logicFlow'), icon: markRaw(Share) },
-  { key: 'ai-flow', label: t('nav.aiFlow'), icon: markRaw(MagicStick) },
-  { key: 'approval-flow', label: t('nav.approvalFlow'), icon: markRaw(CircleCheck) },
-  { key: 'llm-provider', label: t('layout.modelManagement'), icon: markRaw(Setting) },
-]);
+  { path: '/about', label: t('nav.about'), icon: markRaw(InfoFilled) },
+  { path: '/studio', label: t('nav.studio'), icon: markRaw(DataBoard) },
+  { path: '/templates', label: t('nav.templates'), icon: markRaw(Files) },
+  { path: '/knowledge', label: t('nav.knowledge'), icon: markRaw(Collection) },
+  { path: '/models', label: t('nav.models'), icon: markRaw(Setting) },
+])
 
-const navigateTo = (tabKey: string) => {
-  router.push(`/dashboard/${tabKey}`);
-};
+const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
 
-const handleLogout = () => {
-  authStore.signOut();
-};
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    authStore.signOut()
+  }
+}
 </script>
 
 <style scoped>
@@ -88,177 +91,133 @@ const handleLogout = () => {
   width: 100vw;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(160deg, #080c12 0%, #0d1117 30%, #0a1628 60%, #0d1117 100%);
-  position: relative;
+  background: var(--nf-bg-base);
   overflow: hidden;
 }
 
-/* ---- 背景光斑 ---- */
-.bg-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.orb-1 {
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(0, 212, 170, 0.18) 0%, rgba(0, 212, 170, 0.06) 35%, transparent 65%);
-  top: -200px;
-  left: -100px;
-  animation: orbFloat1 20s ease-in-out infinite;
-}
-
-.orb-2 {
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle, rgba(0, 180, 216, 0.15) 0%, rgba(0, 180, 216, 0.04) 35%, transparent 65%);
-  bottom: -150px;
-  right: -100px;
-  animation: orbFloat2 25s ease-in-out infinite;
-}
-
-.orb-3 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(0, 212, 170, 0.12) 0%, rgba(0, 212, 170, 0.03) 35%, transparent 65%);
-  top: 50%;
-  left: 60%;
-  animation: orbFloat3 18s ease-in-out infinite;
-}
-
-@keyframes orbFloat1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(60px, 40px) scale(1.15); }
-}
-
-@keyframes orbFloat2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-50px, -30px) scale(1.1); }
-}
-
-@keyframes orbFloat3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-40px, 30px) scale(1.2); }
-}
-
-/* ---- 顶部栏 ---- */
-.top-bar {
-  position: relative;
-  z-index: 10;
+/* ── Topbar ── */
+.topbar {
   height: 56px;
+  flex-shrink: 0;
+  background: var(--nf-bg-card);
+  border-bottom: 1px solid var(--nf-border);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-inner {
+  height: 100%;
+  max-width: 100%;
   padding: 0 24px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(13, 17, 23, 0.7);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(33, 38, 45, 0.6);
+  gap: 32px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
   flex-shrink: 0;
 }
 
-/* ---- 品牌文字 ---- */
-.brand-text {
-  margin: 0;
+.topbar-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.topbar-brand {
   font-family: 'DongFangDaKai', sans-serif;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: 1px;
-  cursor: pointer;
-  user-select: none;
-  position: relative;
+  letter-spacing: 0.5px;
 }
 
 .brand-nexus {
-  background: linear-gradient(135deg, #e7e9ea, #c9d1d9);
+  background: var(--nf-brand-nexus-gradient);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .brand-flow {
-  background: linear-gradient(135deg, #00d4aa, #00b4d8);
+  background: var(--nf-brand-flow-gradient);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  position: relative;
 }
 
-.brand-text::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #00d4aa, #00b4d8, transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.brand-text:hover::after {
-  opacity: 1;
-}
-
-/* ---- Tab 导航 ---- */
-.tab-nav {
+/* ── Navigation tabs ── */
+.topbar-nav {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-left: 8px;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
 }
 
-.tab-item {
+.nav-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 16px;
+  padding: 6px 14px;
   border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: #8b949e;
-  font-size: 13.5px;
+  color: var(--nf-text-secondary);
+  font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.25s ease;
+  text-decoration: none;
+  transition: all 0.15s ease;
   white-space: nowrap;
-  position: relative;
 }
 
-.tab-item:hover {
-  color: #e7e9ea;
-  background: rgba(255, 255, 255, 0.04);
+.nav-tab:hover {
+  color: var(--nf-text-primary);
+  background: var(--nf-bg-elevated);
 }
 
-.tab-item.active {
-  color: #00d4aa;
-  background: rgba(0, 212, 170, 0.1);
+.nav-tab.active {
+  color: var(--nf-accent);
+  background: var(--nf-accent-muted);
 }
 
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 2px;
-  background: #00d4aa;
-  border-radius: 1px;
+/* ── Right side ── */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-/* ---- 主内容 ---- */
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--nf-avatar-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nf-avatar-text);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.user-avatar:hover {
+  opacity: 0.85;
+}
+
+/* ── Main content ── */
 .main-content {
-  position: relative;
-  z-index: 1;
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
 }
 
-/* ---- 滚动条 ---- */
 .main-content::-webkit-scrollbar {
   width: 6px;
 }
@@ -268,11 +227,24 @@ const handleLogout = () => {
 }
 
 .main-content::-webkit-scrollbar-thumb {
-  background: rgba(47, 51, 54, 0.6);
+  background: var(--nf-scrollbar);
   border-radius: 3px;
 }
 
 .main-content::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: var(--nf-scrollbar-hover);
+}
+
+/* ── Footer ── */
+.app-footer {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--nf-border);
+  background: var(--nf-bg-card);
+  font-size: 12px;
+  color: var(--nf-text-muted);
 }
 </style>

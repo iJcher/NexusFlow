@@ -9,12 +9,12 @@
     :style="{ left: position.x + 'px', top: position.y + 'px' }"
     @click.stop
   >
-    <div class="nf-context-menu-item hover:bg-nf-elevated" @click="handleAddNode">
-      <span class="mr-2.5 text-4">➕</span>
+    <div class="nf-context-menu-item hover:bg-nf-elevated cursor-pointer" @click="handleAddNode">
+      <el-icon class="mr-2.5 text-nf-accent" aria-hidden="true"><Plus /></el-icon>
       <span>{{ t('flowComponents.addNode') }}</span>
     </div>
     <div class="nf-context-menu-item opacity-50 cursor-not-allowed" @click="handleAddComment">
-      <span class="mr-2.5 text-4">💬</span>
+      <el-icon class="mr-2.5 text-nf-text-muted" aria-hidden="true"><ChatDotRound /></el-icon>
       <span>{{ t('flowComponents.addComment') }}</span>
       <span class="ml-auto text-3 text-nf-text-secondary">({{ t('flowComponents.comingSoon') }})</span>
     </div>
@@ -38,9 +38,9 @@
         class="flex items-start p-3 cursor-pointer transition-all duration-200 border-l-3 border-l-transparent rounded-2.5 hover:bg-nf-elevated hover:border-l-nf-accent"
         @click="handleSelectNode(node.typeName)"
       >
-        <div class="node-item-icon flex-center w-8 h-8 rounded-2 text-4.5 mr-2.5 shrink-0 text-nf-text-primary" :class="getNodeIconClass(node.typeName)">
+        <el-icon class="node-item-icon" :size="20">
           <component :is="getNodeIcon(node.icon)" />
-        </div>
+        </el-icon>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-500 text-nf-text-primary mb-0.5 truncate">{{ node.name }}</div>
           <div class="text-3 text-nf-text-secondary truncate">{{ node.description }}</div>
@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Close } from '@element-plus/icons-vue';
+import { Close, Plus, ChatDotRound } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import type { NodeConfig } from '@/types/flow-designer/nodeConfig';
 import * as ElementPlusIcons from '@element-plus/icons-vue';
@@ -80,19 +80,6 @@ const getNodeIcon = (iconName: string) => {
   return (ElementPlusIcons as any)[iconName] || ElementPlusIcons.Document;
 };
 
-const getNodeIconClass = (typeName: string) => {
-  const classMap: Record<string, string> = {
-    'StartNode': 'start-icon',
-    'ReplyNode': 'reply-icon',
-    'ConditionNode': 'condition-icon',
-    'ForLoopNode': 'forloop-icon',
-    'AssignVariableNode': 'assign-icon',
-    'LLMNode': 'llm-icon',
-    'JSCodeNode': 'jscode-icon',
-    'HttpNode': 'http-icon',
-  };
-  return classMap[typeName] || 'default-icon';
-};
 
 const handleAddNode = () => {
   selectorPosition.value = {
@@ -133,10 +120,10 @@ defineExpose({
 .node-selector {
   position: fixed;
   z-index: 1001;
-  background: #161b22;
-  border: 1px solid #21262d;
+  background: var(--nf-bg-elevated);
+  border: 1px solid var(--nf-border);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--nf-shadow-lg);
   width: 420px;
   max-height: 500px;
   overflow: hidden;
@@ -144,13 +131,9 @@ defineExpose({
   flex-direction: column;
 }
 
-.node-item-icon.start-icon { background: linear-gradient(135deg, #06b6d4 0%, #00d4aa 100%); }
-.node-item-icon.reply-icon { background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%); }
-.node-item-icon.condition-icon { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-.node-item-icon.forloop-icon { background: linear-gradient(135deg, #0ea5e9 0%, #00d4aa 100%); }
-.node-item-icon.assign-icon { background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); }
-.node-item-icon.llm-icon { background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%); }
-.node-item-icon.jscode-icon { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-.node-item-icon.http-icon { background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%); }
-.node-item-icon.default-icon { background: linear-gradient(135deg, #0d2137 0%, #0a3d62 100%); }
+.node-item-icon {
+  color: var(--nf-text-secondary);
+  flex-shrink: 0;
+  margin-right: 10px;
+}
 </style>

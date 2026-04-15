@@ -47,6 +47,6 @@ export enum UserRole {
  * 用户信息
  */
 export type UserInfo = {
-  id: number,
-  phoneNumber: string
+  id: string;
+  phoneNumber: string;
 }

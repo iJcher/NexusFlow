@@ -1,51 +1,54 @@
-<!--
-  节点属性面板组件
-  右侧抽屉式面板，显示选中节点的属性配置
--->
 <template>
-  <el-drawer
-    :model-value="visible"
-    :title="t('flowComponents.nodeProperties')"
-    direction="rtl"
-    size="680px"
-    :before-close="handleClose"
-    class="node-properties-drawer"
-    @update:model-value="$emit('update:visible', $event)"
-  >
-    <div v-if="flowStore.selectedNode" class="p-4 h-full flex flex-col">
-      <!-- 节点基本信息 -->
-      <div class="mb-3 px-4 py-2 bg-nf-card rounded-2 border border-nf-border">
-        <div class="flex items-center gap-2">
-          <div class="node-icon flex-center w-8 h-8 rounded-1.5 text-nf-text-primary text-4" :class="getNodeIconClass(flowStore.selectedNode.type)">
+  <Transition name="cfg-slide">
+    <aside
+      v-if="visible"
+      class="cfg-panel"
+      role="complementary"
+      :aria-label="t('flowComponents.nodeProperties')"
+    >
+      <!-- Header -->
+      <header class="cfg-header">
+        <div class="cfg-header-info">
+          <el-icon
+            v-if="flowStore.selectedNode"
+            class="cfg-node-icon"
+            :size="18"
+          >
             <component :is="getNodeIcon(flowStore.selectedNode.type)" />
-          </div>
-          <div>
-            <h3 class="m-0 text-4 font-600 text-nf-text-primary leading-5">{{ getNodeDisplayName(flowStore.selectedNode.type) }}</h3>
-            <p class="m-0 mt-0.5 text-2.75 text-nf-text-secondary leading-3.5">{{ flowStore.selectedNode.type }}</p>
+          </el-icon>
+          <div class="cfg-header-text">
+            <span class="cfg-node-name">
+              {{ flowStore.selectedNode ? getNodeDisplayName(flowStore.selectedNode.type) : t('flowComponents.nodeProperties') }}
+            </span>
+            <span v-if="flowStore.selectedNode" class="cfg-node-type">{{ flowStore.selectedNode.type }}</span>
           </div>
         </div>
-      </div>
+        <button
+          type="button"
+          class="cfg-close"
+          aria-label="Close panel"
+          @click="handleClose"
+        >
+          <Close class="w-4 h-4" />
+        </button>
+      </header>
 
-      <!-- 属性表单 -->
-      <div class="properties-form">
-        <el-form :model="editableProperties" label-position="top" class="inline-form">
-          <!-- 基础属性组 -->
-          <div class="property-group">
-            <h4 class="group-title">{{ t('flowComponents.basicProperties') }}</h4>
-            <div class="property-fields">
-              <NodePropertiesPanelSingleField
-                :label="t('flowComponents.displayName')"
-                :value="editableProperties.displayName"
-                :placeholder="t('flowComponents.enterDisplayName')"
-                :description="t('flowComponents.nodeDisplayNameDesc')"
-                @update:value="updateProperty('displayName', $event)"
-              />
-            </div>
-          </div>
-          <!-- 节点特有属性 -->
-          <div v-if="nodeSpecificFields.length > 0" class="property-group">
-            <h4 class="group-title">{{ t('flowComponents.nodeConfiguration') }}</h4>
-            
+      <!-- Body -->
+      <div v-if="flowStore.selectedNode" class="cfg-body">
+        <el-form :model="editableProperties" label-position="top" class="cfg-form">
+          <section class="cfg-section">
+            <h4 class="cfg-section-label">{{ t('flowComponents.basicProperties') }}</h4>
+            <NodePropertiesPanelSingleField
+              :label="t('flowComponents.displayName')"
+              :value="editableProperties.displayName"
+              :placeholder="t('flowComponents.enterDisplayName')"
+              :description="t('flowComponents.nodeDisplayNameDesc')"
+              @update:value="updateProperty('displayName', $event)"
+            />
+          </section>
+
+          <section v-if="nodeSpecificFields.length > 0" class="cfg-section">
+            <h4 class="cfg-section-label">{{ t('flowComponents.nodeConfiguration') }}</h4>
             <NodePropertiesPanelSingleField
               v-for="field in nodeSpecificFields"
               :key="field.key"
@@ -56,40 +59,44 @@
               :description="field.description"
               :options="field.options"
               :variables="field.variables"
-            @update:value="updateProperty(field.key, $event)"
-            @importCurl="handleFieldImportCurl(field, $event)"
+              @update:value="updateProperty(field.key, $event)"
+              @importCurl="handleFieldImportCurl(field, $event)"
             />
-          </div>
+          </section>
         </el-form>
-        
-        <!-- 节点输出面板 -->
-        <NodePropertiesOutPutPanel
-          :has-output="editableProperties.hasOutput || false"
-          :outputs="editableProperties.outputs || []"
-          :is-editable="isOutputEditable"
-          @change="updateProperty('outputs', $event)"
-        />
-      </div>
-    </div>
 
-    <div v-else class="flex-center h-full px-5 py-10">
-      <el-empty :description="t('flowComponents.selectNode')" />
-    </div>
-
-    <template #footer>
-      <div class="flex justify-end gap-2.5 px-4 py-3 border-t border-nf-border drawer-footer-bg">
-        <el-button class="rounded-1.5 px-4 py-1.5 text-3.25" @click="handleClose">{{ t('flowComponents.cancel') }}</el-button>
-        <el-button type="primary" class="rounded-1.5 px-4 py-1.5 text-3.25 drawer-save-btn" @click="handleSave">{{ t('flowComponents.save') }}</el-button>
+        <section class="cfg-section">
+          <NodePropertiesOutPutPanel
+            :has-output="editableProperties.hasOutput || false"
+            :outputs="editableProperties.outputs || []"
+            :is-editable="isOutputEditable"
+            @change="updateProperty('outputs', $event)"
+          />
+        </section>
       </div>
-    </template>
-  </el-drawer>
+
+      <div v-else class="cfg-empty">
+        <el-empty :description="t('flowComponents.selectNode')" :image-size="64" />
+      </div>
+
+      <!-- Footer -->
+      <footer class="cfg-footer">
+        <button type="button" class="cfg-btn cfg-btn-ghost" @click="handleClose">
+          {{ t('flowComponents.cancel') }}
+        </button>
+        <button type="button" class="cfg-btn cfg-btn-solid" @click="handleSave">
+          {{ t('flowComponents.save') }}
+        </button>
+      </footer>
+    </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, ChatDotRound, Share, EditPen, MagicStick, Document, Refresh, Link } from '@element-plus/icons-vue';
+import { VideoPlay, ChatDotRound, Share, EditPen, MagicStick, Document, Refresh, Link, Close, Promotion } from '@element-plus/icons-vue';
 import NodePropertiesPanelSingleField from './NodePropertiesPanelSingleField.vue';
 import NodePropertiesOutPutPanel from './NodePropertiesOutPutPanel.vue';
 import { useFlowDesignerStore } from '@/stores/flowDesigner';
@@ -97,7 +104,6 @@ import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/Exp
 
 const { t } = useI18n();
 
-// 属性字段配置接口
 interface PropertyFieldConfig {
   key: string;
   label: string;
@@ -105,15 +111,13 @@ interface PropertyFieldConfig {
   placeholder?: string;
   description?: string;
   options?: Array<{ label: string; value: any }>;
-  variables?: any[]; // 可用变量列表（条件编辑器使用）
+  variables?: any[];
 }
 
-// 组件属性
 interface Props {
   visible: boolean;
 }
 
-// 组件事件
 interface Emits {
   (e: 'update:visible', visible: boolean): void;
   (e: 'save', nodeId: string, properties: any): void;
@@ -122,27 +126,20 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// 状态管理
 const flowStore = useFlowDesignerStore();
 
-// 可编辑的属性数据（本地副本）
 const editableProperties = ref<any>({});
 
-// 监听选中节点变化，同步属性数据
 watch(() => flowStore.selectedNode, (newNode) => {
   if (newNode) {
-    // 创建属性的深度拷贝，避免直接修改原始数据
     editableProperties.value = JSON.parse(JSON.stringify(newNode.properties || {}));
-    // 确保基础属性存在
     if (!editableProperties.value.id) {
       editableProperties.value.id = newNode.id;
     }
     if (!editableProperties.value.displayName) {
       editableProperties.value.displayName = getNodeDisplayName(newNode.type);
     }
-    
-    // 特殊处理：LLM节点的记忆配置
-    // 将memoryEnabled和memoryRounds合并为memoryConfig对象供UI使用
+
     if (newNode.type === 'LLMNode') {
       editableProperties.value.memoryConfig = {
         enabled: editableProperties.value.memoryEnabled || false,
@@ -154,22 +151,22 @@ watch(() => flowStore.selectedNode, (newNode) => {
   }
 }, { immediate: true, deep: true });
 
-// 获取节点显示名称
 const getNodeDisplayName = (nodeType: string): string => {
-  const nameMap: Record<string, string> = {
-    'StartNode': '开始',
-    'ReplyNode': '回复',
-    'ConditionNode': '条件判断',
-    'ForLoopNode': 'For 循环',
-    'AssignVariableNode': '变量赋值',
-    'LLMNode': 'LLM节点',
-    'JSCodeNode': 'JS代码',
-    'HttpNode': 'HTTP'
+  const keyMap: Record<string, string> = {
+    'StartNode': 'flowComponents.nodeStart',
+    'ReplyNode': 'flowComponents.nodeReply',
+    'ConditionNode': 'flowComponents.nodeCondition',
+    'ForLoopNode': 'flowComponents.nodeForLoop',
+    'AssignVariableNode': 'flowComponents.nodeAssign',
+    'LLMNode': 'flowComponents.nodeLLM',
+    'JSCodeNode': 'flowComponents.nodeJSCode',
+    'HttpNode': 'flowComponents.nodeHTTP',
+    'ResultNode': 'flowComponents.nodeResult',
   };
-  return nameMap[nodeType] || nodeType;
+  const key = keyMap[nodeType];
+  return key ? t(key) : nodeType;
 };
 
-// 获取节点图标
 const getNodeIcon = (nodeType: string) => {
   const iconMap: Record<string, any> = {
     'StartNode': VideoPlay,
@@ -179,39 +176,22 @@ const getNodeIcon = (nodeType: string) => {
     'AssignVariableNode': EditPen,
     'LLMNode': MagicStick,
     'JSCodeNode': Document,
-    'HttpNode': Link
+    'HttpNode': Link,
+    'ResultNode': Promotion,
   };
   return iconMap[nodeType] || VideoPlay;
 };
 
-// 获取节点图标样式类
-const getNodeIconClass = (nodeType: string): string => {
-  const classMap: Record<string, string> = {
-    'StartNode': 'start-icon',
-    'ReplyNode': 'reply-icon',
-    'ConditionNode': 'condition-icon',
-    'ForLoopNode': 'forloop-icon',
-    'AssignVariableNode': 'assign-icon',
-    'LLMNode': 'llm-icon',
-    'JSCodeNode': 'jscode-icon',
-    'HttpNode': 'http-icon'
-  };
-  return classMap[nodeType] || 'default-icon';
-};
 
-// 获取节点特有属性字段配置
 const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
   if (!flowStore.selectedNode) return [];
-  
+
   const nodeType = flowStore.selectedNode.type;
-  
-  // 根据节点类型返回不同的属性字段配置
+
   switch (nodeType) {
     case 'StartNode':
-      return [
-        // StartNode 目前没有特有属性，可以根据需要添加
-      ];
-      
+      return [];
+
     case 'ReplyNode':
       return [
         {
@@ -222,7 +202,7 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           description: '回复给用户的消息内容，可以使用 {{变量名}} 引用变量'
         }
       ];
-      
+
     case 'ConditionNode':
       return [
         {
@@ -240,7 +220,7 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           description: t('flowComponents.defaultBranchDesc')
         }
       ];
-      
+
     case 'ForLoopNode':
       return [
         {
@@ -252,7 +232,7 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           variables: flowStore.currentInputParameters.concat(flowStore.currentSessionVariables)
         }
       ];
-      
+
     case 'AssignVariableNode':
       return [
         {
@@ -263,7 +243,7 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           variables: flowStore.currentSessionVariables
         }
       ];
-      
+
     case 'LLMNode':
       return [
         {
@@ -313,7 +293,7 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           description: t('flowComponents.picturesDesc') + '\nFormat example: [ {url: ""}, {url: ""} ]'
         }
       ];
-      
+
     case 'JSCodeNode':
       return [
         {
@@ -349,14 +329,14 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           label: 'Headers',
           type: 'textInput',
           placeholder: 'Content-Type: application/json\nX-Request-Id: {{sys.RequestId}}',
-          description: '使用 FullText 模式，每行一个键值对，例如：Content-Type: application/json'
+          description: '使用 FullText 模式，每行一个键值对'
         },
         {
           key: 'query',
           label: 'Query',
           type: 'textInput',
           placeholder: '?name=abc&age=18',
-          description: '使用 FullText 模式，示例：?name=abc 或 name=abc&age=18'
+          description: '使用 FullText 模式，示例：?name=abc'
         },
         {
           key: 'body',
@@ -373,27 +353,21 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           description: '请求超时时间，单位秒'
         }
       ];
-      
+
     default:
       return [];
   }
 });
 
-// 判断节点输出是否可编辑
-// LLM节点的输出是固定的（不可编辑），JSCode节点的输出是用户自定义的（可编辑）
 const isOutputEditable = computed(() => {
   if (!flowStore.selectedNode) return false;
-  const nodeType = flowStore.selectedNode.type;
-  // JSCode节点可编辑（将来实现），LLM节点不可编辑
-  return nodeType === 'JSCodeNode';
+  return flowStore.selectedNode.type === 'JSCodeNode';
 });
 
-// 更新属性值
 const updateProperty = (key: string, value: any) => {
   editableProperties.value[key] = value;
 };
 
-// 处理 HTTP cURL 导入
 interface ParsedCurlResult {
   method?: string;
   url?: string;
@@ -404,254 +378,295 @@ interface ParsedCurlResult {
 
 const handleHttpCurlImport = (parsed: ParsedCurlResult) => {
   if (!parsed) return;
-
-  if (parsed.method) {
-    editableProperties.value.method = parsed.method.toUpperCase();
-  }
-  if (parsed.url !== undefined) {
-    editableProperties.value.url = ExpressionUnitFactory.createFullTextMiniExpression(parsed.url);
-  }
-  if (parsed.headers !== undefined) {
-    editableProperties.value.headers = ExpressionUnitFactory.createFullTextExpression(parsed.headers);
-  }
-  if (parsed.query !== undefined) {
-    editableProperties.value.query = ExpressionUnitFactory.createFullTextExpression(parsed.query);
-  }
-  if (parsed.body !== undefined) {
-    editableProperties.value.body = ExpressionUnitFactory.createFullTextExpression(parsed.body);
-  }
+  if (parsed.method) editableProperties.value.method = parsed.method.toUpperCase();
+  if (parsed.url !== undefined) editableProperties.value.url = ExpressionUnitFactory.createFullTextMiniExpression(parsed.url);
+  if (parsed.headers !== undefined) editableProperties.value.headers = ExpressionUnitFactory.createFullTextExpression(parsed.headers);
+  if (parsed.query !== undefined) editableProperties.value.query = ExpressionUnitFactory.createFullTextExpression(parsed.query);
+  if (parsed.body !== undefined) editableProperties.value.body = ExpressionUnitFactory.createFullTextExpression(parsed.body);
 };
 
 const handleFieldImportCurl = (field: PropertyFieldConfig, parsed: ParsedCurlResult) => {
-  if (field.key === 'method') {
-    handleHttpCurlImport(parsed);
-  }
+  if (field.key === 'method') handleHttpCurlImport(parsed);
 };
 
-// 处理关闭
-const handleClose = () => {
-  emit('update:visible', false);
-};
+const handleClose = () => emit('update:visible', false);
 
-// 处理保存
 const handleSave = () => {
   if (!flowStore.selectedNode) return;
-  
-  // 准备保存的属性数据
   const propertiesToSave = { ...editableProperties.value };
-  
-  // 特殊处理：LLM节点的记忆配置
-  // 将memoryConfig对象拆分为memoryEnabled和memoryRounds
   if (flowStore.selectedNode.type === 'LLMNode' && propertiesToSave.memoryConfig) {
     propertiesToSave.memoryEnabled = propertiesToSave.memoryConfig.enabled;
     propertiesToSave.memoryRounds = propertiesToSave.memoryConfig.rounds;
-    delete propertiesToSave.memoryConfig; // 删除临时的memoryConfig对象
+    delete propertiesToSave.memoryConfig;
   }
-  
-  // 发送保存事件，传递编辑后的属性
   emit('save', flowStore.selectedNode.id, propertiesToSave);
-  
-  // 成功提示由父组件FlowDesigner显示
   handleClose();
 };
 </script>
 
 <style scoped>
-.node-properties-drawer {
-  --el-drawer-padding-primary: 0;
+/* ── Transition ── */
+.cfg-slide-enter-active,
+.cfg-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease;
+}
+.cfg-slide-enter-from,
+.cfg-slide-leave-to {
+  transform: translateX(24px);
+  opacity: 0;
 }
 
-.node-properties-drawer :deep(.el-drawer__header) {
-  background: linear-gradient(135deg, #0d2137 0%, #0a3d62 100%);
-  color: #e7e9ea;
-  padding: 12px 16px;
-  margin-bottom: 0;
-  min-height: unset;
+/* ── Panel shell ── */
+.cfg-panel {
+  position: fixed;
+  top: 68px;
+  right: 12px;
+  bottom: 12px;
+  width: 400px;
+  max-width: calc(100vw - 24px);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--nf-bg-base);
+  border: 1px solid var(--nf-border);
+  border-radius: 14px;
+  box-shadow: var(--nf-shadow-lg);
+  overscroll-behavior: contain;
 }
 
-.node-properties-drawer :deep(.el-drawer__title) {
-  color: #e7e9ea;
-  font-weight: 600;
-  font-size: 15px;
+/* ── Header ── */
+.cfg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--nf-border);
+  flex-shrink: 0;
 }
 
-.node-properties-drawer :deep(.el-drawer__close-btn) {
-  color: #e7e9ea;
-  font-size: 18px;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+.cfg-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.node-properties-drawer :deep(.el-drawer__close-btn):hover {
-  opacity: 1;
+.cfg-node-icon {
+  color: var(--nf-text-secondary);
+  flex-shrink: 0;
 }
 
-.drawer-footer-bg {
-  background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+.cfg-header-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 
-.drawer-save-btn {
-  background: linear-gradient(135deg, #0d2137 0%, #0a3d62 100%);
-  border: none;
-}
-
-.drawer-save-btn:hover {
-  background: linear-gradient(135deg, #0f2842 0%, #0d4a6e 100%);
-}
-
-.node-icon.start-icon {
-  background: linear-gradient(135deg, #06b6d4 0%, #00d4aa 100%);
-}
-
-.node-icon.reply-icon {
-  background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%);
-}
-
-.node-icon.condition-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.node-icon.forloop-icon {
-  background: linear-gradient(135deg, #0ea5e9 0%, #00d4aa 100%);
-}
-
-.node-icon.assign-icon {
-  background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-}
-
-.node-icon.llm-icon {
-  background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%);
-}
-
-.node-icon.jscode-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.node-icon.http-icon {
-  background: linear-gradient(135deg, #00b4d8 0%, #0891b2 100%);
-}
-
-.node-icon.default-icon {
-  background: linear-gradient(135deg, #0d2137 0%, #0a3d62 100%);
-}
-
-.properties-form {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.property-group {
-  margin-bottom: 16px;
-}
-
-.property-group:last-child {
-  margin-bottom: 8px;
-}
-
-.group-title {
-  margin: 0 0 12px 0;
+.cfg-node-name {
   font-size: 14px;
   font-weight: 600;
-  color: #e7e9ea;
-  line-height: 20px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #21262d;
+  color: var(--nf-text-primary);
+  white-space: nowrap;
 }
 
-/* 内联表单样式 */
-.inline-form {
+.cfg-node-type {
+  font-size: 11px;
+  color: var(--nf-text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+.cfg-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--nf-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.cfg-close:hover {
+  background: var(--nf-bg-muted);
+  color: var(--nf-text-primary);
+}
+
+.cfg-close:focus-visible {
+  outline: 2px solid var(--nf-accent);
+  outline-offset: 2px;
+}
+
+/* ── Body ── */
+.cfg-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.cfg-body::-webkit-scrollbar {
+  width: 4px;
+}
+.cfg-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cfg-body::-webkit-scrollbar-thumb {
+  background: var(--nf-scrollbar);
+  border-radius: 2px;
+}
+.cfg-body::-webkit-scrollbar-thumb:hover {
+  background: var(--nf-scrollbar-hover);
+}
+
+/* ── Sections ── */
+.cfg-section {
+  margin-bottom: 18px;
+}
+.cfg-section:last-child {
+  margin-bottom: 4px;
+}
+
+.cfg-section-label {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nf-text-primary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--nf-border);
+}
+
+/* ── Form field overrides ── */
+.cfg-form {
   :deep(.property-field) {
     display: flex;
-    align-items: flex-start;
-    margin-bottom: 12px;
-    gap: 12px;
+    flex-direction: column;
+    margin-bottom: 14px;
+    gap: 5px;
   }
-  
+
   :deep(.property-field:last-child) {
     margin-bottom: 6px;
   }
-  
+
   :deep(.property-field .field-label) {
-    margin-bottom: 0;
-    min-width: 90px;
-    width: 90px;
-    flex-shrink: 0;
-    line-height: 28px;
-    text-align: right;
-    padding-right: 6px;
-    color: #8b949e;
-    font-weight: normal;
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--nf-text-secondary);
+    line-height: 1.3;
   }
-  
+
   :deep(.property-field .field-content) {
     flex: 1;
     min-width: 0;
   }
-  
+
   :deep(.property-field .el-input),
   :deep(.property-field .el-input-number),
   :deep(.property-field .el-select) {
     width: 100% !important;
   }
-  
+
   :deep(.property-field .el-input__inner),
   :deep(.property-field .el-input-number__inner) {
     font-size: 13px;
-    height: 28px;
-    line-height: 28px;
   }
-  
-  :deep(.property-field .el-select .el-input__wrapper) {
-    height: 28px;
-  }
-  
-  :deep(.property-field .el-select .el-input__inner) {
-    font-size: 13px;
-    height: 28px;
-    line-height: 28px;
-  }
-  
+
   :deep(.property-field .el-textarea) {
     width: 100% !important;
   }
-  
+
   :deep(.property-field .el-textarea__inner) {
     min-height: 52px;
     font-size: 13px;
   }
-  
+
   :deep(.property-field .field-description) {
     margin-top: 3px;
     font-size: 11px;
-    color: #8b949e;
-    line-height: 1.3;
-    max-width: 100%;
-    word-wrap: break-word;
+    color: var(--nf-text-muted);
+    line-height: 1.4;
   }
-  
+
   :deep(.property-field .el-switch) {
     margin-top: 2px;
-    transform: scale(0.85);
-    transform-origin: left center;
   }
 }
 
-.properties-form::-webkit-scrollbar {
-  width: 6px;
+/* ── Empty ── */
+.cfg-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
 }
 
-.properties-form::-webkit-scrollbar-track {
-  background: #21262d;
-  border-radius: 3px;
+/* ── Footer ── */
+.cfg-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--nf-border);
+  flex-shrink: 0;
 }
 
-.properties-form::-webkit-scrollbar-thumb {
-  background: #484f58;
-  border-radius: 3px;
+.cfg-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.properties-form::-webkit-scrollbar-thumb:hover {
-  background: #6e7681;
+.cfg-btn:focus-visible {
+  outline: 2px solid var(--nf-accent);
+  outline-offset: 2px;
+}
+
+.cfg-btn-ghost {
+  background: transparent;
+  color: var(--nf-text-secondary);
+}
+.cfg-btn-ghost:hover {
+  background: var(--nf-bg-muted);
+  color: var(--nf-text-primary);
+}
+
+.cfg-btn-solid {
+  background: var(--nf-accent);
+  color: #fff;
+}
+.cfg-btn-solid:hover {
+  background: var(--nf-accent-hover);
+}
+</style>
+
+<style>
+.input-dialog .el-dialog__header {
+  background: var(--nf-bg-muted);
+  color: var(--nf-text-primary);
+}
+.input-dialog .el-dialog__title { color: var(--nf-text-primary); }
+.session-dialog .el-dialog__header {
+  background: var(--nf-bg-muted);
+  color: var(--nf-text-primary);
+}
+.session-dialog .el-dialog__title { color: var(--nf-text-primary); }
+.input-dialog.el-dialog,
+.session-dialog.el-dialog {
+  z-index: 2000 !important;
+}
+.el-overlay.is-message-box {
+  z-index: 1999 !important;
 }
 </style>

@@ -1,61 +1,41 @@
-<!--
-  JS表达式单元编辑器组件
-  
-  功能特性：
-  1. 模式切换 - 支持"表达式模式"和"函数模式"两种编辑方式
-  2. 表达式模式 - 直接编写JS表达式，如：{{age}} > 18
-  3. 函数模式 - 编写完整的JS函数，必须包含 main() 方法
-  4. 变量插入 - 点击 {x} 按钮打开对话框，选择输入参数或会话变量
-  5. 全屏编辑 - 点击放大图标进入全屏模式（80vw x 80vh），点击缩小图标或遮罩退出
-  6. 默认模板 - 根据模式自动提供初始模板
-  7. 变量格式 - 变量以 {{variableName}} 格式插入，方便后端替换
-  
-  Props 参数：
-  - modelValue: JSExpressionUnit - 绑定值（v-model），包含 functionCode、expressionCode 和 isFunctionMode
-  - placeholder: string - 占位符文本
-  - disabled: boolean - 是否禁用，默认 false
-  - readonly: boolean - 是否只读，默认 false
-  - rows: number - 普通模式的行数，默认 8
-  - lockMode: boolean - 是否锁定模式（禁用模式切换），默认 false
-  
-  Events 事件：
-  - update:modelValue - v-model 更新事件
-  - change - 值变化事件
-  
-  使用示例：
-  ```vue
-  <script setup lang="ts">
-  import { ref } from 'vue';
-  import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-  import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-  
-  const expression = ref<JSExpressionUnit>(ExpressionUnitFactory.createJSExpression());
-  </script>
-  
-  <template>
-    <JSExpressionUnitEditor
-      v-model="expression"
-      @change="handleChange"
-    />
-  </template>
-  ```
--->
 <template>
   <!-- 全屏遮罩 -->
   <div v-if="isFullscreen" class="fullscreen-backdrop" @click="toggleFullscreen"></div>
   
   <div :class="['js-expression-unit-editor', { 'is-fullscreen': isFullscreen }]">
-    <!-- 标题栏 -->
-    <div class="editor-header">
-      <div class="header-left">
-        <span class="editor-title">{{ t('flowComponents.jsExpression') }}</span>
-        <el-popover
-          placement="bottom-start"
-          :width="360"
-          trigger="hover"
+    <!-- 代码编辑区域 -->
+    <div class="editor-container" :class="{ 'is-fullscreen': isFullscreen }">
+      <CodeMirrorEditor
+        ref="editorRef"
+        v-model="localCode"
+        :placeholder="currentPlaceholder"
+        :disabled="disabled"
+        :readonly="readonly"
+        @change="handleInput"
+      />
+    </div>
+    <!-- 底部工具栏 -->
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <el-radio-group 
+          v-if="!lockMode"
+          v-model="currentMode" 
+          size="small"
+          @change="handleModeChange"
+          class="mode-switch"
         >
+          <el-radio-button label="expression">{{ t('flowComponents.expressionMode') }}</el-radio-button>
+          <el-radio-button label="function">{{ t('flowComponents.functionMode') }}</el-radio-button>
+        </el-radio-group>
+        <span v-else class="mode-locked">
+          {{ currentMode === 'function' ? t('flowComponents.functionMode') : t('flowComponents.expressionMode') }}
+        </span>
+      </div>
+      <div class="toolbar-right">
+        <span class="at-hint">@ 插入变量</span>
+        <el-popover placement="top-start" :width="360" trigger="hover">
           <template #reference>
-            <el-icon class="help-icon"><QuestionFilled /></el-icon>
+            <button type="button" class="toolbar-btn"><el-icon><QuestionFilled /></el-icon></button>
           </template>
           <div class="help-content">
             <div class="help-section">
@@ -72,66 +52,14 @@
             </div>
           </div>
         </el-popover>
-      </div>
-      <div class="header-center">
-        <!-- 模式切换 -->
-        <el-radio-group 
-          v-if="!lockMode"
-          v-model="currentMode" 
-          size="small"
-          @change="handleModeChange"
-          class="mode-switch"
-        >
-          <el-radio-button label="expression">{{ t('flowComponents.expressionMode') }}</el-radio-button>
-          <el-radio-button label="function">{{ t('flowComponents.functionMode') }}</el-radio-button>
-        </el-radio-group>
-        <!-- 模式锁定时显示当前模式 -->
-        <span v-else class="mode-locked">
-          {{ currentMode === 'function' ? t('flowComponents.functionMode') : t('flowComponents.expressionMode') }}
-        </span>
-      </div>
-      <div class="editor-actions">
-        <el-tooltip :content="t('flowComponents.insertVariable')" placement="top">
-          <el-button 
-            size="small" 
-            text 
-            @click="showVariableSelectorDialog"
-            class="action-btn variable-btn"
-          >
-            {x}
-          </el-button>
-        </el-tooltip>
         <el-tooltip :content="isFullscreen ? t('flowComponents.exitFullscreen') : t('flowComponents.fullscreenEdit')" placement="top">
-          <el-button 
-            size="small" 
-            text 
-            @click="toggleFullscreen"
-            class="action-btn fullscreen-btn"
-          >
+          <button type="button" class="toolbar-btn" @click="toggleFullscreen">
             <el-icon v-if="!isFullscreen"><FullScreen /></el-icon>
             <el-icon v-else><Close /></el-icon>
-          </el-button>
+          </button>
         </el-tooltip>
       </div>
     </div>
-    
-    <!-- 代码编辑区域 -->
-    <div class="editor-container" :class="{ 'is-fullscreen': isFullscreen }">
-      <CodeMirrorEditor
-        ref="editorRef"
-        v-model="localCode"
-        :placeholder="currentPlaceholder"
-        :disabled="disabled"
-        :readonly="readonly"
-        @change="handleInput"
-      />
-    </div>
-
-    <!-- 变量选择器 -->
-    <VariableSelector
-      v-model:visible="variableSelectorVisible"
-      @select="handleVariableSelect"
-    />
   </div>
 </template>
 
@@ -141,8 +69,6 @@ import { useI18n } from 'vue-i18n';
 import { FullScreen, Close, QuestionFilled } from '@element-plus/icons-vue';
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
 import CodeMirrorEditor from '../components/CodeMirrorEditor.vue';
-import VariableSelector from '../components/VariableSelector.vue';
-import type { VariableItem } from '../components/VariableSelector.vue';
 
 const { t } = useI18n();
 
@@ -177,7 +103,6 @@ const emit = defineEmits<Emits>();
 
 // 组件状态
 const editorRef = ref();
-const variableSelectorVisible = ref(false);
 const isFullscreen = ref(false);
 
 // 当前模式
@@ -277,41 +202,28 @@ const handleFocus = () => {
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
 };
-
-
-// 显示变量选择器
-const showVariableSelectorDialog = () => {
-  variableSelectorVisible.value = true;
-};
-
-// 处理变量选择
-const handleVariableSelect = (variable: VariableItem) => {
-  if (!editorRef.value) return;
-  
-  // 使用CodeMirrorEditor的insertAtCursor方法
-  editorRef.value.insertAtCursor(`{{${variable.key}}}`);
-};
 </script>
 
 <style scoped lang="scss">
-// 全屏遮罩
 .fullscreen-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: var(--nf-overlay);
   z-index: 8888;
 }
 
 .js-expression-unit-editor {
-  border: 1px solid #21262d;
+  border: 1px solid var(--nf-border);
   border-radius: 8px;
   overflow: hidden;
-  transition: all 0.3s ease;
-  
-  // 全屏状态
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: var(--nf-bg-card);
+
+  &:focus-within {
+    border-color: var(--nf-accent);
+    box-shadow: 0 0 0 2px var(--nf-accent-muted);
+  }
+
   &.is-fullscreen {
     position: fixed;
     top: 50%;
@@ -321,225 +233,151 @@ const handleVariableSelect = (variable: VariableItem) => {
     max-width: 1200px;
     height: 80vh;
     z-index: 9999;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: var(--nf-bg-base);
+    border-radius: 12px;
+    box-shadow: var(--nf-shadow-lg);
     display: flex;
     flex-direction: column;
-    
+
     .editor-container {
       flex: 1;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      
-      .expression-textarea {
-        flex: 1;
-        
-        :deep(.el-textarea) {
-          height: 100%;
-        }
-        
-        :deep(.el-textarea__inner) {
-          height: 100% !important;
-          resize: none !important;
-        }
-      }
     }
   }
-  
-  // 标题栏
-  .editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #00d4aa 0%, #00b4d8 100%);
-    border-bottom: none;
-    flex-shrink: 0;
-    gap: 12px;
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-      gap: 8px;
-    }
-    
-    .editor-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #ffffff;
-      letter-spacing: 0.5px;
-    }
-    
-    .help-icon {
-      font-size: 16px;
-      color: rgba(255, 255, 255, 0.85);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      
-      &:hover {
-        color: #ffffff;
-        transform: scale(1.1);
-      }
-    }
-    
-    .header-center {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-    }
-    
-    // 模式锁定显示
-    .mode-locked {
-      font-size: 13px;
-      font-weight: 500;
-      color: #8b949e;
-      padding: 4px 12px;
-      background: #1c2128;
-      border-radius: 4px;
-    }
-    
-    // 模式切换按钮组
-    .mode-switch {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 6px;
-      padding: 3px;
-      
-      :deep(.el-radio-button) {
-        &:first-child .el-radio-button__inner {
-          border-left: none;
-        }
-      }
-      
-      :deep(.el-radio-button__inner) {
-        background-color: transparent;
-        border: none;
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 12px;
-        padding: 6px 16px;
-        box-shadow: none;
-        transition: all 0.3s ease;
-        font-weight: 500;
-        
-        &:hover {
-          background-color: rgba(255, 255, 255, 0.1);
-          color: #ffffff;
-        }
-      }
-      
-      :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-        background-color: rgba(255, 255, 255, 0.95);
-        color: #00d4aa;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
-      :deep(.el-radio-button:first-child .el-radio-button__inner) {
-        border-radius: 4px;
-      }
-      
-      :deep(.el-radio-button:last-child .el-radio-button__inner) {
-        border-radius: 4px;
-      }
-    }
-    
-    .editor-actions {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-      
-      .action-btn {
-        color: #ffffff;
-        padding: 6px;
-        min-width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        
-        &:hover {
-          background: rgba(255, 255, 255, 0.2);
-          transform: translateY(-1px);
-        }
-        
-        &:active {
-          transform: translateY(0);
-        }
-        
-        .el-icon {
-          font-size: 16px;
-        }
-      }
-      
-      .variable-btn {
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: 14px;
-        font-weight: bold;
-        padding: 4px 10px;
-      }
-    }
-  }
-  
-  // 编辑器容器
+
   .editor-container {
     position: relative;
-    background: #161b22;
-    padding: 12px;
-    
+    padding: 2px;
+
     &.is-fullscreen {
       flex: 1;
       overflow: hidden;
-      
-      :deep(.codemirror-editor-wrapper) {
-        height: 100%;
-      }
-      
-      :deep(.codemirror-editor) {
-        height: 100%;
-      }
-      
+
+      :deep(.codemirror-editor-wrapper),
+      :deep(.codemirror-editor),
       :deep(.cm-editor) {
         height: 100%;
       }
     }
-    
-    .expression-textarea {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      
-      :deep(.el-textarea__inner) {
-        font-size: 13px;
-        line-height: 1.6;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 6px 4px;
+    flex-shrink: 0;
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .at-hint {
+      font-size: 11px;
+      color: var(--nf-text-muted);
+      opacity: 0.6;
+      white-space: nowrap;
+    }
+
+    .toolbar-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--nf-text-muted);
+      cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease;
+      padding: 0;
+
+      &:hover {
+        color: var(--nf-text-primary);
+        background: var(--nf-bg-muted);
+      }
+
+      .el-icon { font-size: 13px; }
+    }
+
+    .mode-locked {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--nf-text-muted);
+      padding: 2px 8px;
+      background: var(--nf-bg-muted);
+      border-radius: 4px;
+    }
+
+    .mode-switch {
+      background: var(--nf-bg-muted);
+      border-radius: 6px;
+      padding: 2px;
+
+      :deep(.el-radio-button:first-child .el-radio-button__inner) {
+        border-left: none;
+      }
+
+      :deep(.el-radio-button__inner) {
+        background-color: transparent;
         border: none;
-        padding: 0;
-        resize: vertical;
+        color: var(--nf-text-secondary);
+        font-size: 11px;
+        padding: 3px 10px;
+        box-shadow: none;
+        transition: color 0.15s ease, background-color 0.15s ease;
+        font-weight: 500;
+
+        &:hover { color: var(--nf-text-primary); }
+      }
+
+      :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+        background-color: var(--nf-bg-card);
+        color: var(--nf-accent);
+        font-weight: 600;
+        box-shadow: var(--nf-shadow);
+      }
+
+      :deep(.el-radio-button:first-child .el-radio-button__inner),
+      :deep(.el-radio-button:last-child .el-radio-button__inner) {
+        border-radius: 4px;
       }
     }
   }
 }
 
-// 帮助提示内容样式
 .help-content {
-  padding: 8px 0;
-  
+  padding: 6px 0;
+
   .help-section {
-    padding: 8px 0;
-    
+    padding: 6px 0;
+
     &:not(:last-child) {
-      border-bottom: 1px solid #21262d;
+      border-bottom: 1px solid var(--nf-border);
     }
-    
+
     .help-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #e7e9ea;
-      margin-bottom: 6px;
-    }
-    
-    .help-text {
       font-size: 12px;
-      color: #8b949e;
-      line-height: 1.6;
+      font-weight: 600;
+      color: var(--nf-text-primary);
+      margin-bottom: 4px;
+    }
+
+    .help-text {
+      font-size: 11px;
+      color: var(--nf-text-secondary);
+      line-height: 1.5;
     }
   }
 }
-
 </style>

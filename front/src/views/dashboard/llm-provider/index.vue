@@ -3,20 +3,23 @@
 -->
 <template>
   <div class="nf-page">
-    <div class="nf-page-header">
-      <h2 class="nf-page-title">{{ t('llmProviderMgmt.title') }}</h2>
-      <el-button type="primary" :icon="Plus" @click="createProvider">{{ t('llmProviderMgmt.add') }}</el-button>
+    <div class="nf-page-header flex-between">
+      <el-button class="m-0" type="primary" :icon="Plus" @click="createProvider">{{ t('llmProviderMgmt.add') }}</el-button>
     </div>
 
+    <div class="nf-card overflow-hidden mt-0">
     <el-table 
       :data="providerList" 
       v-loading="loading"
-      stripe
       style="width: 100%"
     >
-      <el-table-column prop="id" :label="t('llmProviderMgmt.id')" width="150" />
-      <el-table-column prop="platformName" :label="t('llmProviderMgmt.platformName')" width="80" />
-      <el-table-column :label="t('llmProviderMgmt.modelNames')" min-width="300">
+      <el-table-column prop="id" :label="t('llmProviderMgmt.id')" min-width="160">
+        <template #default="{ row }">
+          <span class="whitespace-nowrap font-mono text-3.25">{{ row.id }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="platformName" :label="t('llmProviderMgmt.platformName')" min-width="120" />
+      <el-table-column :label="t('llmProviderMgmt.modelNames')" min-width="180">
         <template #default="{ row }">
           <el-tag 
             v-for="(name, index) in row.llmNames" 
@@ -29,8 +32,8 @@
           <span v-if="!row.llmNames || row.llmNames.length === 0" class="text-nf-text-muted">{{ t('llmProviderMgmt.notSet') }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="llmapiUrl" :label="t('llmProviderMgmt.apiUrl')" min-width="200" show-overflow-tooltip />
-      <el-table-column :label="t('llmProviderMgmt.apiKey')" width="200">
+      <el-table-column prop="llmapiUrl" :label="t('llmProviderMgmt.apiUrl')" min-width="180" show-overflow-tooltip />
+      <el-table-column :label="t('llmProviderMgmt.apiKey')" width="160">
         <template #default="{ row }">
           <div class="flex items-center gap-2">
             <span class="font-mono text-nf-text-secondary text-3.25">{{ maskApiKey(row.llmapiKey) }}</span>
@@ -45,13 +48,16 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column :label="t('llmProviderMgmt.operation')" width="230" fixed="right">
+      <el-table-column :label="t('llmProviderMgmt.operation')" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button text type="primary" :icon="Edit" @click="editProvider(row)">{{ t('llmProviderMgmt.edit') }}</el-button>
-          <el-button text type="danger" :icon="Delete" @click="deleteProvider(row)">{{ t('llmProviderMgmt.delete') }}</el-button>
+          <div class="flex items-center gap-1 whitespace-nowrap">
+            <el-button text type="primary" :icon="Edit" @click="editProvider(row)">{{ t('llmProviderMgmt.edit') }}</el-button>
+            <el-button text type="danger" :icon="Delete" @click="deleteProvider(row)">{{ t('llmProviderMgmt.delete') }}</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <el-empty 
       v-if="providerList.length === 0 && !loading" 
@@ -64,7 +70,7 @@
       :title="editingProvider ? t('llmProviderMgmt.editTitle') : t('llmProviderMgmt.createTitle')"
       width="600px"
     >
-      <el-form :model="formData" label-width="100px" ref="formRef" :rules="formRules">
+      <el-form :model="formData" label-width="auto" ref="formRef" :rules="formRules">
         <el-form-item :label="t('llmProviderMgmt.platformName')" prop="platformName" required>
           <el-input 
             v-model="formData.platformName" 
@@ -126,7 +132,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Plus, Edit, Delete, CopyDocument } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
@@ -153,30 +159,30 @@ const formData = ref({
 
 const newModelName = ref('');
 
-const formRules: FormRules = {
+const formRules = computed<FormRules>(() => ({
   platformName: [
-    { required: true, message: t('llmProviderMgmt.platformNameRequired'), trigger: 'blur' }
+    { required: true, message: t('llmProviderMgmt.platformNameRequired'), trigger: 'blur' },
   ],
   llmNames: [
     {
-      validator: (rule, value, callback) => {
+      validator: (_rule: unknown, value: string[], callback: (error?: Error) => void) => {
         if (!value || value.length === 0) {
-          callback(new Error(t('llmProviderMgmt.modelNameRequired')));
+          callback(new Error(t('llmProviderMgmt.modelNameRequired')))
         } else {
-          callback();
+          callback()
         }
       },
-      trigger: 'change'
-    }
+      trigger: 'change',
+    },
   ],
   llmapiUrl: [
     { required: true, message: t('llmProviderMgmt.apiUrlRequired'), trigger: 'blur' },
-    { type: 'url', message: t('llmProviderMgmt.apiUrlInvalid'), trigger: 'blur' }
+    { type: 'url', message: t('llmProviderMgmt.apiUrlInvalid'), trigger: 'blur' },
   ],
   llmapiKey: [
-    { required: true, message: t('llmProviderMgmt.apiKeyRequired'), trigger: 'blur' }
-  ]
-};
+    { required: true, message: t('llmProviderMgmt.apiKeyRequired'), trigger: 'blur' },
+  ],
+}));
 
 const loadProviderList = async () => {
   try {
@@ -345,3 +351,19 @@ onMounted(() => {
 
 watch(() => t('llmProviderMgmt.title'), () => {});
 </script>
+
+<style scoped>
+.nf-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+:deep(.el-form-item__label) {
+  white-space: nowrap;
+}
+
+:deep(.el-table th .cell) {
+  white-space: nowrap;
+}
+</style>

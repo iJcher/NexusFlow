@@ -38,17 +38,11 @@ const currentLanguageLabel = computed(() => {
   return locale.value === 'zh-CN' ? '中文' : 'EN'
 })
 
+const { t } = useI18n()
+
 const handleCommand = (lang: Language) => {
   if (lang === locale.value) return
-  
   changeLanguage(lang)
-  ElMessage.success({
-    message: lang === 'zh-CN' ? '语言已切换为中文' : 'Language switched to English',
-    duration: 2000
-  })
-  
-  setTimeout(() => {
-    location.reload()
-  }, 500)
+  ElMessage.success({ message: t('common.languageSwitched'), duration: 2000 })
 }
 </script>

@@ -21,8 +21,10 @@ import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import { EditorState, StateEffect } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { autocompletion, startCompletion } from '@codemirror/autocomplete';
+import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { useFlowDesignerStore } from '@/stores/flowDesigner';
-import { useI18n } from 'vue-i18n'; // 添加 useI18n 导入
+import { useI18n } from 'vue-i18n';
 
 // Props
 interface Props {
@@ -145,6 +147,48 @@ const variablePlugin = ViewPlugin.fromClass(
   }
 );
 
+// @ 触发变量补全
+function variableCompletionSource(context: CompletionContext): CompletionResult | null {
+  const line = context.state.doc.lineAt(context.pos);
+  const textBefore = line.text.slice(0, context.pos - line.from);
+  const atMatch = textBefore.match(/@(\w*)$/);
+  if (!atMatch) return null;
+
+  const from = context.pos - atMatch[0].length;
+  const nodes = flowStore.currentNodes || [];
+  const inputs = flowStore.currentInputParameters || [];
+  const sessions = flowStore.currentSessionVariables || [];
+  const options: { label: string; detail: string; apply: string }[] = [];
+
+  nodes.forEach(node => {
+    if (node.properties?.outputs && Array.isArray(node.properties.outputs)) {
+      const nodeName = node.properties?.displayName || node.id;
+      node.properties.outputs.forEach((output: any) => {
+        options.push({
+          label: `${nodeName}.${output.name}`,
+          detail: 'Node Output',
+          apply: `{{${node.id}.${output.name}}}`
+        });
+      });
+    }
+  });
+
+  inputs.forEach(v => {
+    options.push({ label: v.name, detail: 'Input', apply: `{{${v.name}}}` });
+  });
+
+  sessions.forEach(v => {
+    options.push({ label: v.name, detail: 'Session', apply: `{{${v.name}}}` });
+  });
+
+  const sysVars = ['sys.query', 'sys.user', 'sys.flowId', 'sys.flowInstanceId', 'sys.dialogueCount', 'sys.conversationId', 'sys.files'];
+  sysVars.forEach(key => {
+    options.push({ label: key, detail: 'System', apply: `{{${key}}}` });
+  });
+
+  return { from, options, filter: true };
+}
+
 // 初始化编辑器
 onMounted(() => {
   if (!editorRef.value) return;
@@ -152,11 +196,15 @@ onMounted(() => {
   const startState = EditorState.create({
     doc: props.modelValue || '',
     extensions: [
-      javascript(), // JavaScript语法高亮
-      history(), // 历史记录（撤销/重做）
-      keymap.of([...defaultKeymap, ...historyKeymap]), // 键盘映射
-      variablePlugin, // 变量装饰器插件
-      EditorView.editable.of(!props.readonly && !props.disabled), // 可编辑性
+      javascript(),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      variablePlugin,
+      autocompletion({
+        override: [variableCompletionSource],
+        activateOnTyping: true
+      }),
+      EditorView.editable.of(!props.readonly && !props.disabled),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const newValue = update.state.doc.toString();
@@ -185,18 +233,45 @@ onMounted(() => {
           display: 'inline-block',
           padding: '1px 6px',
           margin: '0 2px',
-          backgroundColor: 'rgba(0, 212, 170, 0.15)',
-          color: '#00d4aa',
+          backgroundColor: 'var(--nf-accent-muted)',
+          color: 'var(--nf-accent)',
           borderRadius: '3px',
           fontSize: '12px',
           fontWeight: '500',
           cursor: 'pointer',
-          border: '1px solid #21262d',
+          border: '1px solid var(--nf-border)',
           userSelect: 'none'
         },
         '.cm-variable-tag:hover': {
-          backgroundColor: 'rgba(0, 212, 170, 0.25)',
-          borderColor: '#00b4d8'
+          backgroundColor: 'var(--nf-accent-muted)',
+          borderColor: 'var(--nf-accent)'
+        },
+        '.cm-tooltip-autocomplete': {
+          border: '1px solid var(--nf-border)',
+          borderRadius: '8px',
+          background: 'var(--nf-bg-elevated)',
+          boxShadow: 'var(--nf-shadow-lg)',
+          overflow: 'hidden'
+        },
+        '.cm-tooltip-autocomplete ul': {
+          fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+          fontSize: '12px'
+        },
+        '.cm-tooltip-autocomplete ul li': {
+          padding: '4px 10px',
+          color: 'var(--nf-text-primary)'
+        },
+        '.cm-tooltip-autocomplete ul li[aria-selected]': {
+          background: 'var(--nf-accent-muted)',
+          color: 'var(--nf-accent)'
+        },
+        '.cm-completionLabel': {
+          fontSize: '12px'
+        },
+        '.cm-completionDetail': {
+          fontSize: '10px',
+          color: 'var(--nf-text-muted)',
+          fontStyle: 'normal'
         }
       })
     ]
@@ -266,19 +341,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .codemirror-editor-wrapper {
-  border: 1px solid #21262d;
   border-radius: 4px;
   overflow: hidden;
-  background: #161b22;
-}
-
-.codemirror-editor-wrapper:hover {
-  border-color: #2f3336;
-}
-
-.codemirror-editor-wrapper:focus-within {
-  border-color: #00d4aa;
-  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.1);
+  background: var(--nf-bg-card);
 }
 
 .codemirror-editor :deep(.cm-editor) {
@@ -287,5 +352,19 @@ onBeforeUnmount(() => {
 
 .codemirror-editor :deep(.cm-scroller) {
   overflow: auto;
+}
+
+.codemirror-editor :deep(.cm-scroller)::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.codemirror-editor :deep(.cm-scroller)::-webkit-scrollbar-thumb {
+  background: var(--nf-scrollbar);
+  border-radius: 2px;
+}
+
+.codemirror-editor :deep(.cm-scroller)::-webkit-scrollbar-thumb:hover {
+  background: var(--nf-scrollbar-hover);
 }
 </style>

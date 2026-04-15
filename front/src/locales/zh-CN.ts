@@ -23,16 +23,40 @@ export default {
     status: '状态',
     actions: '操作',
     createdTime: '创建时间',
-    updatedTime: '更新时间'
+    updatedTime: '更新时间',
+    success: '成功',
+    failed: '失败',
+    languageSwitched: '语言已切换',
   },
 
-  // 导航菜单
+  login: {
+    phonePlaceholder: '请输入手机号',
+    passwordPlaceholder: '请输入密码',
+    phoneRequired: '请输入手机号',
+    phoneInvalid: '请输入正确的手机号格式',
+    passwordRequired: '请输入密码',
+    passwordMinLength: '密码至少6个字符',
+    loggingIn: '登录中...',
+    registerOrLogin: '注册 / 登录',
+    loginSuccess: '登录成功',
+    welcomeBack: '欢迎回来',
+    formSubtitle: '登录以继续使用 NexusFlow',
+    brandTagline: '可视化工作流编排平台，让 AI 与业务逻辑无缝协作',
+    feature1: '可视化拖拽式流程设计',
+    feature2: '多模型 LLM 集成支持',
+    feature3: '实时对话测试与调试',
+  },
+
   nav: {
     home: '首页',
     logicFlow: '逻辑流程',
     aiFlow: 'AI流程',
     approvalFlow: '审批流程',
     about: '关于',
+    studio: 'Studio',
+    templates: '模板库',
+    knowledge: '知识库',
+    models: '模型配置',
     llmProvider: '大模型提供商'
   },
 
@@ -209,7 +233,78 @@ export default {
     user: '用户',
     logout: '退出登录',
     modelManagement: '模型管理',
-    about: '关于'
+    about: '关于',
+    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.'
+  },
+
+  // Studio 工作流
+  studio: {
+    title: '工作流',
+    subtitle: '管理和编排你的工作流程',
+    all: '全部',
+    createWorkflow: '创建工作流',
+    searchPlaceholder: '搜索工作流...',
+    emptyTitle: '暂无工作流',
+    emptyDesc: '点击创建按钮开始构建你的第一个工作流',
+    saveAsTemplate: '存为模板',
+    saveAsTemplateSuccess: '已保存为模板',
+    createDialog: {
+      title: '创建工作流',
+      fromBlank: '空白创建',
+      fromTemplate: '从模板创建',
+      selectType: '选择流程类型',
+      name: '工作流名称',
+      namePlaceholder: '请输入工作流名称',
+      description: '描述',
+      descPlaceholder: '请输入工作流描述',
+      nameRequired: '请输入工作流名称',
+    },
+    card: {
+      lastModified: '最后修改',
+      edit: '编辑信息',
+      copy: '复制',
+      delete: '删除',
+    }
+  },
+
+  // 模板库
+  templates: {
+    title: '模板库',
+    subtitle: '使用预设模板快速创建工作流',
+    official: '官方模板',
+    myTemplates: '我的模板',
+    useTemplate: '使用模板',
+    deleteTemplate: '删除模板',
+    deleteConfirm: '确定要删除模板「{name}」吗？',
+    emptyOfficial: '暂无官方模板',
+    emptyMy: '暂无自定义模板，从 Studio 中将工作流存为模板',
+    templateUsed: '已使用模板创建工作流',
+    preview: '预览',
+  },
+
+  // 知识库
+  knowledge: {
+    title: '知识库',
+    subtitle: '管理知识库，为 AI 工作流提供上下文',
+    create: '创建知识库',
+    emptyTitle: '暂无知识库',
+    emptyDesc: '创建一个知识库开始使用',
+    name: '知识库名称',
+    namePlaceholder: '请输入知识库名称',
+    description: '描述',
+    descPlaceholder: '请输入知识库描述',
+    nameRequired: '请输入知识库名称',
+    comingSoon: '知识库功能开发中，敬请期待',
+  },
+
+  // About 使用指南
+  about: {
+    tagline: '可视化工作流编排平台',
+    featuresTitle: '核心功能',
+    quickstartTitle: '快速开始',
+    quickstartSubtitle: '三步即可创建并运行你的第一个 AI 工作流',
+    flowDemoTitle: '流程演示',
+    flowDemoSubtitle: '直观了解工作流的执行流程',
   },
 
   // 流程列表
@@ -251,7 +346,8 @@ export default {
     loadFailed: '加载{type}列表失败',
     invalidFlowId: '流程ID无效',
     unnamedFlow: '未命名流程',
-    copySuffix: '副本'
+    copySuffix: '副本',
+    subtitle: '管理和编排你的工作流程'
   },
 
   // 流程设计器
@@ -262,7 +358,11 @@ export default {
     approvalFlowTitle: '审批流程设计器',
     close: '关闭',
     run: '运行',
+    stop: '停止',
     save: '保存',
+    enterQuery: '输入你的查询...',
+    saveFirst: '请先保存流程',
+    resultWillAppear: '结果将显示在此处',
     unnamedFlow: '未命名流程',
     flowIdNotExist: '流程ID不存在',
     processConfig: '流程配置',
@@ -293,7 +393,17 @@ export default {
     flowSaveSuccess: '流程保存成功',
     saveFlowFailed: '保存流程失败',
     nodePropertiesSaved: '节点属性已保存',
-    updateNodePropertiesFailed: '更新节点属性失败'
+    updateNodePropertiesFailed: '更新节点属性失败',
+    selectAtLeastTwo: '请至少选择2个节点',
+    groupCreated: '分组创建成功',
+    executionLog: '运行日志',
+    unnamedRun: '未命名运行',
+    duration: '耗时：',
+    user: '用户：',
+    system: '系统',
+    noExecutionLogs: '暂无运行日志',
+    fetchLogsFailed: '获取运行日志失败',
+    saveFlowFirst: '请先保存流程',
   },
 
   // 聊天测试
@@ -457,7 +567,17 @@ export default {
     nodeConfiguration: '节点配置',
     selectNode: '请选择一个节点查看属性',
     save: '保存',
-    
+
+    nodeStart: '开始',
+    nodeReply: '回复',
+    nodeCondition: '条件判断',
+    nodeForLoop: 'For 循环',
+    nodeAssign: '变量赋值',
+    nodeLLM: 'LLM',
+    nodeJSCode: 'JS 代码',
+    nodeHTTP: 'HTTP',
+    nodeResult: '结果',
+
     // 节点输出面板
     noOutputDefined: '暂无输出定义',
     outputType: '输出类型',
@@ -556,6 +676,7 @@ export default {
   // 模型提供者管理
   llmProviderMgmt: {
     title: '模型提供者管理',
+    subtitle: '配置和管理 LLM API 连接',
     add: '添加提供者',
     edit: '编辑',
     delete: '删除',

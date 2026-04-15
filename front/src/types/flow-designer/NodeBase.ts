@@ -45,8 +45,11 @@ export interface NodeBase {
    */
   outputs?: NodeOutputItem[];
   
-  /** 其他自定义属性 */
-  [key: string]: any;
+  /** LogicFlow 画布坐标 */
+  x?: number;
+  y?: number;
+  /** 默认描述（条件节点等使用） */
+  defaultDescription?: string;
 }
 
 /**
@@ -72,13 +75,19 @@ export class NodeBaseModel extends HtmlNodeModel {
    * 子类可以重写此方法来定义自己的默认样式
    */
   setAttributes(attributes?: { width?: number; height?: number }) {
-    // 默认节点尺寸
     this.width = attributes?.width ?? 240;
     this.height = attributes?.height ?? 90;
-    // 默认禁止缩放，避免无需求节点出现四角手柄
     this.resizable = false;
-    // 节点文本默认不可编辑
     this.text.editable = false;
+  }
+
+  getDefaultAnchor() {
+    const { width, height, x, y, id } = this
+    const anchorY = height > 120 ? y - height / 2 + 28 : y
+    return [
+      { x: x - width / 2, y: anchorY, id: `${id}_left` },
+      { x: x + width / 2, y: anchorY, id: `${id}_right` },
+    ]
   }
 
   /**

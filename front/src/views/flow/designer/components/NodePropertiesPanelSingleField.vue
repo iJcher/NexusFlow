@@ -1,46 +1,6 @@
-<!--
-  NodePropertiesPanelSingleField - 节点属性面板单字段渲染组件
-  
-  作用：
-  这是一个专门为 NodePropertiesPanel 设计的表单字段渲染组件。
-  用于节点属性面板中动态渲染各种类型的输入控件。
-  根据传入的 type 属性，自动选择合适的 UI 组件来展示和编辑该字段。
-  
-  支持的字段类型：
-  - text: 单行文本输入框
-  - textarea: 多行文本输入框
-  - number: 数字输入框
-  - boolean: 开关按钮
-  - select: 下拉选择器
-  - conditions: 条件列表编辑器（用于条件节点的多条件管理）
-  - textInput: 文本输入单元（支持变量插入和全屏编辑）
-  - modelSelector: AI模型选择器（按平台分组显示）
-  - slider: 滑块（用于温度等0-1范围的参数）
-  - memoryConfig: 记忆配置（开关 + 轮数输入）
-  - jsExpression: JS表达式编辑器（支持代码高亮和变量标签）
-  - assignments: 赋值列表编辑器（用于变量赋值节点）
-  
-  使用场景：
-  在 NodePropertiesPanel.vue 中遍历节点的 propertyFields 配置，
-  为每个字段渲染对应的 PropertyField 组件。
-  
-  Props:
-  - label: 字段标签名称
-  - type: 字段类型（决定渲染哪种控件）
-  - value: 字段当前值（v-model绑定）
-  - placeholder: 占位符文本
-  - description: 字段描述（显示在控件下方）
-  - options: 选择器选项（仅select类型使用）
-  - readonly: 是否只读
-  - variables: 变量列表（用于赋值编辑器）
-  
-  Events:
-  - update:value: 值更新事件（用于v-model）
-  - change: 值变化事件
--->
 <template>
   <div class="property-field">
-    <label class="block text-3.25 text-nf-text-primary leading-4.5">{{ label }}</label>
+    <label class="field-label">{{ label }}</label>
     
     <div class="field-content">
       <!-- 文本输入框 -->
@@ -198,7 +158,7 @@
         v-model="localValue"
         :placeholder="placeholder"
         :title="label"
-        :rows="4"
+        :rows="2"
         @change="handleChange"
       />
       
@@ -223,7 +183,7 @@
             :value="`${provider.platformName}|${modelName}`"
           >
             <span style="float: left">{{ modelName }}</span>
-            <span style="float: right; color: #8b949e; font-size: 12px">{{ provider.platformName }}</span>
+            <span style="float: right; color: var(--nf-text-muted); font-size: 12px">{{ provider.platformName }}</span>
           </el-option>
         </el-option-group>
       </el-select>
@@ -279,52 +239,6 @@
         :lock-mode="true"
         @change="handleChange"
       />
-
-      <!-- HTTP 键值对列表（类似 Postman） -->
-      <div
-        v-else-if="type === 'httpKeyValues'"
-        class="http-kv-editor"
-      >
-        <div class="http-kv-list">
-          <div
-            v-for="(item, index) in httpKeyValueList"
-            :key="item.id"
-            class="http-kv-item"
-          >
-            <el-input
-              v-model="item.key.Text"
-              placeholder="Key"
-              size="small"
-              class="kv-key"
-              @input="updateHttpKeyValues"
-            />
-            <div class="kv-value">
-              <FullTextMiniExpressionUnit
-                v-model="item.value"
-                placeholder="Value"
-                @change="updateHttpKeyValues"
-              />
-            </div>
-            <el-button
-              type="danger"
-              size="small"
-              text
-              :icon="Delete"
-              class="kv-remove"
-              @click="removeHttpKeyValue(index)"
-            />
-          </div>
-        </div>
-        <el-button
-          type="primary"
-          size="small"
-          :icon="Plus"
-          @click="addHttpKeyValue"
-          class="http-kv-add"
-        >
-          {{ t('flowComponents.addAssignment') }}
-        </el-button>
-      </div>
 
       <!-- 赋值列表编辑器 -->
       <div
@@ -396,9 +310,7 @@
         clearable
       />
       
-      <div v-if="description" class="text-2.75 text-nf-text-secondary leading-3.5">
-        {{ description }}
-      </div>
+      <p v-if="description" class="field-desc">{{ description }}</p>
     </div>
   </div>
 </template>
@@ -492,111 +404,7 @@ watch(() => props.value, (newValue) => {
   localValue.value = newValue;
 }, { immediate: true });
 
-interface ParsedCurlResult {
-  method?: string;
-  url?: string;
-  headers?: string;
-  query?: string;
-  body?: string;
-}
-
-const stripQuotes = (text: string) => {
-  if (!text) return text;
-  if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith('\'') && text.endsWith('\''))) {
-    return text.slice(1, -1);
-  }
-  return text;
-};
-
-const parseCurlCommand = (cmd: string): ParsedCurlResult => {
-  const result: ParsedCurlResult = {};
-  if (!cmd) return result;
-
-  const normalized = cmd.replace(/\\\r?\n/g, ' ').trim();
-  const tokens = normalized.split(/\s+/).filter(Boolean);
-  if (!tokens.length) return result;
-
-  const headerLines: string[] = [];
-  const bodyParts: string[] = [];
-
-  let i = 0;
-  const curlIndex = tokens.findIndex(t => t.toLowerCase() === 'curl');
-  if (curlIndex >= 0) i = curlIndex + 1;
-
-  for (; i < tokens.length; i++) {
-    const t = tokens[i];
-
-    // 请求方法
-    if ((t === '-X' || t === '--request') && i + 1 < tokens.length) {
-      result.method = tokens[++i].toUpperCase();
-      continue;
-    }
-
-    // Header，支持 -H "Key: Value with space"
-    if ((t === '-H' || t === '--header') && i + 1 < tokens.length) {
-      let hToken = tokens[++i];
-      let header = hToken;
-      const firstChar = hToken[0];
-      const isQuoted = firstChar === '"' || firstChar === '\'';
-
-      if (isQuoted && !hToken.endsWith(firstChar)) {
-        // 跨多个 token 的 header
-        while (i + 1 < tokens.length) {
-          const nextTok = tokens[++i];
-          header += ' ' + nextTok;
-          if (nextTok.endsWith(firstChar)) break;
-        }
-      }
-
-      headerLines.push(stripQuotes(header));
-      continue;
-    }
-
-    // Body，支持 -d "json with space"
-    if ((t === '--data' || t === '--data-raw' || t === '-d') && i + 1 < tokens.length) {
-      let dToken = tokens[++i];
-      let body = dToken;
-      const firstChar = dToken[0];
-      const isQuoted = firstChar === '"' || firstChar === '\'';
-
-      if (isQuoted && !dToken.endsWith(firstChar)) {
-        while (i + 1 < tokens.length) {
-          const nextTok = tokens[++i];
-          body += ' ' + nextTok;
-          if (nextTok.endsWith(firstChar)) break;
-        }
-      }
-
-      bodyParts.push(stripQuotes(body));
-      continue;
-    }
-
-    // URL（第一个非 - 开头且尚未设置 URL 的 token）
-    if (!t.startsWith('-') && !result.url) {
-      result.url = stripQuotes(t);
-    }
-  }
-
-  if (!result.method) {
-    result.method = bodyParts.length > 0 ? 'POST' : 'GET';
-  }
-
-  if (result.url && result.url.includes('?')) {
-    const [base, q] = result.url.split(/\?(.+)/);
-    result.url = base;
-    result.query = q ? '?' + q : undefined;
-  }
-
-  if (headerLines.length) {
-    result.headers = headerLines.join('\n');
-  }
-
-  if (bodyParts.length) {
-    result.body = bodyParts.join('\n');
-  }
-
-  return result;
-};
+import { parseCurlCommand } from '@/utils/curlParser';
 
 // 处理值变化
 const handleChange = (value: any) => {
@@ -773,15 +581,42 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ── Field layout ── */
+.property-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.property-field:last-child {
+  margin-bottom: 6px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nf-text-secondary);
+  line-height: 1.3;
+}
+
+.field-desc {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--nf-text-muted);
+  line-height: 1.4;
+}
+
+/* ── Element Plus compact overrides ── */
 :deep(.el-input__wrapper) {
   border-radius: 6px;
-  min-height: 28px;
+  min-height: 32px;
 }
 
 :deep(.el-input__inner) {
   font-size: 13px;
-  height: 28px;
-  line-height: 28px;
+  height: 32px;
+  line-height: 32px;
 }
 
 :deep(.el-textarea__inner) {
@@ -792,36 +627,34 @@ onMounted(() => {
 
 :deep(.el-select .el-input__wrapper) {
   border-radius: 6px;
-  min-height: 28px;
+  min-height: 32px;
 }
 
 :deep(.el-input-number__inner) {
   font-size: 13px;
-  height: 28px;
+  height: 32px;
 }
 
-/* 条件列表编辑器样式 */
+/* ── Condition editor ── */
 .conditions-editor {
   .conditions-list {
-    margin-bottom: 12px;
-    
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+
     .condition-item {
-      margin-bottom: 16px;
-      padding: 12px;
-      border: 1px solid #21262d;
-      border-radius: 6px;
-      background: #161b22;
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
+      padding: 10px;
+      border: 1px solid var(--nf-border);
+      border-radius: 8px;
+      background: var(--nf-bg-elevated);
+
       .condition-header {
         display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 8px;
-        
+
         .condition-index {
           flex-shrink: 0;
           width: 20px;
@@ -829,143 +662,152 @@ onMounted(() => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #00d4aa;
-          color: #e7e9ea;
+          background: var(--nf-accent);
+          color: #fff;
           border-radius: 50%;
-          font-size: 11px;
-          font-weight: bold;
+          font-size: 10px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
         }
-        
+
         .condition-description {
           flex: 1;
         }
       }
     }
   }
-  
+
   .add-condition-btn {
     width: 100%;
     border-style: dashed;
-    border-color: #00d4aa;
-    color: #00d4aa;
+    border-color: var(--nf-border-light);
+    color: var(--nf-accent);
     background: transparent;
-    
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
     &:hover {
-      background: rgba(0, 212, 170, 0.1);
-      border-color: #00b894;
-      color: #00b894;
+      background: var(--nf-accent-muted);
+      border-color: var(--nf-accent);
     }
   }
 }
 
-/* 赋值列表编辑器样式 */
+/* ── Assignment editor ── */
 .assignments-editor {
   .assignments-list {
-    margin-bottom: 12px;
-    
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+
     .assignment-item {
-      margin-bottom: 16px;
-      padding: 12px;
-      border: 1px solid #21262d;
-      border-radius: 6px;
-      background: #161b22;
-      
-      &:last-child {
-        margin-bottom: 0;
-      }
-      
+      padding: 10px;
+      border: 1px solid var(--nf-border);
+      border-radius: 8px;
+      background: var(--nf-bg-elevated);
+
       .assignment-header {
         display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 8px;
-        
-        .variable-select {
-          flex: 1;
-        }
+
+        .variable-select { flex: 1; }
       }
     }
   }
-  
+
   .add-assignment-btn {
     width: 100%;
     border-style: dashed;
-    border-color: #0891b2;
-    color: #0891b2;
+    border-color: var(--nf-border-light);
+    color: var(--nf-accent2);
     background: transparent;
-    
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
     &:hover {
-      background: rgba(8, 145, 178, 0.1);
-      border-color: #0e7490;
-      color: #0e7490;
+      background: rgba(8, 145, 178, 0.08);
+      border-color: var(--nf-accent2);
     }
   }
 }
 
-/* 变量选项样式 */
+/* ── Variable option dropdown ── */
 .variable-option {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  
+
   .variable-name {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-weight: 500;
   }
-  
+
   .variable-type {
     font-size: 11px;
-    color: #8b949e;
-    padding: 2px 6px;
-    background: #21262d;
+    color: var(--nf-text-muted);
+    padding: 1px 6px;
+    background: var(--nf-bg-muted);
     border-radius: 3px;
   }
 }
 
-/* 滑块容器样式 */
+/* ── Slider ── */
 .slider-container {
   display: flex;
   align-items: center;
   gap: 12px;
-  
-  .el-slider {
-    flex: 1;
-  }
-  
+
+  .el-slider { flex: 1; }
+
   .slider-value {
-    min-width: 35px;
+    min-width: 36px;
     text-align: center;
     font-size: 13px;
-    font-weight: 500;
-    color: #8b949e;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--nf-text-secondary);
   }
 }
 
-/* 记忆配置样式 */
+/* ── Memory config ── */
 .memory-config {
   .memory-switch {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
-    
-    .switch-label {
-      font-size: 13px;
-      color: #8b949e;
+    margin-bottom: 10px;
+
+    .memory-label {
+      font-size: 12px;
+      color: var(--nf-text-secondary);
+      white-space: nowrap;
     }
   }
-  
+
   .memory-rounds {
     display: flex;
     align-items: center;
     gap: 8px;
     padding-left: 8px;
-    
+
     .rounds-label {
-      font-size: 13px;
-      color: #8b949e;
+      font-size: 12px;
+      color: var(--nf-text-secondary);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
   }
+}
+
+/* ── HTTP method row ── */
+.http-method-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .http-method-select { width: 120px; }
+  .http-curl-btn { flex-shrink: 0; }
 }
 </style>

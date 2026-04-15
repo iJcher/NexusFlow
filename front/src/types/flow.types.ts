@@ -161,7 +161,7 @@ export interface IFlowRunLogDto {
   runUser?: string | null;
   /** 运行是否成功 */
   isSuccess: boolean;
-  aIChatRequest : AIChatRequest
+  chatRequest?: AIChatRequest;
 }
 
 
@@ -178,8 +178,8 @@ export interface AIChatRequest {
   /** 会话ID，用于继续特定会话; 参考dify的逻辑, 传空的话, 则创建新的会话 */
   conversationId?: string;
   
-  /** 是否启用流式响应, blocking: 阻止模式, streaming: 流式模式 */
-  responseMode?: string;
+  /** 响应模式: blocking 阻塞模式, streaming 流式模式 */
+  responseMode?: 'blocking' | 'streaming';
   
   /** 附加输入参数, 该参数对应入参 */
   inputs: Record<string, unknown>;

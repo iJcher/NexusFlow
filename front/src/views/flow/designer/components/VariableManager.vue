@@ -4,20 +4,20 @@
     <div class="variable-header">
       <div class="header-info">
         <div class="header-title">
-          <el-icon :size="18" class="header-icon" :style="{ color: iconColor }">
-            <component :is="icon" />
+          <el-icon :size="18" class="header-icon" :style="{ color: config.iconColor }">
+            <component :is="config.icon" />
           </el-icon>
-          <span class="title-text">{{ title }}</span>
-          <el-tag :type="tagType" size="small" class="ml-2">{{ t('flowComponents.variableCount', { count: variables.length }) }}</el-tag>
+          <span class="title-text">{{ config.title }}</span>
+          <el-tag :type="config.tagType" size="small" class="ml-2">{{ t('flowComponents.variableCount', { count: variables.length }) }}</el-tag>
         </div>
-        <p class="header-description">{{ description }}</p>
+        <p class="header-description">{{ config.description }}</p>
       </div>
       <el-button 
         type="primary" 
         :icon="Plus" 
         @click="showAddDialog"
         size="small"
-        :class="buttonClass"
+        :class="config.buttonClass"
       >
         {{ t('flowComponents.add' + (type === 'input' ? 'InputParameter' : 'SessionVariable')) }}
       </el-button>
@@ -32,7 +32,7 @@
           v-for="variable in variables" 
           :key="variable.id || variable.name"
           class="variable-row"
-          :class="cardClass"
+          :class="config.cardClass"
         >
           <div class="row-left">
             <el-icon :size="16" class="variable-type-icon">
@@ -99,7 +99,7 @@
       v-model="dialogVisible" 
       :title="isEditing ? t('flowComponents.edit' + (type === 'input' ? 'InputParameter' : 'SessionVariable')) : t('flowComponents.add' + (type === 'input' ? 'InputParameter' : 'SessionVariable'))"
       width="600px"
-      :class="dialogClass"
+      :class="config.dialogClass"
       append-to-body
       :z-index="2000"
     >
@@ -217,7 +217,7 @@
       
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitForm" :class="buttonClass">
+        <el-button type="primary" @click="submitForm" :class="config.buttonClass">
           {{ isEditing ? t('flowComponents.update') : t('flowComponents.add') }}
         </el-button>
       </template>
@@ -279,16 +279,13 @@ const config = computed(() => {
     title: isInput ? t('flowComponents.inputParameterManagement') : t('flowComponents.sessionVariableManagement'),
     description: isInput ? t('flowComponents.inputParameterDesc') : t('flowComponents.sessionVariableDesc'),
     icon: isInput ? Document : Collection,
-    iconColor: isInput ? '#00d4aa' : '#00b4d8',
+    iconColor: 'var(--nf-text-secondary)',
     tagType: isInput ? 'primary' : 'success',
-    buttonClass: isInput ? 'input-button' : 'session-button',
+    buttonClass: '',
     cardClass: isInput ? 'input-card' : 'session-card',
     dialogClass: isInput ? 'input-dialog' : 'session-dialog'
   };
 });
-
-// 解构计算属性
-const { title, description, icon, iconColor, tagType, buttonClass, cardClass, dialogClass } = config.value;
 
 // 表单相关
 const dialogVisible = ref(false);
@@ -697,189 +694,140 @@ const submitForm = async () => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 16px;
-    background: #161b22;
+    padding: 14px 16px;
+    background: var(--nf-bg-elevated);
+    border: 1px solid var(--nf-border);
     border-radius: 8px;
-    margin-bottom: 16px;
-    
+    margin-bottom: 12px;
+
     .header-info {
       flex: 1;
-      
+
       .header-title {
         display: flex;
         align-items: center;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
-        color: #e7e9ea;
-        margin-bottom: 8px;
-        
-        .header-icon {
-          margin-right: 8px;
-          transition: transform 0.2s;
-        }
-        
-        .title-text {
-          margin-right: 8px;
-        }
+        color: var(--nf-text-primary);
+        margin-bottom: 4px;
+
+        .header-icon { margin-right: 8px; }
+        .title-text { margin-right: 8px; }
       }
-      
+
       .header-description {
-        font-size: 13px;
-        color: #484f58;
+        font-size: 12px;
+        color: var(--nf-text-muted);
         margin: 0;
         line-height: 1.4;
       }
     }
   }
-  
+
   .variable-list {
     .variable-list-container {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
-    
+
     .variable-row {
       display: flex;
       align-items: center;
-      padding: 12px 16px;
-      border: 1px solid #21262d;
-      border-radius: 6px;
-      background: #161b22;
-      transition: all 0.2s;
-      min-height: 50px;
-      
+      padding: 10px 14px;
+      border: 1px solid var(--nf-border);
+      border-radius: 8px;
+      background: var(--nf-bg-card);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-height: 44px;
+
       &:hover {
-        border-color: #2f3336;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-color: var(--nf-accent);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
       }
-      
+
       &.input-card {
-        border-left: 3px solid #00d4aa;
-        
-        &:hover {
-          border-left-color: #00b4d8;
-        }
+        border-left: 3px solid var(--nf-accent);
       }
-      
+
       &.session-card {
-        border-left: 3px solid #00b4d8;
-        
-        &:hover {
-          border-left-color: #00d4aa;
-        }
+        border-left: 3px solid var(--nf-accent2);
       }
-      
+
       .row-left {
         display: flex;
         align-items: center;
         flex: 1;
         min-width: 0;
-        
+
         .variable-type-icon {
           margin-right: 8px;
-          color: #484f58;
+          color: var(--nf-text-muted);
           flex-shrink: 0;
         }
-        
+
         .variable-name {
-          color: #e7e9ea;
+          color: var(--nf-text-primary);
           margin-right: 8px;
-          font-size: 14px;
+          font-size: 13px;
+          font-weight: 500;
           flex-shrink: 0;
         }
-        
-        .type-tag {
-          margin-right: 6px;
-          flex-shrink: 0;
-        }
-        
-        .required-tag {
-          flex-shrink: 0;
-        }
+
+        .type-tag { margin-right: 6px; flex-shrink: 0; }
+        .required-tag { flex-shrink: 0; }
       }
-      
+
       .row-center {
         flex: 1;
-        padding: 0 16px;
+        padding: 0 12px;
         min-width: 0;
-        
+
         .default-value {
-          color: #8b949e;
-          font-size: 13px;
+          color: var(--nf-text-muted);
+          font-size: 12px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           max-width: 150px;
         }
-        
-        .children-info {
-          color: #484f58;
-          font-size: 13px;
-        }
-        
+
+        .children-info,
         .no-default {
-          color: #484f58;
-          font-size: 13px;
+          color: var(--nf-text-muted);
+          font-size: 12px;
         }
       }
-      
+
       .row-right {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 2px;
         flex-shrink: 0;
       }
     }
   }
 }
 
-// 按钮样式区分
-.input-button {
-  background: linear-gradient(135deg, #00d4aa, #00b4d8);
-  border-color: #00d4aa;
-  
-  &:hover {
-    background: linear-gradient(135deg, #00b4d8, #00d4aa);
-  }
-}
-
-.session-button {
-  background: linear-gradient(135deg, #00b4d8, #00d4aa);
-  border-color: #00b4d8;
-  
-  &:hover {
-    background: linear-gradient(135deg, #00d4aa, #00b4d8);
-  }
-}
-
-// 对话框样式（全局样式，因为dialog挂载到body）
-
 .variable-form {
   .option-item {
     display: flex;
     align-items: center;
   }
-  
+
   .children-manager {
-    border: 1px solid #21262d;
-    border-radius: 4px;
+    border: 1px solid var(--nf-border);
+    border-radius: 8px;
     padding: 12px;
-    background: #161b22;
-    
+    background: var(--nf-bg-elevated);
+
     .child-item {
       display: flex;
       align-items: center;
       margin-top: 8px;
-      
-      &:first-child {
-        margin-top: 8px;
-      }
     }
   }
 }
 
-.ml-2 {
-  margin-left: 8px;
-}
+.ml-2 { margin-left: 8px; }
 </style>

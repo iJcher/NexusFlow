@@ -8,7 +8,7 @@
     :style="{ left: position.x + 'px', top: position.y + 'px' }"
     @click.stop
   >
-    <div class="nf-context-menu-item hover:bg-[rgba(0,212,170,0.08)]" @click="handleDelete">
+    <div class="nf-context-menu-item hover:bg-nf-elevated cursor-pointer" @click="handleDelete">
       <el-icon class="mr-2.5 text-4"><Delete /></el-icon>
       <span>{{ t('flowComponents.delete') }}{{ targetType === 'node' ? t('flowComponents.node') : t('flowComponents.edge') }}</span>
     </div>
@@ -49,6 +49,9 @@ const handleDelete = () => {
 };
 
 const handleCopy = () => {
+  if (props.targetType && props.targetId) {
+    emit('copy', props.targetType, props.targetId);
+  }
   emit('close');
 };
 </script>

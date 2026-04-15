@@ -4,7 +4,6 @@
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import type { TApiResponse } from '@/types/ApiResponse{T}';
-import { MessageUtil } from './message.util';
 import router from '@/router';
 import { getCurrentLanguage } from '@/locales';
 
@@ -30,7 +29,7 @@ export class ApiError extends Error {
  * 实现单例模式，支持多个不同的 baseURL
  */
 export class HttpUtil {
-  private static instanceDic: Record<string, any> = {};
+  private static instanceDic: Record<string, AxiosInstance> = {};
 
   /**
    * 获取 Axios 实例
@@ -40,7 +39,7 @@ export class HttpUtil {
   public static getInstance(baseURL: string = import.meta.env.VITE_API_BASE_URL): AxiosInstance {
     if (HttpUtil.instanceDic[baseURL]) return HttpUtil.instanceDic[baseURL];
     else {
-      var instance = HttpUtil.getInstanceInner(baseURL);
+      const instance = HttpUtil.getInstanceInner(baseURL);
       HttpUtil.instanceDic[baseURL] = instance;
       return instance;
     }
@@ -53,7 +52,7 @@ export class HttpUtil {
    */
   private static getInstanceInner(baseURL: string = import.meta.env.VITE_API_BASE_URL): AxiosInstance {
 
-    var newInstance = axios.create({
+    const newInstance = axios.create({
       baseURL: baseURL,
     });
 
@@ -78,41 +77,35 @@ export class HttpUtil {
       (error) => Promise.reject(error)
     );
 
-    // 响应拦截器 - 统一处理响应和错误
     newInstance.interceptors.response.use(
       (response) => {
-        const apiResponse = response.data as TApiResponse<any>;
-        // 业务错误处理
+        const apiResponse = response.data as TApiResponse<unknown>;
         if (apiResponse.errCode !== 0) {
-          MessageUtil.error(apiResponse.errMsg);
           throw new ApiError(
             apiResponse.errCode,
             apiResponse.errMsg,
-            apiResponse.requestId
+            apiResponse.requestId,
           );
         }
         return response;
       },
-      (error: AxiosError<TApiResponse<any>>) => {
-        // HTTP错误处理
-        if (error.response?.data) {
-          const apiResponse = error.response.data;
-          MessageUtil.error(apiResponse.errMsg);
-          throw new ApiError(
-            apiResponse.errCode,
-            apiResponse.errMsg,
-            apiResponse.requestId
-          );
-        }
-        // 401未授权 - 跳转到登录页
-        if (error.status === 401) {
-          MessageUtil.error('未登录，请先登录');
+      (error: AxiosError<TApiResponse<unknown>>) => {
+        if (error.response?.status === 401) {
           router.push('/login');
           throw error;
         }
-        MessageUtil.error('网络请求失败，请稍后重试');
+
+        if (error.response?.data) {
+          const apiResponse = error.response.data;
+          throw new ApiError(
+            apiResponse.errCode,
+            apiResponse.errMsg,
+            apiResponse.requestId,
+          );
+        }
+
         throw error;
-      }
+      },
     );
 
     return newInstance;
