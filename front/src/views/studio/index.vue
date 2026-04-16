@@ -445,6 +445,11 @@ onMounted(() => {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: left;
 }
 
 .filter-item:hover {

@@ -32,11 +32,46 @@
       </div>
     </header>
 
-    <div id="lf-container" ref="lfContainer" class="canvas-area" @contextmenu.prevent="(e) => menus.handleCanvasContextMenu(e, getLf())"></div>
+    <div class="canvas-area" ref="canvasRef" @contextmenu.prevent="handleCanvasContextMenu">
+      <VueFlow
+        id="nexusflow-canvas"
+        :selection-on-drag="isGroupSelecting"
+        @node-context-menu="handleNodeContextMenu"
+        @edge-context-menu="handleEdgeContextMenu"
+        class="vue-flow-canvas"
+      >
+        <Background :variant="BackgroundVariant.Dots" :gap="20" :size="2" />
+        <MiniMap position="bottom-right" />
+
+        <template #node-start="nodeProps">
+          <StartVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-llm="nodeProps">
+          <LLMVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-reply="nodeProps">
+          <ReplyVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-condition="nodeProps">
+          <ConditionVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-assign="nodeProps">
+          <AssignVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-jscode="nodeProps">
+          <JSCodeVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-http="nodeProps">
+          <HttpVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-result="nodeProps">
+          <ResultVFNode v-bind="nodeProps" />
+        </template>
+      </VueFlow>
+    </div>
 
     <CanvasControlBar 
       :zoom-percent="currentZoomPercent"
-      @add-node="handleOpenAddNodeDialog"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
       @reset-zoom="resetZoom"
@@ -44,38 +79,46 @@
 
     <FlowRightMenuComponent
       ref="rightMenuRef"
-      :visible="menus.contextMenuVisible.value"
-      :position="menus.contextMenuPosition.value"
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
       :nodes="availableNodes"
-      @close="menus.closeContextMenu(rightMenuRef)"
-      @select-node="addNodeAtPosition"
+      @close="closeContextMenu"
+      @select-node="handleAddNodeFromMenu"
     />
 
     <NodeContextMenu
-      :visible="menus.nodeContextMenuVisible.value"
-      :position="menus.nodeContextMenuPosition.value"
-      :target-type="menus.contextMenuTargetType.value"
-      :target-id="menus.contextMenuTargetId.value"
-      @close="menus.closeNodeContextMenu()"
-      @delete="(type, id) => menus.handleDeleteTarget(type, id, getLf())"
+      :visible="nodeContextMenuVisible"
+      :position="nodeContextMenuPosition"
+      :target-type="contextMenuTargetType"
+      :target-id="contextMenuTargetId"
+      @close="closeNodeContextMenu"
+      @delete="handleDeleteTarget"
     />
 
     <NodePalette
       :nodes="availableNodes"
       :canvas-mode="canvasMode"
+      :is-group-selecting="isGroupSelecting"
       @add-node="addNodeFromPalette"
-      @group="groupSelectedNodes"
+      @group="toggleGroupSelect"
       @mode-change="setCanvasMode"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, provide, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { DocumentAdd, Close, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { VueFlow } from '@vue-flow/core'
+import { Background, BackgroundVariant } from '@vue-flow/background'
+import { MiniMap } from '@vue-flow/minimap'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/minimap/dist/style.css'
+
 import { useFlowDesignerStore } from '@/stores/flowDesigner'
 
 import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
@@ -84,15 +127,22 @@ import NodeContextMenu from './components/NodeContextMenu.vue'
 import FlowExecutionLogDropdown from './components/FlowExecutionLogDropdown.vue'
 import NodePalette from './components/NodePalette.vue'
 
-import { useDesignerMenus } from '@/composables/useDesignerMenus'
-import { useLogicFlowSetup } from '@/composables/useLogicFlowSetup'
-import { useFlowPersistence } from '@/composables/useFlowPersistence'
-import { NodeBaseView } from '@/types/flow-designer/NodeBaseView'
+import StartVFNode from './vf-nodes/StartVFNode.vue'
+import LLMVFNode from './vf-nodes/LLMVFNode.vue'
+import ReplyVFNode from './vf-nodes/ReplyVFNode.vue'
+import ConditionVFNode from './vf-nodes/ConditionVFNode.vue'
+import AssignVFNode from './vf-nodes/AssignVFNode.vue'
+import JSCodeVFNode from './vf-nodes/JSCodeVFNode.vue'
+import HttpVFNode from './vf-nodes/HttpVFNode.vue'
+import ResultVFNode from './vf-nodes/ResultVFNode.vue'
+
+import { useVueFlowSetup } from '@/composables/useVueFlowSetup'
+import { useFlowPersistenceVF } from '@/composables/useFlowPersistenceVF'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const lfContainer = ref<HTMLElement | null>(null)
+const canvasRef = ref<HTMLElement | null>(null)
 const rightMenuRef = ref<InstanceType<typeof FlowRightMenuComponent> | null>(null)
 const flowStore = useFlowDesignerStore()
 
@@ -108,45 +158,124 @@ const flowTitle = computed(() => {
   return titles[flowType.value] || t('flowDesigner.title')
 })
 
-const menus = useDesignerMenus()
-
 const {
+  nodes,
+  edges,
+  canvasMode,
   currentZoomPercent,
   availableNodes,
   currentFlowName,
-  canvasMode,
-  initLogicFlow,
-  addNodeAtPosition,
-  groupSelectedNodes,
-  setCanvasMode,
+  initCanvas,
+  addNodeAtCenter,
+  addNodeAndConnect,
+  deleteNode,
+  deleteEdge,
   zoomIn,
   zoomOut,
   resetZoom,
-  getLf,
-} = useLogicFlowSetup(
-  lfContainer,
+  setCanvasMode,
+  isGroupSelecting,
+  toggleGroupSelect,
+  getGraphData,
+  renderGraphData,
+  project,
+} = useVueFlowSetup(
   flowType,
   flowId,
-  menus,
   async (id: number) => persistence.loadFlowData(id),
 )
 
-const persistence = useFlowPersistence(flowType, flowId, currentFlowName, getLf)
+const persistence = useFlowPersistenceVF(
+  flowType,
+  flowId,
+  currentFlowName,
+  getGraphData,
+  renderGraphData,
+)
+
+provide('canvasMode', canvasMode)
+provide('availableNodes', availableNodes)
+provide('addNodeAndConnect', addNodeAndConnect)
+
+// Context menu state
+const contextMenuVisible = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const clickCanvasPosition = ref({ x: 0, y: 0 })
+const nodeContextMenuVisible = ref(false)
+const nodeContextMenuPosition = ref({ x: 0, y: 0 })
+const contextMenuTargetType = ref<'node' | 'edge' | null>(null)
+const contextMenuTargetId = ref<string | null>(null)
+
+const handleCanvasContextMenu = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (target.closest('.vue-flow__node') || target.closest('.vue-flow__edge')) return
+
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    const projected = project({ x: event.clientX - rect.left, y: event.clientY - rect.top })
+    clickCanvasPosition.value = { x: projected.x, y: projected.y }
+  }
+
+  contextMenuVisible.value = true
+  event.stopPropagation()
+}
+
+const handleNodeContextMenu = ({ event, node }: { event: MouseEvent | TouchEvent, node: any }) => {
+  event.preventDefault()
+  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
+  nodeContextMenuPosition.value = pos
+  contextMenuTargetType.value = 'node'
+  contextMenuTargetId.value = node.id
+  nodeContextMenuVisible.value = true
+  contextMenuVisible.value = false
+}
+
+const handleEdgeContextMenu = ({ event, edge }: { event: MouseEvent | TouchEvent, edge: any }) => {
+  event.preventDefault()
+  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
+  nodeContextMenuPosition.value = pos
+  contextMenuTargetType.value = 'edge'
+  contextMenuTargetId.value = edge.id
+  nodeContextMenuVisible.value = true
+  contextMenuVisible.value = false
+}
+
+const closeContextMenu = () => {
+  contextMenuVisible.value = false
+  rightMenuRef.value?.closeSelector()
+}
+
+const closeNodeContextMenu = () => {
+  nodeContextMenuVisible.value = false
+  contextMenuTargetType.value = null
+  contextMenuTargetId.value = null
+}
+
+const handleDeleteTarget = (targetType: 'node' | 'edge', targetId: string) => {
+  if (targetType === 'node') {
+    deleteNode(targetId)
+    ElMessage.success(t('flowDesigner.nodeDeleted'))
+  } else if (targetType === 'edge') {
+    deleteEdge(targetId)
+    ElMessage.success(t('flowDesigner.edgeDeleted'))
+  }
+}
+
+const handleAddNodeFromMenu = (nodeType: string) => {
+  addNodeAtCenter(nodeType, clickCanvasPosition.value)
+}
 
 const addNodeFromPalette = (nodeType: string) => {
-  const lf = getLf()
-  if (!lf || !lfContainer.value) return
-  const rect = lfContainer.value.getBoundingClientRect()
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  const point = lf.getPointByClient(centerX, centerY)
+  if (!canvasRef.value) return
+  const rect = canvasRef.value.getBoundingClientRect()
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+  const projected = project({ x: centerX, y: centerY })
   const offsetX = (Math.random() - 0.5) * 120
   const offsetY = (Math.random() - 0.5) * 80
-  menus.clickPosition.value = {
-    x: point.canvasOverlayPosition.x + offsetX,
-    y: point.canvasOverlayPosition.y + offsetY,
-  }
-  addNodeAtPosition(nodeType)
+  addNodeAtCenter(nodeType, { x: projected.x + offsetX, y: projected.y + offsetY })
 }
 
 const closeWindow = () => router.back()
@@ -162,19 +291,11 @@ const openChatTest = () => {
 const handleOpenAddNodeDialog = () => {
   const centerX = window.innerWidth / 2
   const centerY = window.innerHeight / 2
-  const lf = getLf()
 
-  if (lf && lfContainer.value) {
-    const rect = lfContainer.value.getBoundingClientRect()
-    const bottomControlBarHeight = 64
-    const randomOffset = Math.floor(Math.random() * 101) + 100
-    const screenY = rect.bottom - bottomControlBarHeight - randomOffset
-    const screenX = rect.left + rect.width / 2
-    const point = lf.getPointByClient(screenX, screenY)
-    menus.clickPosition.value = {
-      x: point.canvasOverlayPosition.x,
-      y: point.canvasOverlayPosition.y,
-    }
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    const projected = project({ x: rect.width / 2, y: rect.height / 2 })
+    clickCanvasPosition.value = { x: projected.x, y: projected.y }
   }
 
   setTimeout(() => {
@@ -182,40 +303,24 @@ const handleOpenAddNodeDialog = () => {
   })
 }
 
-const closeAllMenusFn = () => menus.closeAllMenus(rightMenuRef.value)
-
-const handleKeydown = (e: KeyboardEvent) => {
-  const tag = (e.target as HTMLElement)?.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return
-
-  if (e.key === 'v' || e.key === 'V') {
-    setCanvasMode('select')
-  } else if (e.key === 'h' || e.key === 'H') {
-    setCanvasMode('move')
-  }
+const closeAllMenusFn = () => {
+  closeContextMenu()
+  closeNodeContextMenu()
 }
 
 onMounted(() => {
   const flowIdString = flowId.value ? flowId.value.toString() : `temp-${Date.now()}`
   flowStore.initFlow(flowIdString, currentFlowName.value || t('flowDesigner.unnamedFlow'))
-  initLogicFlow()
+  initCanvas()
   document.addEventListener('click', closeAllMenusFn)
-  document.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
-  NodeBaseView.clearAllWidgets()
-  const lf = getLf()
-  if (lf) {
-    lf.destroy()
-  }
   document.removeEventListener('click', closeAllMenusFn)
-  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
 <style scoped>
-/* ── Page shell ── */
 .flow-editor-page {
   width: 100vw;
   height: 100vh;
@@ -225,7 +330,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* ── Header (52px, ref: matrix-number) ── */
 .editor-header {
   height: 52px;
   display: flex;
@@ -274,148 +378,58 @@ onBeforeUnmount(() => {
   border: 1px solid var(--nf-border);
 }
 
-/* ── Canvas ── */
 .canvas-area {
   flex: 1;
   position: relative;
-  background: var(--nf-bg-base);
 }
 
-/* ── Node styling on canvas ── */
-:deep(.dify-node),
-:deep(.widget-container) {
-  display: flex;
-  flex-direction: column;
+.vue-flow-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.vue-flow__background) {
+  background: #eeeef1;
+}
+html.dark :deep(.vue-flow__background) {
+  background: #09090b;
+}
+
+:deep(.vue-flow__edge-path) {
+  stroke: #a1a1aa;
+  stroke-width: 1.5;
+}
+html.dark :deep(.vue-flow__edge-path) {
+  stroke: #52525b;
+}
+
+:deep(.vue-flow__edge.selected .vue-flow__edge-path) {
+  stroke: var(--nf-accent);
+  stroke-width: 2;
+}
+
+:deep(.vue-flow__controls) {
   background: var(--nf-bg-card);
   border: 1px solid var(--nf-border);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-sizing: border-box;
+  box-shadow: var(--nf-shadow);
 }
 
-:deep(.dify-node) {
-  padding: 12px;
-}
-
-:deep(.dify-node:hover),
-:deep(.widget-container:hover) {
-  border-color: var(--nf-accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.lf-node-selected .dify-node),
-:deep(.lf-node-selected .widget-container) {
-  border-color: var(--nf-accent);
-  box-shadow: 0 0 0 2px var(--nf-accent-muted);
-}
-
-:deep(.node-header) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-:deep(.node-icon) {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  flex-shrink: 0;
-  font-size: 15px;
+:deep(.vue-flow__controls-button) {
+  background: transparent;
+  border: none;
   color: var(--nf-text-secondary);
+}
+:deep(.vue-flow__controls-button:hover) {
   background: var(--nf-bg-elevated);
-  border: 1px solid var(--nf-border);
+  color: var(--nf-accent);
 }
 
-:deep(.node-name) {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--nf-text-primary);
-  line-height: 20px;
-}
-
-:deep(.node-info) {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 18px;
-}
-
-:deep(.info-text) {
-  font-size: 12px;
-  color: var(--nf-text-muted);
-  line-height: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-:deep(.lf-anchor) {
-  width: 8px;
-  height: 8px;
+:deep(.vue-flow__minimap) {
   background: var(--nf-bg-card);
-  border: 2px solid var(--nf-accent);
-  border-radius: 50%;
-}
-
-:deep(.lf-anchor:hover) {
-  width: 10px;
-  height: 10px;
-  background: var(--nf-accent);
-}
-
-:deep(.lf-arrow) { fill: var(--nf-text-muted); }
-:deep(.lf-edge-selected .lf-arrow) { fill: var(--nf-accent); }
-
-/* ── Widget compact overrides ── */
-:deep(.widget-container .el-select) {
-  --el-select-input-font-size: 11px;
-}
-:deep(.widget-container .el-input__inner) {
-  font-size: 11px;
-  height: 26px;
-  line-height: 26px;
-}
-:deep(.widget-container .el-input--small .el-input__wrapper) {
-  padding: 0 7px;
-}
-:deep(.widget-container .el-textarea__inner) {
-  font-size: 11px;
-  min-height: 40px !important;
-}
-:deep(.widget-container .el-input-number--small) {
-  width: 80px;
-}
-:deep(.widget-container .el-select__wrapper) {
-  min-height: 26px;
-  font-size: 11px;
-}
-:deep(.widget-container .el-select__placeholder) {
-  font-size: 11px;
-}
-:deep(.widget-container .el-slider__runway) {
-  height: 4px;
-}
-:deep(.widget-container .el-slider__button) {
-  width: 12px;
-  height: 12px;
-}
-
-/* ── Select mode: let HTML inside foreignObject receive pointer events ── */
-.canvas-area :deep(.select-mode .lf-node-content) {
-  pointer-events: none;
-}
-.canvas-area :deep(.select-mode foreignObject) {
-  pointer-events: all;
-}
-.canvas-area :deep(.select-mode .widget-container) {
-  pointer-events: all;
-  cursor: text;
+  border: 1px solid var(--nf-border);
+  border-radius: 8px;
+  box-shadow: var(--nf-shadow);
 }
 </style>
 

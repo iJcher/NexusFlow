@@ -30,7 +30,8 @@
 
     <button
       class="palette-icon-btn"
-      title="Group selected nodes (Ctrl+G)"
+      :class="{ active: props.isGroupSelecting }"
+      :title="props.isGroupSelecting ? '取消框选分组 (Esc)' : '框选分组 — 点击后拖动框选节点'"
       @click="emit('group')"
     >
       <el-icon :size="18"><Folder /></el-icon>
@@ -77,6 +78,7 @@ import { NodeCategory } from '@/types/flow-designer/nodeConfig'
 const props = defineProps<{
   nodes: NodeConfig[]
   canvasMode: 'move' | 'select'
+  isGroupSelecting?: boolean
 }>()
 
 const emit = defineEmits<{

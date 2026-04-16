@@ -2,7 +2,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
 import LogicFlow, { BezierEdge, BezierEdgeModel } from '@logicflow/core'
 import '@logicflow/core/dist/index.css'
-import { Group, NodeResize } from '@logicflow/extension'
+import { Group, NodeResize, SelectionSelect } from '@logicflow/extension'
 import '@logicflow/extension/dist/index.css'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -21,7 +21,7 @@ function isCurrentDark(): boolean {
 function getCanvasColors() {
   const dark = isCurrentDark()
   return {
-    bg: dark ? '#09090b' : '#f8f9fa',
+    bg: dark ? '#09090b' : '#eeeef1',
     grid: dark ? '#27272a' : '#d4d4d8',
     edge: dark ? '#52525b' : '#a1a1aa',
   }
@@ -49,6 +49,7 @@ const customBezier = {
   view: BezierEdge,
   model: CustomBezierModel,
 }
+
 
 export function useLogicFlowSetup(
   lfContainer: Ref<HTMLElement | null>,
@@ -115,14 +116,15 @@ export function useLogicFlowSetup(
 
     LogicFlow.use(Group)
     LogicFlow.use(NodeResize)
+    LogicFlow.use(SelectionSelect)
 
     lf = new LogicFlow({
       container: lfContainer.value,
       grid: {
         size: 20,
         visible: true,
-        type: 'mesh',
-        config: { color: initColors.grid, thickness: 1 },
+        type: 'dot',
+        config: { color: initColors.grid, thickness: 2 },
       },
       background: { backgroundImage: 'none', backgroundColor: initColors.bg },
       keyboard: { enabled: true },
@@ -132,7 +134,7 @@ export function useLogicFlowSetup(
       adjustEdgeStartAndEnd: true,
       history: true,
       edgeGenerator: () => 'customBezier',
-      plugins: [Group, NodeResize],
+      plugins: [Group, NodeResize, SelectionSelect],
     })
 
     lf.register(customBezier)
@@ -337,14 +339,11 @@ export function useLogicFlowSetup(
     }
   }
 
-  const groupSelectedNodes = () => {
-    if (!lf) return
-    const { nodes: selectedNodes } = lf.getSelectElements()
-    if (!selectedNodes || selectedNodes.length < 2) {
-      ElMessage.warning(t('flowDesigner.selectAtLeastTwo') || 'Select at least 2 nodes')
-      return
-    }
+  const isGroupSelecting = ref(false)
+  let _groupSelectionCleanup: (() => void) | null = null
 
+  const _createGroupFromNodes = (selectedNodes: { id: string }[]) => {
+    if (!lf) return
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
     for (const n of selectedNodes) {
       const model = lf.getNodeModelById(n.id)
@@ -377,13 +376,107 @@ export function useLogicFlowSetup(
     })
 
     const groupModel = lf.getNodeModelById(groupId) as any
-    if (groupModel?.addChild) {
-      for (const n of selectedNodes) {
-        groupModel.addChild(n.id)
+    if (groupModel) {
+      groupModel.width = gw
+      groupModel.height = gh
+
+      const groupPlugin = (lf.graphModel as any).group as { nodeGroupMap: Map<string, string> } | undefined
+
+      if (groupModel.addChild) {
+        for (const n of selectedNodes) {
+          groupModel.addChild(n.id)
+          if (groupPlugin?.nodeGroupMap) {
+            groupPlugin.nodeGroupMap.set(n.id, groupId)
+          }
+        }
+      }
+
+      const dark = isCurrentDark()
+      const origGetNodeStyle = groupModel.getNodeStyle.bind(groupModel)
+      groupModel.getNodeStyle = () => {
+        const style = origGetNodeStyle()
+        style.stroke = dark ? '#60a5fa' : '#3b82f6'
+        style.strokeWidth = 2
+        style.strokeDasharray = '8 4'
+        style.fill = dark ? 'rgba(59,130,246,0.06)' : 'rgba(59,130,246,0.04)'
+        style.radius = 8
+        if (groupModel.isSelected) {
+          style.stroke = dark ? '#93bbfd' : '#2563eb'
+          style.strokeWidth = 2.5
+          style.strokeDasharray = '0'
+        }
+        return style
       }
     }
 
     ElMessage.success(t('flowDesigner.groupCreated') || 'Group created')
+  }
+
+  const _exitGroupSelectionMode = () => {
+    if (!lf) return
+    isGroupSelecting.value = false
+    const selectionPlugin = (lf.extension as any)?.selectionSelect
+    if (selectionPlugin) {
+      selectionPlugin.closeSelectionSelect()
+    }
+    if (_groupSelectionCleanup) {
+      _groupSelectionCleanup()
+      _groupSelectionCleanup = null
+    }
+    if (lfContainer.value) {
+      lfContainer.value.style.cursor = canvasMode.value === 'select' ? 'default' : 'grab'
+      lfContainer.value.classList.remove('group-selecting')
+    }
+  }
+
+  const startGroupSelection = () => {
+    if (!lf) return
+
+    if (isGroupSelecting.value) {
+      _exitGroupSelectionMode()
+      return
+    }
+
+    isGroupSelecting.value = true
+    const selectionPlugin = (lf.extension as any)?.selectionSelect
+    if (selectionPlugin) {
+      selectionPlugin.openSelectionSelect()
+    }
+
+    if (lfContainer.value) {
+      lfContainer.value.style.cursor = 'crosshair'
+      lfContainer.value.classList.add('group-selecting')
+    }
+
+    const handleSelectionDone = () => {
+      setTimeout(() => {
+        if (!lf) return
+        const { nodes } = lf.getSelectElements()
+        if (nodes && nodes.length >= 2) {
+          _createGroupFromNodes(nodes)
+        }
+        else if (nodes && nodes.length > 0) {
+          ElMessage.warning(t('flowDesigner.selectAtLeastTwo') || '至少选择 2 个节点')
+        }
+        _exitGroupSelectionMode()
+      }, 50)
+    }
+
+    const container = lfContainer.value
+    if (container) {
+      const onMouseUp = () => {
+        if (!isGroupSelecting.value) return
+        handleSelectionDone()
+      }
+      container.addEventListener('mouseup', onMouseUp, { once: true, capture: true })
+      _groupSelectionCleanup = () => {
+        container.removeEventListener('mouseup', onMouseUp, true)
+      }
+    }
+  }
+
+  const groupSelectedNodes = () => {
+    startGroupSelection()
   }
 
   const zoomIn = () => lf?.zoom(true)
@@ -401,6 +494,7 @@ export function useLogicFlowSetup(
     availableNodes,
     currentFlowName,
     canvasMode,
+    isGroupSelecting,
     initLogicFlow,
     addNodeAtPosition,
     handleSaveNodeProperties,

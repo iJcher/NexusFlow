@@ -1,8 +1,5 @@
 <template>
   <div class="canvas-control-bar">
-    <button type="button" class="ctrl-btn add-btn" @click="handleAddNode" :title="t('flowComponents.addNode')">
-      <Plus class="w-4 h-4" />
-    </button>
     <div class="zoom-group">
       <button type="button" class="ctrl-btn" @click="handleZoomOut" :title="t('flowComponents.zoomOut')">
         <ZoomOut class="w-4 h-4" />
@@ -19,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { ZoomIn, ZoomOut, FullScreen, Plus } from '@element-plus/icons-vue';
+import { ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 
 interface Props {
@@ -31,7 +28,6 @@ withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  addNode: [];
   zoomIn: [];
   zoomOut: [];
   resetZoom: [];
@@ -39,7 +35,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-const handleAddNode = () => emit('addNode');
 const handleZoomIn = () => emit('zoomIn');
 const handleZoomOut = () => emit('zoomOut');
 const handleResetZoom = () => emit('resetZoom');
@@ -77,20 +72,6 @@ const handleResetZoom = () => emit('resetZoom');
 .ctrl-btn:hover {
   background: var(--nf-bg-elevated);
   color: var(--nf-text-primary);
-}
-
-.add-btn {
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  width: 36px;
-  height: 36px;
-}
-
-.add-btn:hover {
-  border-color: var(--nf-accent);
-  color: var(--nf-accent);
 }
 
 .zoom-group {

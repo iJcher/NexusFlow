@@ -22,7 +22,9 @@
           :placeholder="t('flowComponents.selectLLMModel')"
           size="small"
           filterable
+          :teleported="false"
           style="width: 100%"
+          popper-class="nf-node-select-popper"
           @change="update('modelSelection', $event)"
         >
           <el-option-group
@@ -298,8 +300,50 @@ onMounted(loadModelProviders)
 }
 :deep(.el-input__inner) {
   font-size: 11px;
+  height: 24px;
+  line-height: 24px;
 }
 :deep(.el-select) {
   --el-select-input-font-size: 11px;
+}
+:deep(.el-select__wrapper) {
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+:deep(.el-select__placeholder) {
+  font-size: 11px;
+}
+:deep(.el-select__suffix) {
+  font-size: 10px;
+}
+:deep(.el-input--small .el-input__wrapper) {
+  padding: 0 6px;
+}
+</style>
+
+<style>
+.nf-node-select-popper {
+  --el-font-size-base: 11px;
+}
+.nf-node-select-popper .el-select-dropdown__item {
+  font-size: 11px;
+  height: 26px;
+  line-height: 26px;
+  padding: 0 10px;
+}
+.nf-node-select-popper .el-select-group__title {
+  font-size: 10px;
+  padding-left: 10px;
+  line-height: 22px;
+}
+.nf-node-select-popper .el-select-group__wrap::after {
+  display: none;
+}
+.nf-node-select-popper .el-scrollbar {
+  max-height: 180px;
+}
+.nf-node-select-popper .el-select-dropdown__list {
+  padding: 2px 0;
 }
 </style>
