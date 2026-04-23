@@ -357,13 +357,81 @@ watch(() => t('llmProviderMgmt.title'), () => {});
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 32px;
+  font-family: var(--nf-font-display);
 }
 
-:deep(.el-form-item__label) {
-  white-space: nowrap;
+.nf-page-header {
+  margin-bottom: 16px;
+}
+
+.nf-card {
+  background: rgba(8, 11, 16, 0.5);
+  border: 1px solid #1A2030;
+  border-radius: 8px;
+}
+
+:deep(.el-table) {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: rgba(14, 18, 24, 0.6);
+  --el-table-row-hover-bg-color: rgba(0, 255, 159, 0.03);
+  --el-table-border-color: #141A22;
+  --el-table-header-text-color: #6B7D8E;
+  --el-table-text-color: #C0CDD8;
+  font-family: var(--nf-font-display);
 }
 
 :deep(.el-table th .cell) {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 12px;
   white-space: nowrap;
+}
+
+:deep(.el-table td .cell) {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+/* Dialog overrides */
+:deep(.el-dialog) {
+  background: #080B10;
+  border: 1px solid #1E2733;
+  border-radius: 8px;
+}
+
+:deep(.el-dialog__title) {
+  font-family: var(--nf-font-display);
+  color: #E6EDF3;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid #141A22;
+}
+
+:deep(.el-form-item__label) {
+  font-family: var(--nf-font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #6B7D8E;
+  white-space: nowrap;
+}
+
+:deep(.el-input__inner) {
+  font-family: var(--nf-font-display);
+  color: #C0CDD8;
+  letter-spacing: 0.02em;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #4A5C6E;
+}
+
+:deep(.el-textarea__inner) {
+  font-family: var(--nf-font-display);
+  color: #C0CDD8;
+  letter-spacing: 0.02em;
 }
 </style>

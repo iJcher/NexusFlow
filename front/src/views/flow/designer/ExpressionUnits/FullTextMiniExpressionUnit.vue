@@ -117,9 +117,14 @@ const handleVariableSelect = (variable: VariableItem) => {
 }
 
 .variable-btn {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: var(--nf-font-mono);
   font-size: 13px;
   font-weight: 600;
   padding: 4px 8px;
+  color: #6B7D8E;
+}
+
+.variable-btn:hover {
+  color: var(--nf-accent);
 }
 </style>

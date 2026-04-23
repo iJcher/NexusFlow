@@ -6,22 +6,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/about'
+      redirect: '/studio'
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('@/views/login/index.vue'),
       meta: { layout: 'simple', requiresAuth: false }
-    },
-    {
-      path: '/about',
-      name: 'about',
-      component: () => import('@/layouts/AdminLayout.vue'),
-      meta: { requiresAuth: true },
-      children: [
-        { path: '', component: () => import('@/views/about/index.vue') }
-      ]
     },
     {
       path: '/studio',
@@ -48,6 +39,15 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '', component: () => import('@/views/knowledge/index.vue') }
+      ]
+    },
+    {
+      path: '/knowledge/:id',
+      name: 'knowledgeDetail',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/knowledge/detail.vue') }
       ]
     },
     {

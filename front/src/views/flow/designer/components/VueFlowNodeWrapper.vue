@@ -104,64 +104,44 @@ const widgetComponent = props.widget
 </script>
 
 <style scoped>
+/* ── Node shell ── */
 .vf-node-shell {
-  background: #ffffff;
-  border: 1px solid #d4d4d8;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.05);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: rgba(8, 11, 16, 0.92);
+  border: 1px solid #1A2030;
+  border-radius: 6px;
+  transition: all 0.25s ease;
   min-width: 180px;
   position: relative;
+  font-family: var(--nf-font-display);
+  backdrop-filter: blur(8px);
 }
 
 .vf-node-shell:hover {
-  border-color: var(--nf-accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 255, 159, 0.35);
+  box-shadow: 0 0 12px rgba(0, 255, 159, 0.1);
 }
 
 .vf-node-shell.selected {
   border-color: var(--nf-accent);
-  box-shadow: 0 0 0 2px var(--nf-accent-muted), 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 16px rgba(0, 255, 159, 0.15), 0 0 32px rgba(0, 255, 159, 0.05);
 }
 
-html.dark .vf-node-shell {
-  background: #18181b;
-  border-color: #3f3f46;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.04);
-}
-html.dark .vf-node-shell:hover {
-  border-color: var(--nf-accent);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.06);
-}
-html.dark .vf-node-shell.selected {
-  border-color: var(--nf-accent);
-  box-shadow: 0 0 0 2px var(--nf-accent-muted), 0 4px 20px rgba(0, 0, 0, 0.35);
-}
-
-/* ── Target handle (left): larger circle ── */
+/* ── Target handle (left) ── */
 .vf-handle-target {
-  width: 12px;
-  height: 12px;
-  background: #ffffff;
-  border: 2.5px solid #a1a1aa;
+  width: 8px;
+  height: 8px;
+  background: #05070A;
+  border: 1.5px solid #2A3544;
   border-radius: 50%;
-  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  transition: all 0.2s;
 }
 .vf-handle-target:hover {
   border-color: var(--nf-accent);
   background: var(--nf-accent);
-  transform: scale(1.3);
-}
-html.dark .vf-handle-target {
-  background: #27272a;
-  border-color: #52525b;
-}
-html.dark .vf-handle-target:hover {
-  background: var(--nf-accent);
-  border-color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
 }
 
-/* ── Source handle zone (right): small dot + hover "+" button ── */
+/* ── Source handle zone (right) ── */
 .source-handle-zone {
   position: absolute;
   right: -6px;
@@ -173,20 +153,17 @@ html.dark .vf-handle-target:hover {
 }
 
 .vf-handle-source {
-  width: 8px;
-  height: 8px;
-  background: #ffffff;
-  border: 2px solid #a1a1aa;
+  width: 6px;
+  height: 6px;
+  background: #05070A;
+  border: 1.5px solid #2A3544;
   border-radius: 50%;
   position: relative;
-  transition: border-color 0.15s, opacity 0.15s;
+  transition: all 0.2s;
 }
 .source-handle-zone:hover .vf-handle-source {
   border-color: var(--nf-accent);
-}
-html.dark .vf-handle-source {
-  background: #27272a;
-  border-color: #52525b;
+  box-shadow: var(--nf-glow-sm);
 }
 
 .handle-plus-btn {
@@ -195,28 +172,20 @@ html.dark .vf-handle-source {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1.5px solid var(--nf-accent);
-  background: #ffffff;
-  color: var(--nf-accent);
+  border: 1px solid #1E2733;
+  background: rgba(8, 11, 16, 0.9);
+  color: #5A6A7C;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition: all 0.2s;
   padding: 0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 .handle-plus-btn:hover {
-  background: var(--nf-accent);
-  color: #ffffff;
-  transform: scale(1.15);
-}
-html.dark .handle-plus-btn {
-  background: #27272a;
-}
-html.dark .handle-plus-btn:hover {
-  background: var(--nf-accent);
-  color: #ffffff;
+  border-color: var(--nf-accent);
+  color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
 }
 
 /* ── Node selector dropdown ── */
@@ -225,36 +194,38 @@ html.dark .handle-plus-btn:hover {
   left: 40px;
   top: 50%;
   transform: translateY(-50%);
-  width: 200px;
-  background: var(--nf-bg-card, #fff);
-  border: 1px solid var(--nf-border, #e4e4e7);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  width: 210px;
+  background: rgba(8, 11, 16, 0.95);
+  border: 1px solid #1E2733;
+  border-radius: 6px;
   overflow: hidden;
   z-index: 100;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .selector-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 8px 10px;
+  font-family: var(--nf-font-display);
   font-size: 11px;
   font-weight: 600;
-  color: var(--nf-text-primary, #18181b);
-  border-bottom: 1px solid var(--nf-border, #e4e4e7);
+  color: #5A6A7C;
+  border-bottom: 1px solid #141A22;
 }
 .selector-close {
   border: none;
   background: none;
   font-size: 14px;
   cursor: pointer;
-  color: var(--nf-text-muted, #a1a1aa);
+  color: #5A6A7C;
   line-height: 1;
   padding: 0 2px;
 }
 .selector-close:hover {
-  color: var(--nf-text-primary, #18181b);
+  color: var(--nf-accent);
 }
 
 .selector-list {
@@ -263,7 +234,7 @@ html.dark .handle-plus-btn:hover {
   padding: 4px;
 }
 .selector-list::-webkit-scrollbar { width: 3px; }
-.selector-list::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 2px; }
+.selector-list::-webkit-scrollbar-thumb { background: #1E2733; border-radius: 2px; }
 
 .selector-item {
   display: flex;
@@ -271,24 +242,31 @@ html.dark .handle-plus-btn:hover {
   width: 100%;
   padding: 6px 8px;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background 0.12s;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
 }
 .selector-item:hover {
-  background: var(--nf-bg-elevated, #f4f4f5);
+  background: rgba(255, 255, 255, 0.03);
+  border-left-color: var(--nf-accent);
 }
 .selector-item-name {
-  font-size: 11px;
+  font-family: var(--nf-font-display);
+  font-size: 12px;
   font-weight: 500;
-  color: var(--nf-text-primary, #18181b);
+  color: #A0B0C0;
   line-height: 1.3;
 }
+.selector-item:hover .selector-item-name {
+  color: #e4e4e7;
+}
 .selector-item-desc {
-  font-size: 9px;
-  color: var(--nf-text-muted, #a1a1aa);
+  font-family: var(--nf-font-display);
+  font-size: 11px;
+  color: #3A4A5C;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
@@ -297,29 +275,45 @@ html.dark .handle-plus-btn:hover {
 
 .selector-fade-enter-active,
 .selector-fade-leave-active {
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition: opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 .selector-fade-enter-from,
 .selector-fade-leave-to {
   opacity: 0;
-  transform: translateY(-50%) translateX(-6px);
 }
 
-/* ── Element Plus overrides ── */
+/* ── Element Plus overrides (FUI within nodes) ── */
 :deep(.el-select) {
   --el-select-input-font-size: 11px;
 }
 :deep(.el-input__inner) {
-  font-size: 11px;
+  font-size: 12px;
   height: 26px;
   line-height: 26px;
+  font-family: var(--nf-font-display);
+  color: #A0B0C0;
 }
 :deep(.el-input--small .el-input__wrapper) {
   padding: 0 7px;
+  background: transparent;
+  border: 1px solid #1E2733;
+  border-radius: 4px;
+  box-shadow: none !important;
+}
+:deep(.el-input--small .el-input__wrapper:focus-within) {
+  border-color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm) !important;
 }
 :deep(.el-textarea__inner) {
-  font-size: 11px;
+  font-size: 12px;
   min-height: 40px !important;
+  font-family: var(--nf-font-display);
+  background: transparent;
+  border: 1px solid #1E2733;
+  color: #A0B0C0;
+}
+:deep(.el-textarea__inner:focus) {
+  border-color: var(--nf-accent);
 }
 :deep(.el-input-number--small) {
   width: 80px;
@@ -327,19 +321,26 @@ html.dark .handle-plus-btn:hover {
 :deep(.el-select__wrapper) {
   min-height: 26px;
   font-size: 11px;
+  background: transparent;
 }
 :deep(.el-select__placeholder) {
   font-size: 11px;
 }
 :deep(.el-slider__runway) {
-  height: 4px;
+  height: 3px;
+  background: #1E2733;
+}
+:deep(.el-slider__bar) {
+  background: var(--nf-accent);
 }
 :deep(.el-slider__button) {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
+  border-color: var(--nf-accent);
+  background: #05070A;
 }
 
-/* ── Move mode: readonly, pointer cursor, no text selection ── */
+/* ── Move mode ── */
 .node-move-mode {
   user-select: none;
   cursor: grab;
@@ -361,7 +362,7 @@ html.dark .handle-plus-btn:hover {
   pointer-events: none !important;
 }
 
-/* ── Select mode: editable, normal cursors ── */
+/* ── Select mode ── */
 .node-select-mode {
   cursor: default;
 }

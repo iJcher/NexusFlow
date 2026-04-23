@@ -1,13 +1,15 @@
 <template>
   <div class="studio-page">
+    <!-- HUD sidebar -->
     <aside class="studio-sidebar">
+      <div class="sidebar-label">SYSTEM FILTERS</div>
       <button
         v-for="filter in filters"
         :key="filter.value"
         :class="['filter-item', { active: activeFilter === filter.value }]"
         @click="activeFilter = filter.value"
       >
-        <el-icon :size="16"><component :is="filter.icon" /></el-icon>
+        <el-icon :size="14"><component :is="filter.icon" /></el-icon>
         <span>{{ filter.label }}</span>
         <span class="filter-count">{{ getFilterCount(filter.value) }}</span>
       </button>
@@ -16,7 +18,7 @@
     <div class="studio-main">
       <div class="studio-header">
         <div>
-          <h2 class="page-title">{{ t('studio.title') }}</h2>
+          <h2 class="page-title">WORKFLOWS</h2>
           <p class="page-subtitle">{{ t('studio.subtitle') }}</p>
         </div>
         <div class="header-actions">
@@ -27,16 +29,19 @@
             clearable
             class="search-input"
           />
-          <el-button type="primary" :icon="Plus" @click="showCreateDialog">
+          <button class="fui-btn fui-btn--primary" @click="showCreateDialog">
+            <span class="fui-btn-icon">+</span>
             {{ t('studio.createWorkflow') }}
-          </el-button>
+          </button>
         </div>
       </div>
 
       <div class="card-grid" v-loading="loading">
         <div class="workflow-card create-card" @click="showCreateDialog">
-          <el-icon :size="36" color="var(--nf-text-muted)"><Plus /></el-icon>
-          <span class="create-label">{{ t('studio.createWorkflow') }}</span>
+          <div class="create-icon-ring">
+            <el-icon :size="28"><Plus /></el-icon>
+          </div>
+          <span class="create-label">CREATE NEW WORKFLOW</span>
         </div>
 
         <div
@@ -46,9 +51,9 @@
           @click="openDesigner(flow)"
         >
           <div class="card-top">
-            <el-tag :type="getTagType(flow.flowType)" size="small" effect="plain">
+            <span class="fui-tag" :class="'fui-tag--' + getDesignerRoute(flow.flowType)">
               {{ getFlowTypeLabel(flow.flowType) }}
-            </el-tag>
+            </span>
             <el-dropdown trigger="click" @command="(cmd: string) => handleCardAction(cmd, flow)">
               <el-icon class="card-more" :size="16" @click.stop><MoreFilled /></el-icon>
               <template #dropdown>
@@ -72,7 +77,9 @@
 
           <h3 class="card-name">{{ flow.displayName || t('flowList.unnamedFlow') }}</h3>
           <p class="card-desc">{{ flow.description || t('flowList.noDescription') }}</p>
-          <span class="card-time">{{ t('studio.card.lastModified') }} {{ formatDateTime(flow.lastModified) }}</span>
+          <div class="card-footer">
+            <span class="card-time">{{ formatDateTime(flow.lastModified) }}</span>
+          </div>
         </div>
       </div>
 
@@ -86,7 +93,7 @@
     </div>
 
     <!-- Create / Edit Dialog -->
-    <el-dialog v-model="dialogVisible" :title="editingFlow ? t('flowList.editTitle', { type: '' }) : t('studio.createDialog.title')" width="520px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="editingFlow ? t('flowList.editTitle', { type: '' }) : t('studio.createDialog.title')" width="520px" destroy-on-close class="fui-dialog">
       <div v-if="!editingFlow" class="create-source-tabs">
         <button type="button" :class="['source-tab', { active: createMode === 'blank' }]" @click="createMode = 'blank'">
           {{ t('studio.createDialog.fromBlank') }}
@@ -128,7 +135,7 @@
           :class="['template-card', { selected: selectedTemplateId === tpl.id }]"
           @click="selectTemplate(tpl)"
         >
-          <el-tag :type="getTagType(tpl.flowType)" size="small" effect="plain">{{ getFlowTypeLabel(tpl.flowType) }}</el-tag>
+          <span class="fui-tag" :class="'fui-tag--' + getDesignerRoute(tpl.flowType)">{{ getFlowTypeLabel(tpl.flowType) }}</span>
           <h4>{{ tpl.name }}</h4>
           <p>{{ tpl.description }}</p>
         </div>
@@ -136,8 +143,10 @@
       </div>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="saveFlow">{{ t('common.confirm') }}</el-button>
+        <div class="fui-dialog-footer">
+          <button class="fui-btn fui-btn--ghost" @click="dialogVisible = false">{{ t('common.cancel') }}</button>
+          <button class="fui-btn fui-btn--primary" @click="saveFlow">{{ t('common.confirm') }}</button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -418,85 +427,131 @@ onMounted(() => {
 .studio-page {
   display: flex;
   height: 100%;
+  background:
+    radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px),
+    #05070A;
+  background-size: 20px 20px;
+  font-family: var(--nf-font-display);
 }
 
-/* ── Sidebar filter ── */
+/* ── Sidebar ── */
 .studio-sidebar {
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 2px;
-  padding: 24px 12px;
-  border-right: 1px solid var(--nf-border);
-  background: var(--nf-bg-card);
+  padding: 32px 12px;
+  border-right: 1px solid #141A22;
+  background: rgba(8, 11, 16, 0.6);
+}
+
+.sidebar-label {
+  font-family: var(--nf-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(0, 255, 159, 0.35);
+  padding: 0 12px 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #141A22;
+  text-transform: uppercase;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 10px 12px;
   border: none;
+  border-radius: 6px;
   background: transparent;
-  color: var(--nf-text-secondary);
-  font-size: 14px;
+  color: #6B7D8E;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   width: 100%;
   text-align: left;
+  position: relative;
+}
+
+.filter-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: all 0.2s;
 }
 
 .filter-item:hover {
-  background: var(--nf-bg-elevated);
-  color: var(--nf-text-primary);
+  color: #B0BEC5;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .filter-item.active {
-  background: var(--nf-accent-muted);
   color: var(--nf-accent);
+  background: rgba(0, 255, 159, 0.04);
+}
+
+.filter-item.active::before {
+  background: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
 }
 
 .filter-count {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--nf-text-muted);
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+  color: #3A4E5E;
   min-width: 20px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-item.active .filter-count {
+  color: rgba(0, 255, 159, 0.5);
 }
 
 /* ── Main area ── */
 .studio-main {
   flex: 1;
-  padding: 24px 32px;
+  padding: 32px 40px;
   overflow-y: auto;
 }
 
 .studio-header {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   gap: 16px;
   flex-wrap: wrap;
 }
 
 .page-title {
-  font-size: 22px;
+  font-family: var(--nf-font-display);
+  font-size: 24px;
   font-weight: 700;
-  margin: 0 0 4px;
-  color: var(--nf-text-primary);
+  margin: 0 0 6px;
+  color: #E6EDF3;
+  letter-spacing: 0.08em;
 }
 
 .page-subtitle {
-  font-size: 14px;
-  color: var(--nf-text-muted);
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  color: #6B7D8E;
   margin: 0;
+  font-weight: 400;
+  letter-spacing: 0.04em;
 }
 
 .header-actions {
@@ -506,60 +561,160 @@ onMounted(() => {
 }
 
 .search-input {
-  width: 240px;
+  width: 260px;
+}
+
+/* ── FUI Button ── */
+.fui-btn {
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 9px 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fui-btn--primary {
+  background: transparent;
+  color: var(--nf-accent);
+  border: 1px solid var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
+}
+
+.fui-btn--primary:hover {
+  background: rgba(0, 255, 159, 0.06);
+  box-shadow: var(--nf-glow-md);
+}
+
+.fui-btn--ghost {
+  background: transparent;
+  color: #6B7D8E;
+  border: 1px solid #1E2733;
+}
+
+.fui-btn--ghost:hover {
+  border-color: rgba(0, 255, 159, 0.2);
+  color: #B0BEC5;
+}
+
+.fui-btn-icon {
+  font-size: 16px;
+  line-height: 1;
 }
 
 /* ── Card grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 16px;
 }
 
 .workflow-card {
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 12px;
+  background: rgba(8, 11, 16, 0.5);
+  border: 1px solid #1A2030;
+  border-radius: 8px;
   padding: 20px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   min-height: 160px;
+  position: relative;
 }
 
 .workflow-card:hover {
-  border-color: var(--nf-accent-muted);
-  transform: translateY(-3px);
-  box-shadow: var(--nf-shadow-lg);
+  border-color: rgba(0, 255, 159, 0.4);
+  box-shadow: 0 0 16px rgba(0, 255, 159, 0.12), 0 0 32px rgba(0, 255, 159, 0.04);
 }
 
+/* ── Create card ── */
 .create-card {
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 16px;
   border-style: dashed;
-  border-width: 2px;
+  border-color: #1A2030;
+  background: transparent;
 }
 
 .create-card:hover {
   border-color: var(--nf-accent);
+  background: rgba(0, 255, 159, 0.02);
+}
+
+.create-icon-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid #1E2733;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4A5C6E;
+  transition: all 0.3s;
+}
+
+.create-card:hover .create-icon-ring {
+  border-color: var(--nf-accent);
+  color: var(--nf-accent);
+  box-shadow: var(--nf-glow-md);
 }
 
 .create-label {
-  font-size: 14px;
-  color: var(--nf-text-muted);
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 500;
+  color: #4A5C6E;
+  letter-spacing: 0.06em;
+}
+
+.create-card:hover .create-label {
+  color: rgba(0, 255, 159, 0.6);
+}
+
+/* ── FUI Tag ── */
+.fui-tag {
+  font-family: var(--nf-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 3px;
+  border: 1px solid;
+  background: transparent;
+}
+
+.fui-tag--ai {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.fui-tag--logic {
+  color: var(--nf-accent);
+  border-color: rgba(0, 255, 159, 0.25);
+}
+
+.fui-tag--approval {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.25);
 }
 
 .card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .card-more {
-  color: var(--nf-text-muted);
+  color: #3A4E5E;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -567,35 +722,49 @@ onMounted(() => {
 }
 
 .card-more:hover {
-  color: var(--nf-text-primary);
-  background: var(--nf-bg-elevated);
+  color: var(--nf-accent);
 }
 
 .card-name {
-  font-size: 16px;
+  font-family: var(--nf-font-display);
+  font-size: 15px;
   font-weight: 600;
   margin: 0 0 8px;
-  color: var(--nf-text-primary);
+  color: #E6EDF3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.06em;
 }
 
 .card-desc {
+  font-family: var(--nf-font-display);
   font-size: 13px;
-  color: var(--nf-text-secondary);
+  color: #7A8B9C;
   margin: 0 0 auto;
-  line-height: 1.5;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+.card-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #141A22;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .card-time {
-  font-size: 12px;
-  color: var(--nf-text-muted);
-  margin-top: 12px;
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+  color: #4A5C6E;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Dialog ── */
@@ -603,8 +772,8 @@ onMounted(() => {
   display: flex;
   gap: 0;
   margin-bottom: 20px;
-  border: 1px solid var(--nf-border);
-  border-radius: 8px;
+  border: 1px solid #1E2733;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -613,20 +782,22 @@ onMounted(() => {
   padding: 10px;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  color: var(--nf-text-secondary);
-  transition: all 0.15s;
+  color: #6B7D8E;
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
 }
 
 .source-tab.active {
-  background: var(--nf-accent-muted);
+  background: rgba(0, 255, 159, 0.05);
   color: var(--nf-accent);
 }
 
 .source-tab:not(:last-child) {
-  border-right: 1px solid var(--nf-border);
+  border-right: 1px solid #1E2733;
 }
 
 .flow-type-selector {
@@ -642,23 +813,28 @@ onMounted(() => {
   justify-content: center;
   gap: 6px;
   padding: 10px 12px;
-  border: 1px solid var(--nf-border);
-  border-radius: 8px;
+  border: 1px solid #1E2733;
+  border-radius: 6px;
   background: transparent;
-  color: var(--nf-text-secondary);
-  font-size: 14px;
+  color: #6B7D8E;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 .type-btn:hover {
-  border-color: var(--nf-accent);
+  border-color: rgba(0, 255, 159, 0.25);
+  color: #B0BEC5;
 }
 
 .type-btn.active {
   border-color: var(--nf-accent);
-  background: var(--nf-accent-muted);
+  background: rgba(0, 255, 159, 0.04);
   color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
 }
 
 .template-list {
@@ -671,32 +847,38 @@ onMounted(() => {
 
 .template-card {
   padding: 16px;
-  border: 1px solid var(--nf-border);
-  border-radius: 10px;
+  border: 1px solid #1A2030;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 .template-card:hover {
-  border-color: var(--nf-accent-muted);
+  border-color: rgba(0, 255, 159, 0.2);
 }
 
 .template-card.selected {
   border-color: var(--nf-accent);
-  background: var(--nf-accent-muted);
+  background: rgba(0, 255, 159, 0.03);
+  box-shadow: var(--nf-glow-sm);
 }
 
 .template-card h4 {
-  margin: 8px 0 4px;
+  margin: 10px 0 4px;
+  font-family: var(--nf-font-display);
   font-size: 14px;
-  color: var(--nf-text-primary);
+  font-weight: 600;
+  color: #E6EDF3;
+  letter-spacing: 0.04em;
 }
 
 .template-card p {
   margin: 0;
+  font-family: var(--nf-font-display);
   font-size: 12px;
-  color: var(--nf-text-secondary);
-  line-height: 1.4;
+  color: #6B7D8E;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
 }
 
 .template-empty {
@@ -704,7 +886,97 @@ onMounted(() => {
 }
 
 .empty-state {
-  padding: 60px 0;
+  padding: 80px 0;
   text-align: center;
+}
+
+.fui-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ── Element Plus overrides ── */
+:deep(.el-input__wrapper) {
+  background: transparent;
+  border: 1px solid #1E2733;
+  border-radius: 4px;
+  box-shadow: none !important;
+  transition: border-color 0.2s;
+}
+
+:deep(.el-input__wrapper:hover) {
+  border-color: #2A3544;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  border-color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm) !important;
+}
+
+:deep(.el-input__inner) {
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  color: #C0CDD8;
+  letter-spacing: 0.02em;
+}
+
+:deep(.el-textarea__inner) {
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  color: #C0CDD8;
+  letter-spacing: 0.02em;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #4A5C6E;
+}
+
+:deep(.el-form-item__label) {
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #6B7D8E !important;
+}
+
+/* Dialog overrides */
+:deep(.fui-dialog.el-dialog) {
+  background: #080B10;
+  border: 1px solid #1E2733;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+:deep(.fui-dialog .el-dialog__header) {
+  padding: 18px 24px;
+  border-bottom: 1px solid #141A22;
+}
+
+:deep(.fui-dialog .el-dialog__title) {
+  font-family: var(--nf-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: #E6EDF3;
+  letter-spacing: 0.06em;
+}
+
+:deep(.fui-dialog .el-dialog__body) {
+  padding: 24px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2733;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2A3544;
 }
 </style>

@@ -116,16 +116,20 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 第二层背景的渐变可以青一点，然后蓝色更深一点 */
-  background: url('@/assets/images/login-bg.jpeg') center / contain no-repeat, linear-gradient(160deg, #f0fdfa 0%, #e0f2fe 40%, #ecfeff 70%, #f0fdfa 100%);;
+  background:
+    radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px),
+    url('@/assets/images/login-bg.png') center / cover no-repeat,
+    #05070A;
+  background-size: 20px 20px, cover, auto;
   position: relative;
+  font-family: var(--nf-font-display);
 }
 
 .login-page::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(5, 7, 10, 0.7);
 }
 
 .login-card {
@@ -134,12 +138,12 @@ const handleSubmit = async () => {
   width: 100%;
   max-width: 400px;
   padding: 40px 36px;
-  border-radius: 16px;
-  background: var(--nf-bg-base-alpha, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  background: rgba(8, 11, 16, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--nf-border-alpha, rgba(255, 255, 255, 0.15));
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  border: 1px solid #1E2733;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .card-top-actions {
@@ -185,9 +189,10 @@ const handleSubmit = async () => {
 
 .card-subtitle {
   text-align: center;
-  font-size: 14px;
-  color: var(--nf-text-secondary);
+  font-size: 13px;
+  color: #6B7D8E;
   margin: 0 0 28px;
+  letter-spacing: 0.04em;
 }
 
 .login-form :deep(.el-form-item) {
@@ -196,8 +201,28 @@ const handleSubmit = async () => {
 
 .login-form :deep(.el-input__wrapper) {
   padding: 4px 12px;
-  background: var(--nf-bg-base-alpha, rgba(255, 255, 255, 0.08));
-  backdrop-filter: blur(4px);
+  background: transparent;
+  border: 1px solid #1E2733;
+  box-shadow: none !important;
+}
+
+.login-form :deep(.el-input__wrapper:hover) {
+  border-color: #2A3544;
+}
+
+.login-form :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm) !important;
+}
+
+.login-form :deep(.el-input__inner) {
+  font-family: var(--nf-font-display);
+  color: #C0CDD8;
+  letter-spacing: 0.02em;
+}
+
+.login-form :deep(.el-input__inner::placeholder) {
+  color: #4A5C6E;
 }
 
 :deep(.el-form-item__error) {

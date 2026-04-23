@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
+import { KnowledgeService } from '../knowledge/knowledge.service';
 import { nextId } from '../common/snowflake';
 import {
   FlowConfigInfo,
@@ -20,6 +21,7 @@ import { executeJSCodeNode } from './nodes/js-code-node';
 import { executeHttpNode } from './nodes/http-node';
 import { executeLLMNode } from './nodes/llm-node';
 import { executeReplyNode } from './nodes/reply-node';
+import { executeKnowledgeNode } from './nodes/knowledge-node';
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -30,6 +32,7 @@ export class FlowRuntimeService {
   constructor(
     private prisma: PrismaService,
     private llmProviderService: LlmProviderService,
+    private knowledgeService: KnowledgeService,
   ) {}
 
   async runFlowStreaming(flowId: bigint, request: AIChatRequest, res: Response) {
@@ -274,6 +277,10 @@ export class FlowRuntimeService {
         );
       case 'ReplyNode':
         return executeReplyNode(node, context, runtime);
+      case 'KnowledgeNode':
+        return executeKnowledgeNode(node, context, runtime, (ids, query, opts) =>
+          this.knowledgeService.searchMultiple(ids, query, opts),
+        );
       default:
         return { nodeId: node.id, isSuccess: false, errorMsg: `Unknown node type: ${node.typeName}`, errorCode: 61002 };
     }

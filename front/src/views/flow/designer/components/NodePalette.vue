@@ -142,87 +142,98 @@ const handleAdd = (nodeType: string) => {
 <style scoped>
 .node-palette {
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(8, 11, 16, 0.9);
+  border: 1px solid #1E2733;
+  border-radius: 6px;
+  backdrop-filter: blur(12px);
 }
 
 .mode-btn-single {
   color: var(--nf-accent);
-  border-color: var(--nf-accent);
+  border-color: rgba(0, 255, 159, 0.15);
 }
 
 .palette-icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--nf-border);
-  border-radius: 10px;
-  background: var(--nf-bg-card);
-  color: var(--nf-text-secondary);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #5A6A7C;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition: all 0.2s;
 }
 
 .palette-divider {
-  width: 24px;
+  width: 20px;
   height: 1px;
-  background: var(--nf-border);
+  background: #141A22;
   align-self: center;
+  margin: 4px 0;
 }
 
-.palette-icon-btn:hover,
+.palette-icon-btn:hover {
+  color: #A0B0C0;
+  border-color: #1E2733;
+}
 .palette-icon-btn.active {
-  border-color: var(--nf-accent);
   color: var(--nf-accent);
-  background: var(--nf-bg-elevated);
+  border-color: rgba(0, 255, 159, 0.3);
+  box-shadow: var(--nf-glow-sm);
 }
 
 .palette-popover {
   position: absolute;
   top: 50%;
-  left: 50px;
+  left: calc(100% + 8px);
   transform: translateY(-50%);
-  width: 220px;
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  width: 230px;
+  background: rgba(8, 11, 16, 0.95);
+  border: 1px solid #1E2733;
+  border-radius: 6px;
   overflow: hidden;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .popover-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 10px 12px;
+  font-family: var(--nf-font-display);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--nf-text-primary);
-  border-bottom: 1px solid var(--nf-border);
+  letter-spacing: 0.04em;
+  color: #5A6A7C;
+  border-bottom: 1px solid #141A22;
 }
 
 .close-icon {
   cursor: pointer;
-  color: var(--nf-text-muted);
+  color: #5A6A7C;
   transition: color 0.15s;
 }
 .close-icon:hover {
-  color: var(--nf-text-primary);
+  color: var(--nf-accent);
 }
 
 .popover-nodes {
-  padding: 6px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   max-height: 360px;
   overflow-y: auto;
 }
@@ -230,24 +241,30 @@ const handleAdd = (nodeType: string) => {
 .node-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
+  gap: 10px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.15s;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
 }
 
 .node-item:hover {
-  background: var(--nf-bg-elevated);
+  background: rgba(255, 255, 255, 0.03);
+  border-left-color: var(--nf-accent);
 }
 
 .node-item-icon {
   flex-shrink: 0;
-  color: var(--nf-text-secondary);
+  color: #5A6A7C;
+}
+
+.node-item:hover .node-item-icon {
+  color: var(--nf-accent);
 }
 
 .node-item-info {
@@ -256,16 +273,23 @@ const handleAdd = (nodeType: string) => {
 }
 
 .node-item-name {
-  font-size: 12px;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--nf-text-primary);
+  color: #A0B0C0;
   line-height: 1.3;
 }
 
+.node-item:hover .node-item-name {
+  color: #e4e4e7;
+}
+
 .node-item-desc {
-  font-size: 10px;
-  color: var(--nf-text-muted);
+  font-family: var(--nf-font-display);
+  font-size: 11px;
+  color: #3A4A5C;
   line-height: 1.3;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -273,11 +297,10 @@ const handleAdd = (nodeType: string) => {
 
 .popover-fade-enter-active,
 .popover-fade-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 .popover-fade-enter-from,
 .popover-fade-leave-to {
   opacity: 0;
-  transform: translateY(-50%) translateX(-8px);
 }
 </style>

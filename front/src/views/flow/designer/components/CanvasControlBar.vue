@@ -49,7 +49,6 @@ const handleResetZoom = () => emit('resetZoom');
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 8px;
   pointer-events: none;
 }
 
@@ -57,41 +56,41 @@ const handleResetZoom = () => emit('resetZoom');
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
-  color: var(--nf-text-secondary);
+  color: #5A6A7C;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.2s;
   padding: 0;
   pointer-events: auto;
 }
-
 .ctrl-btn:hover {
-  background: var(--nf-bg-elevated);
-  color: var(--nf-text-primary);
+  color: var(--nf-accent);
 }
 
 .zoom-group {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px;
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  gap: 0;
+  padding: 2px 6px;
+  background: rgba(8, 11, 16, 0.9);
+  border: 1px solid #1E2733;
+  border-radius: 4px;
   pointer-events: auto;
+  backdrop-filter: blur(12px);
 }
 
 .zoom-label {
-  min-width: 42px;
+  min-width: 48px;
   text-align: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--nf-text-secondary);
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: #5A6A7C;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   user-select: none;
 }

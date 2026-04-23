@@ -96,7 +96,7 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import { VideoPlay, ChatDotRound, Share, EditPen, MagicStick, Document, Refresh, Link, Close, Promotion } from '@element-plus/icons-vue';
+import { VideoPlay, ChatDotRound, Share, EditPen, MagicStick, Document, Refresh, Link, Close, Promotion, Collection } from '@element-plus/icons-vue';
 import NodePropertiesPanelSingleField from './NodePropertiesPanelSingleField.vue';
 import NodePropertiesOutPutPanel from './NodePropertiesOutPutPanel.vue';
 import { useFlowDesignerStore } from '@/stores/flowDesigner';
@@ -162,6 +162,7 @@ const getNodeDisplayName = (nodeType: string): string => {
     'JSCodeNode': 'flowComponents.nodeJSCode',
     'HttpNode': 'flowComponents.nodeHTTP',
     'ResultNode': 'flowComponents.nodeResult',
+    'KnowledgeNode': 'flowComponents.nodeKnowledge',
   };
   const key = keyMap[nodeType];
   return key ? t(key) : nodeType;
@@ -178,6 +179,7 @@ const getNodeIcon = (nodeType: string) => {
     'JSCodeNode': Document,
     'HttpNode': Link,
     'ResultNode': Promotion,
+    'KnowledgeNode': Collection,
   };
   return iconMap[nodeType] || VideoPlay;
 };
@@ -291,6 +293,45 @@ const nodeSpecificFields = computed((): PropertyFieldConfig[] => {
           type: 'jsExpression',
           placeholder: t('flowComponents.enterPictures'),
           description: t('flowComponents.picturesDesc') + '\nFormat example: [ {url: ""}, {url: ""} ]'
+        }
+      ];
+
+    case 'KnowledgeNode':
+      return [
+        {
+          key: 'knowledgeBaseIds',
+          label: t('flowComponents.knowledgeBaseSelect'),
+          type: 'text',
+          placeholder: t('flowComponents.knowledgeBaseSelectPlaceholder'),
+          description: t('flowComponents.knowledgeBaseSelectDesc')
+        },
+        {
+          key: 'queryExpression',
+          label: t('flowComponents.knowledgeQuery'),
+          type: 'textInput',
+          placeholder: '{{sys.query}}',
+          description: t('flowComponents.knowledgeQueryDesc')
+        },
+        {
+          key: 'topK',
+          label: t('flowComponents.knowledgeTopK'),
+          type: 'number',
+          placeholder: '5',
+          description: t('flowComponents.knowledgeTopKDesc')
+        },
+        {
+          key: 'threshold',
+          label: t('flowComponents.knowledgeThreshold'),
+          type: 'number',
+          placeholder: '0.3',
+          description: t('flowComponents.knowledgeThresholdDesc')
+        },
+        {
+          key: 'outputVariable',
+          label: t('flowComponents.knowledgeOutputVar'),
+          type: 'text',
+          placeholder: 'knowledge_context',
+          description: t('flowComponents.knowledgeOutputVarDesc')
         }
       ];
 

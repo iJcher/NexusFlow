@@ -8,6 +8,8 @@ import { FlowModule } from './flow/flow.module';
 import { LlmProviderModule } from './llm-provider/llm-provider.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { ConversationModule } from './conversation/conversation.module';
+import { TemplateModule } from './template/template.module';
+import { KnowledgeModule } from './knowledge/knowledge.module';
 import { FlowAIController } from './workflow/flow-ai.controller';
 
 @Module({
@@ -19,6 +21,8 @@ import { FlowAIController } from './workflow/flow-ai.controller';
     LlmProviderModule,
     WorkflowModule,
     ConversationModule,
+    TemplateModule,
+    KnowledgeModule,
   ],
   controllers: [FlowAIController],
   providers: [

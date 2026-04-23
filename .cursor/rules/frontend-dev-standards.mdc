@@ -1,0 +1,105 @@
+---
+description: NEXUS 前端开发规范，涵盖 TypeScript 类型约束、样式规范、组件与状态管理约定
+globs: front/**/*.{vue,ts,tsx}
+alwaysApply: false
+---
+
+# NEXUS 前端开发规范
+
+## 技术栈
+
+Vue 3 + TypeScript + Element Plus + UnoCSS + SCSS + Pinia + Vue Router + Vue Flow + vue-i18n
+
+## TypeScript 类型约束
+
+- 所有 `.vue` 文件必须使用 `<script setup lang="ts">`
+- 禁止使用 `any`，必须为变量、参数、返回值提供明确类型
+- 接口定义统一放在 `src/types/` 目录，以 `I` 前缀命名（如 `IFlowLLMProviderDto`），文件命名 `xxx.types.ts`
+- `ref` / `reactive` 必须显式标注泛型：`ref<string[]>([])`，`ref<IXxxDto | null>(null)`
+- 事件回调、`watch` 回调中的参数必须有类型，禁止隐式 `any`
+
+```typescript
+// ❌
+const list = ref([])
+const handleClick = (e) => {}
+
+// ✅
+const list = ref<IFlowLLMProviderDto[]>([])
+const handleClick = (e: MouseEvent) => {}
+```
+
+## 样式规范：UnoCSS + SCSS 混合策略
+
+- 布局、间距、字体、颜色等高频属性优先用 UnoCSS 原子类：`flex items-center gap-2 p-4 text-sm`
+- 组件内部复杂样式、伪元素、深度选择器（`:deep()`）、动画用 `<style scoped>` + SCSS
+- 禁止行内 `style` 绑定静态样式，动态样式除外
+- Element Plus 组件样式覆盖统一在 `<style scoped>` 中用 `:deep()` 处理
+- CSS 自定义变量使用项目 `--nf-` 前缀命名空间
+
+```vue
+<!-- ✅ UnoCSS 处理布局 + SCSS 处理复杂样式 -->
+<template>
+  <div class="flex items-center gap-2 px-4 py-3">
+    <el-input v-model="value" />
+  </div>
+</template>
+
+<style scoped lang="scss">
+:deep(.el-input__wrapper) {
+  border-radius: 8px;
+}
+</style>
+```
+
+## Vue 组件规范
+
+- 统一使用 Composition API + `<script setup lang="ts">`
+- 模板中 Element Plus 组件使用 kebab-case：`<el-button>`
+- `props` / `emits` 使用 `defineProps<T>()` / `defineEmits<T>()` 泛型语法定义类型
+- 组合式函数提取到 `src/composables/`，以 `use` 前缀命名
+
+## 状态管理（Pinia）
+
+- Store 文件放在 `src/stores/`，一个领域一个文件
+- 使用 `defineStore` 定义，Store ID 与文件名对应
+- State 接口以 `I` 前缀 + `State` 后缀命名（如 `IAuthState`）
+
+## Service 层
+
+- API 调用封装在 `src/services/`，一个领域一个文件，命名 `xxx.service.ts`
+- 使用静态类方法组织：`XxxService.getList()`
+- 返回类型统一使用泛型响应包装 `ApiResponse<T>`
+
+## 国际化
+
+- 所有面向用户的文案必须使用 `t()` 函数，禁止硬编码中文/英文
+- i18n key 使用层级命名：`moduleName.actionName`（如 `llmProviderMgmt.add`）
+
+## 变更后必须跑类型检查
+
+每次修改 `.vue` / `.ts` 文件后，必须在 `front/` 目录下执行类型检查，确保无类型错误：
+
+```bash
+pnpm run type-check
+```
+
+如果类型检查报错，必须先修复再继续后续工作。
+
+## 终端命令规范
+
+- 多条命令串联时使用 `;` 分隔，**禁止使用 `&&`**（Windows PowerShell 下 `&&` 会报错）
+- 包管理器统一使用 `pnpm`
+
+```bash
+# ❌
+cd front && pnpm run type-check && pnpm run lint
+
+# ✅
+cd front ; pnpm run type-check ; pnpm run lint
+```
+
+## 工作流画布（Vue Flow）
+
+- 自定义节点组件放在 `src/views/flow/designer/vf-nodes/`
+- 节点属性配置组件放在 `src/views/flow/designer/widgets/`
+- 画布公共组件放在 `src/views/flow/designer/components/`

@@ -84,13 +84,13 @@ export const ALL_NODES: NodeConfig[] = [
     category: NodeCategory.BASIC,
     description: 'Run workflow and show real-time result',
   },
-  // {
-  //   typeName: 'KnowledgeNode',
-  //   name: 'Knowledge',
-  //   icon: 'Collection',
-  //   category: NodeCategory.AI,
-  //   description: 'Retrieve knowledge base',
-  // },
+  {
+    typeName: 'KnowledgeNode',
+    name: 'Knowledge',
+    icon: 'Collection',
+    category: NodeCategory.AI,
+    description: 'Retrieve knowledge base via RAG',
+  },
   
   // ==================== 审批节点（待开发） ====================
   // {

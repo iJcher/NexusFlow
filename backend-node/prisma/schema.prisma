@@ -86,3 +86,78 @@ model UserEntity {
 
   @@map("UserEntity")
 }
+
+// ==================== 组件模板库 ====================
+
+model FlowTemplateEntity {
+  id               BigInt   @id
+  name             String
+  description      String   @default("")
+  flowType         Int      @default(0)
+  category         String   @default("custom")
+  tags             String   @default("[]")
+  configInfoForRun String?
+  configInfoForWeb String?
+  isOfficial       Boolean  @default(false)
+  createdBy        String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+
+  @@index([flowType])
+  @@index([category])
+  @@index([isOfficial])
+  @@map("FlowTemplateEntity")
+}
+
+// ==================== RAG 知识库 ====================
+
+model KnowledgeBaseEntity {
+  id          BigInt   @id
+  name        String
+  description String   @default("")
+  createdBy   String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  docCount    Int      @default(0)
+  chunkCount  Int      @default(0)
+  status      String   @default("active")
+
+  documents KnowledgeDocumentEntity[]
+
+  @@index([createdBy])
+  @@map("KnowledgeBaseEntity")
+}
+
+model KnowledgeDocumentEntity {
+  id              BigInt   @id
+  knowledgeBaseId BigInt
+  fileName        String
+  fileSize        Int      @default(0)
+  fileType        String   @default("")
+  content         String   @default("")
+  chunkCount      Int      @default(0)
+  status          String   @default("pending")
+  errorMsg        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  knowledgeBase KnowledgeBaseEntity      @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        KnowledgeDocChunkEntity[]
+
+  @@index([knowledgeBaseId])
+  @@map("KnowledgeDocumentEntity")
+}
+
+model KnowledgeDocChunkEntity {
+  id         BigInt @id
+  documentId BigInt
+  chunkIndex Int    @default(0)
+  content    String @default("")
+  embedding  String @default("[]")
+  tokenCount Int    @default(0)
+
+  document KnowledgeDocumentEntity @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("KnowledgeDocChunkEntity")
+}

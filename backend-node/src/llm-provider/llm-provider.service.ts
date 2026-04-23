@@ -66,6 +66,11 @@ export class LlmProviderService {
     return result.count > 0;
   }
 
+  async getAll() {
+    const entities = await this.prisma.flowLLMProviderEntity.findMany();
+    return entities.map((e) => this.toDto(e));
+  }
+
   async findProviderByModelName(modelName: string) {
     const all = await this.prisma.flowLLMProviderEntity.findMany();
     for (const p of all) {

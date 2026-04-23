@@ -2,8 +2,9 @@
   <div class="flow-editor-page">
     <header class="editor-header">
       <div class="header-left">
-        <el-button @click="closeWindow" :icon="Close" text class="close-btn" />
-        <el-divider direction="vertical" class="header-divider" />
+        <button class="fui-back-btn" @click="closeWindow">
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M9 3L5 7l4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <span class="header-title">{{ flowTitle }}</span>
       </div>
       
@@ -12,30 +13,29 @@
       </div>
 
       <div class="header-right">
-        <el-button 
+        <button
           v-if="flowId"
-          @click="openChatTest" 
-          type="success" 
-          :icon="VideoPlay"
-          plain
-          size="small"
+          class="fui-btn fui-btn--ghost"
+          @click="openChatTest"
         >
           {{ t('flowDesigner.run') }}
-        </el-button>
+        </button>
         <FlowExecutionLogDropdown
           v-if="flowId"
           :flow-id="flowId"
         />
-        <el-button @click="persistence.saveFlow()" type="primary" :icon="DocumentAdd" size="small">
+        <button class="fui-btn fui-btn--primary" @click="persistence.saveFlow()">
           {{ t('flowDesigner.save') }}
-        </el-button>
+        </button>
       </div>
     </header>
 
     <div class="canvas-area" ref="canvasRef" @contextmenu.prevent="handleCanvasContextMenu">
       <VueFlow
         id="nexusflow-canvas"
-        :selection-on-drag="isGroupSelecting"
+        :selection-key-code="isGroupSelecting ? true : 'Shift'"
+        :pan-on-drag="!isGroupSelecting && canvasMode === 'move'"
+        :nodes-draggable="!isGroupSelecting && canvasMode === 'move'"
         @node-context-menu="handleNodeContextMenu"
         @edge-context-menu="handleEdgeContextMenu"
         class="vue-flow-canvas"
@@ -66,6 +66,12 @@
         </template>
         <template #node-result="nodeProps">
           <ResultVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-knowledge="nodeProps">
+          <KnowledgeVFNode v-bind="nodeProps" />
+        </template>
+        <template #node-group="nodeProps">
+          <GroupVFNode v-bind="nodeProps" />
         </template>
       </VueFlow>
     </div>
@@ -107,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, provide, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { DocumentAdd, Close, VideoPlay } from '@element-plus/icons-vue'
@@ -135,6 +141,8 @@ import AssignVFNode from './vf-nodes/AssignVFNode.vue'
 import JSCodeVFNode from './vf-nodes/JSCodeVFNode.vue'
 import HttpVFNode from './vf-nodes/HttpVFNode.vue'
 import ResultVFNode from './vf-nodes/ResultVFNode.vue'
+import KnowledgeVFNode from './vf-nodes/KnowledgeVFNode.vue'
+import GroupVFNode from './vf-nodes/GroupVFNode.vue'
 
 import { useVueFlowSetup } from '@/composables/useVueFlowSetup'
 import { useFlowPersistenceVF } from '@/composables/useFlowPersistenceVF'
@@ -176,6 +184,8 @@ const {
   setCanvasMode,
   isGroupSelecting,
   toggleGroupSelect,
+  createGroupFromSelection,
+  deleteGroup,
   getGraphData,
   renderGraphData,
   project,
@@ -196,6 +206,40 @@ const persistence = useFlowPersistenceVF(
 provide('canvasMode', canvasMode)
 provide('availableNodes', availableNodes)
 provide('addNodeAndConnect', addNodeAndConnect)
+provide('deleteGroup', deleteGroup)
+
+let groupMouseUpCleanup: (() => void) | null = null
+
+watch(isGroupSelecting, (active) => {
+  if (groupMouseUpCleanup) {
+    groupMouseUpCleanup()
+    groupMouseUpCleanup = null
+  }
+
+  if (active && canvasRef.value) {
+    const container = canvasRef.value
+    let dragged = false
+
+    const onMouseDown = () => { dragged = false }
+    const onMouseMove = () => { dragged = true }
+    const onMouseUp = () => {
+      if (!dragged) return
+      setTimeout(() => {
+        createGroupFromSelection()
+      }, 60)
+    }
+
+    container.addEventListener('mousedown', onMouseDown, true)
+    container.addEventListener('mousemove', onMouseMove, true)
+    container.addEventListener('mouseup', onMouseUp, true)
+
+    groupMouseUpCleanup = () => {
+      container.removeEventListener('mousedown', onMouseDown, true)
+      container.removeEventListener('mousemove', onMouseMove, true)
+      container.removeEventListener('mouseup', onMouseUp, true)
+    }
+  }
+})
 
 // Context menu state
 const contextMenuVisible = ref(false)
@@ -317,6 +361,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', closeAllMenusFn)
+  if (groupMouseUpCleanup) {
+    groupMouseUpCleanup()
+    groupMouseUpCleanup = null
+  }
 })
 </script>
 
@@ -326,26 +374,29 @@ onBeforeUnmount(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--nf-bg-base);
+  background: #05070A;
   overflow: hidden;
+  font-family: var(--nf-font-display);
 }
 
 .editor-header {
-  height: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  border-bottom: 1px solid var(--nf-border);
-  background: var(--nf-bg-card);
+  border-bottom: 1px solid #141A22;
+  background: rgba(8, 11, 16, 0.9);
+  backdrop-filter: blur(12px);
   flex-shrink: 0;
+  position: relative;
 }
 
 .header-left,
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .header-center {
@@ -354,28 +405,79 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
 }
 
-.close-btn {
-  color: var(--nf-text-secondary);
+.fui-back-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid #1E2733;
+  background: transparent;
+  color: #5A6A7C;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
-
-.header-divider {
-  margin: 0 4px;
+.fui-back-btn:hover {
+  color: var(--nf-accent);
+  border-color: rgba(0, 255, 159, 0.3);
+  box-shadow: var(--nf-glow-sm);
 }
 
 .header-title {
-  font-size: 15px;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--nf-text-primary);
+  color: #A0B0C0;
+  letter-spacing: 0.03em;
 }
 
 .flow-name-badge {
-  font-size: 13px;
+  font-family: var(--nf-font-display);
+  font-size: 12px;
   font-weight: 500;
-  color: var(--nf-text-secondary);
+  color: #5A6A7C;
   padding: 4px 14px;
-  background: var(--nf-bg-elevated);
-  border-radius: 6px;
-  border: 1px solid var(--nf-border);
+  background: transparent;
+  border-radius: 4px;
+  border: 1px solid #1E2733;
+}
+
+/* ── Buttons ── */
+.fui-btn {
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 7px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fui-btn--primary {
+  background: transparent;
+  color: var(--nf-accent);
+  border: 1px solid var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
+}
+.fui-btn--primary:hover {
+  background: rgba(0, 255, 159, 0.06);
+  box-shadow: var(--nf-glow-md);
+}
+
+.fui-btn--ghost {
+  background: transparent;
+  color: #5A6A7C;
+  border: 1px solid #1E2733;
+}
+.fui-btn--ghost:hover {
+  border-color: rgba(0, 255, 159, 0.2);
+  color: #A0B0C0;
 }
 
 .canvas-area {
@@ -388,69 +490,77 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+/* Micro dot-grid canvas */
 :deep(.vue-flow__background) {
-  background: #eeeef1;
-}
-html.dark :deep(.vue-flow__background) {
-  background: #09090b;
+  background-color: #05070A;
+  background-image: radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
 }
 
 :deep(.vue-flow__edge-path) {
-  stroke: #a1a1aa;
+  stroke: #1E2733;
   stroke-width: 1.5;
-}
-html.dark :deep(.vue-flow__edge-path) {
-  stroke: #52525b;
 }
 
 :deep(.vue-flow__edge.selected .vue-flow__edge-path) {
   stroke: var(--nf-accent);
   stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(0, 255, 159, 0.35));
+}
+
+:deep(.vue-flow__selection) {
+  background: rgba(0, 255, 159, 0.03);
+  border: 1px solid rgba(0, 255, 159, 0.15);
+  border-radius: 0;
 }
 
 :deep(.vue-flow__controls) {
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 8px;
-  box-shadow: var(--nf-shadow);
+  background: rgba(8, 11, 16, 0.9);
+  border: 1px solid #1E2733;
+  border-radius: 4px;
 }
 
 :deep(.vue-flow__controls-button) {
   background: transparent;
   border: none;
-  color: var(--nf-text-secondary);
+  color: #5A6A7C;
 }
 :deep(.vue-flow__controls-button:hover) {
-  background: var(--nf-bg-elevated);
   color: var(--nf-accent);
 }
 
 :deep(.vue-flow__minimap) {
-  background: var(--nf-bg-card);
-  border: 1px solid var(--nf-border);
-  border-radius: 8px;
-  box-shadow: var(--nf-shadow);
+  background: rgba(8, 11, 16, 0.9);
+  border: 1px solid #141A22;
+  border-radius: 4px;
+}
+
+:deep(.vue-flow__node-group) {
+  z-index: 0 !important;
 }
 </style>
 
 <style>
-.input-dialog .el-dialog__header {
-  background: var(--nf-bg-muted);
-  color: var(--nf-text-primary);
-}
-
-.input-dialog .el-dialog__title { color: var(--nf-text-primary); }
-
+.input-dialog .el-dialog__header,
 .session-dialog .el-dialog__header {
-  background: var(--nf-bg-muted);
-  color: var(--nf-text-primary);
+  background: #080B10;
+  border-bottom: 1px solid #141A22;
+  color: #E8EAF0;
 }
 
-.session-dialog .el-dialog__title { color: var(--nf-text-primary); }
+.input-dialog .el-dialog__title,
+.session-dialog .el-dialog__title {
+  font-family: var(--nf-font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #E8EAF0;
+}
 
 .input-dialog.el-dialog,
 .session-dialog.el-dialog {
   z-index: 2000 !important;
+  background: #080B10;
+  border: 1px solid #1E2733;
 }
 
 .el-overlay.is-message-box {

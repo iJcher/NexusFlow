@@ -415,11 +415,13 @@ onMounted(async () => {
 }
 
 .message-text {
+  font-family: var(--nf-font-display);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
   word-wrap: break-word;
   white-space: pre-wrap;
-  color: var(--nf-text-primary);
+  color: #E6EDF3;
 }
 
 .message-text :deep(p) { margin: 0; padding: 0; }
@@ -436,7 +438,7 @@ onMounted(async () => {
   background: var(--nf-bg-muted);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--nf-font-mono);
   font-size: 13px;
 }
 
@@ -490,7 +492,7 @@ onMounted(async () => {
   line-height: 1.7;
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--nf-font-mono);
 }
 
 .message-text :deep(.thinking-streaming) {

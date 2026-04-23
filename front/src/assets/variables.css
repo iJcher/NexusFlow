@@ -1,4 +1,4 @@
-/* NexusFlow Design Tokens — Dual theme (Light default + Dark) */
+/* NexusFlow Design Tokens — Dark Only (Layered Dark) */
 
 @font-face {
   font-family: 'DongFangDaKai';
@@ -10,173 +10,51 @@
 }
 
 /* ============================================================
-   LIGHT THEME (default)
+   DARK THEME — Cyber-Tech FUI
+   Background layers: base #05070A → surface #080B10 → elevated #0E1218
    ============================================================ */
 :root {
   /* ── Surface 层次体系 ── */
-  --nf-bg-base:      #ffffff;
-  --nf-bg-card:      #fafafa;
-  --nf-bg-elevated:  #f4f4f5;
-  --nf-bg-muted:     #e4e4e7;
-
-  /* ── 半透明 Surface（用于 landing page 等需要 alpha 的场景）── */
-  --nf-bg-base-alpha:     rgba(255, 255, 255, 0.8);
-  --nf-bg-card-alpha:     rgba(250, 250, 250, 0.8);
-  --nf-bg-elevated-alpha: rgba(244, 244, 245, 0.8);
-  --nf-bg-muted-alpha:    rgba(228, 228, 231, 0.6);
-
-  /* ── 边框 ── */
-  --nf-border:       #e4e4e7;
-  --nf-border-light: #d4d4d8;
-  --nf-border-alpha: rgba(228, 228, 231, 0.5);
-
-  /* ── 文字 ── */
-  --nf-text-primary:   #18181b;
-  --nf-text-secondary: #52525b;
-  --nf-text-muted:     #a1a1aa;
-
-  /* ── 强调色（品牌色，不随主题变化）── */
-  --nf-accent:       #0d9488;
-  --nf-accent-hover: #0f766e;
-  --nf-accent-muted: rgba(13, 148, 136, 0.12);
-  --nf-accent2:      #0891b2;
-
-  /* ── 语义色 ── */
-  --nf-danger:       #ef4444;
-  --nf-danger-muted: rgba(239, 68, 68, 0.1);
-  --nf-warning:      #f59e0b;
-  --nf-warning-muted: rgba(245, 158, 11, 0.1);
-  --nf-success:      #10b981;
-  --nf-success-muted: rgba(16, 185, 129, 0.1);
-  --nf-info:         #3b82f6;
-  --nf-info-muted:   rgba(59, 130, 246, 0.1);
-
-  /* ── 滚动条 ── */
-  --nf-scrollbar:       #d4d4d8;
-  --nf-scrollbar-hover: #a1a1aa;
-
-  /* ── 阴影 ── */
-  --nf-shadow:         0 1px 3px rgba(0, 0, 0, 0.08);
-  --nf-shadow-md:      0 4px 12px rgba(0, 0, 0, 0.06);
-  --nf-shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.08);
-  --nf-shadow-glow:    0 0 15px rgba(13, 148, 136, 0.1);
-
-  /* ── Landing page 专用 ── */
-  --nf-landing-bg:          linear-gradient(160deg, #f8fafc 0%, #ffffff 25%, #f0fdfa 55%, #ffffff 100%);
-  --nf-landing-orb1:        radial-gradient(circle, rgba(13, 148, 136, 0.12) 0%, rgba(13, 148, 136, 0.03) 35%, transparent 65%);
-  --nf-landing-orb2:        radial-gradient(circle, rgba(8, 145, 178, 0.10) 0%, rgba(8, 145, 178, 0.02) 35%, transparent 65%);
-  --nf-landing-orb3:        radial-gradient(circle, rgba(13, 148, 136, 0.08) 0%, rgba(13, 148, 136, 0.02) 35%, transparent 65%);
-  --nf-landing-orb4:        radial-gradient(circle, rgba(8, 145, 178, 0.06) 0%, rgba(8, 145, 178, 0.01) 35%, transparent 65%);
-  --nf-landing-nav-bg:      rgba(255, 255, 255, 0.85);
-  --nf-landing-section-bg:  rgba(250, 250, 250, 0.6);
-  --nf-landing-card-bg:     rgba(255, 255, 255, 0.8);
-  --nf-landing-footer-bg:   rgba(250, 250, 250, 0.6);
-
-  /* ── Login 专用 ── */
-  --nf-login-brand-bg: linear-gradient(160deg, #f0fdfa 0%, #e0f2fe 40%, #ecfeff 70%, #f0fdfa 100%);
-  --nf-login-orb1:     radial-gradient(circle, rgba(13, 148, 136, 0.15) 0%, transparent 65%);
-  --nf-login-orb2:     radial-gradient(circle, rgba(8, 145, 178, 0.10) 0%, transparent 65%);
-
-  /* ── Brand text gradient ── */
-  --nf-brand-nexus-gradient: linear-gradient(135deg, #18181b, #3f3f46);
-  --nf-brand-flow-gradient:  linear-gradient(135deg, #0d9488, #0891b2);
-  --nf-hero-title-gradient:  linear-gradient(135deg, #18181b 0%, #0d9488 60%, #0891b2 100%);
-  --nf-hero-btn-gradient:    linear-gradient(135deg, #0d9488, #0891b2);
-  --nf-hero-btn-text:        #ffffff;
-  --nf-hero-card-shadow:     0 20px 60px rgba(0, 0, 0, 0.08);
-  --nf-step-number-gradient: linear-gradient(135deg, #0d9488, #0891b2);
-  --nf-avatar-gradient:      linear-gradient(135deg, #0d9488, #0891b2);
-  --nf-avatar-text:          #ffffff;
-
-  /* ── Loading mask ── */
-  --nf-loading-mask: rgba(255, 255, 255, 0.75);
-  --nf-overlay:      rgba(0, 0, 0, 0.3);
-  --nf-overlay-blur: rgba(0, 0, 0, 0.15);
-
-  /* ── Element Plus font ── */
-  --el-font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-
-  /* ── Element Plus core variable mapping (light) ── */
-  --el-bg-color: #fafafa;
-  --el-bg-color-page: #ffffff;
-  --el-bg-color-overlay: #ffffff;
-  --el-fill-color: #f4f4f5;
-  --el-fill-color-light: #e4e4e7;
-  --el-fill-color-lighter: #d4d4d8;
-  --el-fill-color-extra-light: #f4f4f5;
-  --el-fill-color-dark: #a1a1aa;
-  --el-fill-color-darker: #71717a;
-  --el-fill-color-blank: #ffffff;
-
-  --el-text-color-primary: #18181b;
-  --el-text-color-regular: #18181b;
-  --el-text-color-secondary: #52525b;
-  --el-text-color-placeholder: #a1a1aa;
-  --el-text-color-disabled: #a1a1aa;
-
-  --el-border-color: #e4e4e7;
-  --el-border-color-light: #d4d4d8;
-  --el-border-color-lighter: #d4d4d8;
-  --el-border-color-extra-light: #e4e4e7;
-  --el-border-color-dark: #a1a1aa;
-  --el-border-color-darker: #71717a;
-
-  --el-color-primary: #0d9488;
-  --el-color-primary-light-3: #2dd4bf;
-  --el-color-primary-light-5: #5eead4;
-  --el-color-primary-light-7: #99f6e4;
-  --el-color-primary-light-8: #ccfbf1;
-  --el-color-primary-light-9: #f0fdfa;
-  --el-color-primary-dark-2: #0f766e;
-
-  --el-mask-color: rgba(0, 0, 0, 0.3);
-  --el-mask-color-extra-light: rgba(0, 0, 0, 0.15);
-
-  --el-box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --el-box-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --el-box-shadow-lighter: 0 1px 4px rgba(0, 0, 0, 0.04);
-  --el-box-shadow-dark: 0 8px 24px rgba(0, 0, 0, 0.12);
-
-  --el-disabled-bg-color: #f4f4f5;
-  --el-disabled-text-color: #a1a1aa;
-  --el-disabled-border-color: #e4e4e7;
-
-  --el-overlay-color: rgba(0, 0, 0, 0.3);
-  --el-overlay-color-light: rgba(0, 0, 0, 0.2);
-  --el-overlay-color-lighter: rgba(0, 0, 0, 0.1);
-}
-
-/* ============================================================
-   DARK THEME
-   ============================================================ */
-html.dark {
-  /* ── Surface 层次体系 ── */
-  --nf-bg-base:      #09090b;
-  --nf-bg-card:      #0c0c0e;
-  --nf-bg-elevated:  #18181b;
-  --nf-bg-muted:     #27272a;
+  --nf-bg-base:      #05070A;
+  --nf-bg-card:      #080B10;
+  --nf-bg-elevated:  #0E1218;
+  --nf-bg-muted:     #161B24;
 
   /* ── 半透明 Surface ── */
-  --nf-bg-base-alpha:     rgba(9, 9, 11, 0.8);
-  --nf-bg-card-alpha:     rgba(12, 12, 14, 0.8);
-  --nf-bg-elevated-alpha: rgba(24, 24, 27, 0.8);
-  --nf-bg-muted-alpha:    rgba(39, 39, 42, 0.6);
+  --nf-bg-base-alpha:     rgba(5, 7, 10, 0.85);
+  --nf-bg-card-alpha:     rgba(8, 11, 16, 0.85);
+  --nf-bg-elevated-alpha: rgba(14, 18, 24, 0.8);
+  --nf-bg-muted-alpha:    rgba(22, 27, 36, 0.6);
 
   /* ── 边框 ── */
-  --nf-border:       #27272a;
-  --nf-border-light: #3f3f46;
-  --nf-border-alpha: rgba(39, 39, 42, 0.5);
+  --nf-border:       #141A22;
+  --nf-border-light: #1E2733;
+  --nf-border-alpha: rgba(20, 26, 34, 0.5);
 
   /* ── 文字 ── */
-  --nf-text-primary:   #fafafa;
+  --nf-text-primary:   #E6EDF3;
   --nf-text-secondary: #a1a1aa;
   --nf-text-muted:     #71717a;
 
-  /* ── 强调色 ── */
-  --nf-accent:       #2dd4bf;
-  --nf-accent-hover: #5eead4;
-  --nf-accent-muted: rgba(45, 212, 191, 0.15);
-  --nf-accent2:      #06b6d4;
+  /* ── 强调色（品牌色） ── */
+  --nf-accent:       #00FF9F;
+  --nf-accent-hover: #33FFB3;
+  --nf-accent-muted: rgba(0, 255, 159, 0.08);
+  --nf-accent2:      #00E5FF;
+
+  /* ── FUI Glow tokens ── */
+  --nf-glow-sm:    0 0 6px rgba(0, 255, 159, 0.25);
+  --nf-glow-md:    0 0 12px rgba(0, 255, 159, 0.3);
+  --nf-glow-lg:    0 0 20px rgba(0, 255, 159, 0.2), 0 0 40px rgba(0, 255, 159, 0.08);
+  --nf-glow-text:  0 0 8px rgba(0, 255, 159, 0.5);
+
+  /* ── Font stacks: Inter (Latin) + Noto Sans SC (CJK) ── */
+  --nf-font-display: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --nf-font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Micro-grid overlay (used via background-image) ── */
+  --nf-grid-color: rgba(0, 255, 159, 0.03);
+  --nf-grid-size:  32px;
 
   /* ── 语义色 ── */
   --nf-danger:       #f87171;
@@ -189,58 +67,61 @@ html.dark {
   --nf-info-muted:   rgba(96, 165, 250, 0.15);
 
   /* ── 滚动条 ── */
-  --nf-scrollbar:       #3f3f46;
-  --nf-scrollbar-hover: #52525b;
+  --nf-scrollbar:       #1E2733;
+  --nf-scrollbar-hover: #2A3544;
 
-  /* ── 阴影 ── */
+  /* ── 阴影（暗黑下用 subtle inward glow 替代投影） ── */
   --nf-shadow:         0 2px 8px rgba(0, 0, 0, 0.25);
   --nf-shadow-md:      0 4px 16px rgba(0, 0, 0, 0.35);
   --nf-shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.45);
-  --nf-shadow-glow:    0 0 15px rgba(45, 212, 191, 0.12);
+  --nf-shadow-glow:    0 0 15px rgba(0, 255, 159, 0.15);
 
   /* ── Landing page 专用 ── */
-  --nf-landing-bg:          linear-gradient(160deg, #06060a 0%, #09090b 25%, #0a0f18 55%, #09090b 100%);
-  --nf-landing-orb1:        radial-gradient(circle, rgba(45, 212, 191, 0.2) 0%, rgba(45, 212, 191, 0.06) 35%, transparent 65%);
-  --nf-landing-orb2:        radial-gradient(circle, rgba(6, 182, 212, 0.18) 0%, rgba(6, 182, 212, 0.05) 35%, transparent 65%);
-  --nf-landing-orb3:        radial-gradient(circle, rgba(45, 212, 191, 0.14) 0%, rgba(45, 212, 191, 0.04) 35%, transparent 65%);
-  --nf-landing-orb4:        radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(6, 182, 212, 0.03) 35%, transparent 65%);
-  --nf-landing-nav-bg:      rgba(9, 9, 11, 0.8);
-  --nf-landing-section-bg:  rgba(12, 12, 14, 0.5);
-  --nf-landing-card-bg:     rgba(12, 12, 14, 0.6);
-  --nf-landing-footer-bg:   rgba(12, 12, 14, 0.5);
+  --nf-landing-bg:          linear-gradient(160deg, #03040A 0%, #05070A 25%, #070C14 55%, #05070A 100%);
+  --nf-landing-orb1:        radial-gradient(circle, rgba(0, 255, 159, 0.2) 0%, rgba(0, 255, 159, 0.06) 35%, transparent 65%);
+  --nf-landing-orb2:        radial-gradient(circle, rgba(0, 229, 255, 0.18) 0%, rgba(0, 229, 255, 0.05) 35%, transparent 65%);
+  --nf-landing-orb3:        radial-gradient(circle, rgba(0, 255, 159, 0.14) 0%, rgba(0, 255, 159, 0.04) 35%, transparent 65%);
+  --nf-landing-orb4:        radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, rgba(0, 229, 255, 0.03) 35%, transparent 65%);
+  --nf-landing-nav-bg:      rgba(5, 7, 10, 0.85);
+  --nf-landing-section-bg:  rgba(8, 11, 16, 0.5);
+  --nf-landing-card-bg:     rgba(8, 11, 16, 0.6);
+  --nf-landing-footer-bg:   rgba(8, 11, 16, 0.5);
 
   /* ── Login 专用 ── */
-  --nf-login-brand-bg: linear-gradient(160deg, #09090b 0%, #0c1820 40%, #0a1a2a 70%, #09090b 100%);
-  --nf-login-orb1:     radial-gradient(circle, rgba(45, 212, 191, 0.18) 0%, transparent 65%);
-  --nf-login-orb2:     radial-gradient(circle, rgba(6, 182, 212, 0.14) 0%, transparent 65%);
+  --nf-login-brand-bg: linear-gradient(160deg, #05070A 0%, #081218 40%, #071422 70%, #05070A 100%);
+  --nf-login-orb1:     radial-gradient(circle, rgba(0, 255, 159, 0.18) 0%, transparent 65%);
+  --nf-login-orb2:     radial-gradient(circle, rgba(0, 229, 255, 0.14) 0%, transparent 65%);
 
   /* ── Brand text gradient ── */
   --nf-brand-nexus-gradient: linear-gradient(135deg, #fafafa, #d4d4d8);
-  --nf-brand-flow-gradient:  linear-gradient(135deg, #2dd4bf, #06b6d4);
-  --nf-hero-title-gradient:  linear-gradient(135deg, #fafafa 0%, #2dd4bf 60%, #06b6d4 100%);
-  --nf-hero-btn-gradient:    linear-gradient(135deg, #2dd4bf, #06b6d4);
+  --nf-brand-flow-gradient:  linear-gradient(135deg, #00FF9F, #00E5FF);
+  --nf-hero-title-gradient:  linear-gradient(135deg, #fafafa 0%, #00FF9F 60%, #00E5FF 100%);
+  --nf-hero-btn-gradient:    linear-gradient(135deg, #00FF9F, #00E5FF);
   --nf-hero-btn-text:        #09090b;
   --nf-hero-card-shadow:     0 20px 60px rgba(0, 0, 0, 0.4);
-  --nf-step-number-gradient: linear-gradient(135deg, #2dd4bf, #06b6d4);
-  --nf-avatar-gradient:      linear-gradient(135deg, #2dd4bf, #06b6d4);
+  --nf-step-number-gradient: linear-gradient(135deg, #00FF9F, #00E5FF);
+  --nf-avatar-gradient:      linear-gradient(135deg, #00FF9F, #00E5FF);
   --nf-avatar-text:          #09090b;
 
   /* ── Loading mask ── */
-  --nf-loading-mask: rgba(9, 9, 11, 0.75);
+  --nf-loading-mask: rgba(5, 7, 10, 0.8);
   --nf-overlay:      rgba(0, 0, 0, 0.6);
   --nf-overlay-blur: rgba(0, 0, 0, 0.3);
 
-  /* ── Element Plus core variable mapping (dark) ── */
-  --el-bg-color: #0c0c0e;
-  --el-bg-color-page: #09090b;
-  --el-bg-color-overlay: #18181b;
-  --el-fill-color: #18181b;
-  --el-fill-color-light: #27272a;
-  --el-fill-color-lighter: #3f3f46;
-  --el-fill-color-extra-light: #18181b;
+  /* ── Element Plus font ── */
+  --el-font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+
+  /* ── Element Plus core variable mapping ── */
+  --el-bg-color: #080B10;
+  --el-bg-color-page: #05070A;
+  --el-bg-color-overlay: #0E1218;
+  --el-fill-color: #0E1218;
+  --el-fill-color-light: #161B24;
+  --el-fill-color-lighter: #1E2733;
+  --el-fill-color-extra-light: #0E1218;
   --el-fill-color-dark: #71717a;
   --el-fill-color-darker: #a1a1aa;
-  --el-fill-color-blank: #0c0c0e;
+  --el-fill-color-blank: #080B10;
 
   --el-text-color-primary: #fafafa;
   --el-text-color-regular: #fafafa;
@@ -248,20 +129,20 @@ html.dark {
   --el-text-color-placeholder: #52525b;
   --el-text-color-disabled: #52525b;
 
-  --el-border-color: #27272a;
-  --el-border-color-light: #3f3f46;
-  --el-border-color-lighter: #3f3f46;
-  --el-border-color-extra-light: #27272a;
-  --el-border-color-dark: #52525b;
-  --el-border-color-darker: #71717a;
+  --el-border-color: #141A22;
+  --el-border-color-light: #1E2733;
+  --el-border-color-lighter: #1E2733;
+  --el-border-color-extra-light: #141A22;
+  --el-border-color-dark: #2A3544;
+  --el-border-color-darker: #3A4A5C;
 
-  --el-color-primary: #2dd4bf;
-  --el-color-primary-light-3: #5eead4;
-  --el-color-primary-light-5: #99f6e4;
-  --el-color-primary-light-7: #b2f5ea;
-  --el-color-primary-light-8: #ccfbf1;
-  --el-color-primary-light-9: #e6fefb;
-  --el-color-primary-dark-2: #14b8a6;
+  --el-color-primary: #00FF9F;
+  --el-color-primary-light-3: #33FFB3;
+  --el-color-primary-light-5: #66FFC6;
+  --el-color-primary-light-7: #99FFD9;
+  --el-color-primary-light-8: #B3FFE3;
+  --el-color-primary-light-9: #E6FFF5;
+  --el-color-primary-dark-2: #00CC7F;
 
   --el-mask-color: rgba(0, 0, 0, 0.6);
   --el-mask-color-extra-light: rgba(0, 0, 0, 0.3);
@@ -271,17 +152,22 @@ html.dark {
   --el-box-shadow-lighter: 0 2px 8px rgba(0, 0, 0, 0.25);
   --el-box-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.55);
 
-  --el-disabled-bg-color: #18181b;
-  --el-disabled-text-color: #52525b;
-  --el-disabled-border-color: #27272a;
+  --el-disabled-bg-color: #0E1218;
+  --el-disabled-text-color: #3A4A5C;
+  --el-disabled-border-color: #141A22;
 
   --el-overlay-color: rgba(0, 0, 0, 0.6);
   --el-overlay-color-light: rgba(0, 0, 0, 0.45);
   --el-overlay-color-lighter: rgba(0, 0, 0, 0.3);
 }
 
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   background-color: var(--nf-bg-base);
   color: var(--nf-text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
 }

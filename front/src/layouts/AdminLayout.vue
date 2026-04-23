@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <header class="topbar">
       <div class="topbar-inner">
-        <div class="topbar-left" @click="$router.push('/about')">
+        <div class="topbar-left" @click="$router.push('/studio')">
           <img src="@/assets/images/logo.png" alt="NexusFlow" class="topbar-logo" />
 
         </div>
@@ -20,7 +20,6 @@
         </nav>
 
         <div class="topbar-right">
-          <ThemeToggle />
           <LanguageSwitcher />
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="user-avatar">
@@ -43,7 +42,9 @@
     </header>
 
     <main class="main-content">
-      <router-view />
+      <div class="content-container">
+        <router-view />
+      </div>
     </main>
 
     <footer class="app-footer">
@@ -57,9 +58,8 @@ import { computed, markRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { InfoFilled, DataBoard, Files, Collection, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { DataBoard, Files, Collection, Setting, SwitchButton } from '@element-plus/icons-vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
-import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -69,7 +69,6 @@ const authStore = useAuthStore()
 const userInfo = computed(() => authStore.getLoginUserInfo)
 
 const tabs = computed(() => [
-  { path: '/about', label: t('nav.about'), icon: markRaw(InfoFilled) },
   { path: '/studio', label: t('nav.studio'), icon: markRaw(DataBoard) },
   { path: '/templates', label: t('nav.templates'), icon: markRaw(Files) },
   { path: '/knowledge', label: t('nav.knowledge'), icon: markRaw(Collection) },
@@ -109,8 +108,9 @@ const handleCommand = (command: string) => {
 
 .topbar-inner {
   height: 100%;
-  max-width: 100%;
-  padding: 0 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   gap: 32px;
@@ -168,8 +168,10 @@ const handleCommand = (command: string) => {
   padding: 6px 14px;
   border-radius: 8px;
   color: var(--nf-text-secondary);
-  font-size: 14px;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
   font-weight: 500;
+  letter-spacing: 0.04em;
   text-decoration: none;
   transition: all 0.15s ease;
   white-space: nowrap;
@@ -218,6 +220,11 @@ const handleCommand = (command: string) => {
   overflow-y: auto;
 }
 
+.content-container {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
 .main-content::-webkit-scrollbar {
   width: 6px;
 }
@@ -244,7 +251,9 @@ const handleCommand = (command: string) => {
   justify-content: center;
   border-top: 1px solid var(--nf-border);
   background: var(--nf-bg-card);
+  font-family: var(--nf-font-display);
   font-size: 12px;
   color: var(--nf-text-muted);
+  letter-spacing: 0.02em;
 }
 </style>

@@ -1,6 +1,6 @@
 import { ref, watch, computed } from 'vue'
 import type { Ref } from 'vue'
-import { useVueFlow, ConnectionMode, type Node, type Edge, type Connection, MarkerType } from '@vue-flow/core'
+import { useVueFlow, ConnectionMode, type Node, type Edge, type Connection, MarkerType, type GraphNode } from '@vue-flow/core'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { getAvailableNodes } from '@/types/flow-designer/nodeConfig'
@@ -18,6 +18,7 @@ const NODE_TYPE_MAP: Record<string, string> = {
   JSCodeNode: 'jscode',
   HttpNode: 'http',
   ResultNode: 'result',
+  KnowledgeNode: 'knowledge',
 }
 
 function toVueFlowType(typeName: string): string {
@@ -74,8 +75,7 @@ export function useVueFlowSetup(
     onEdgeClick,
     toObject,
     fromObject,
-    nodesDraggable,
-    panOnDrag,
+    getSelectedNodes,
   } = useVueFlow({
     id: 'nexusflow-canvas',
     defaultEdgeOptions: {
@@ -89,9 +89,7 @@ export function useVueFlowSetup(
     snapGrid: [20, 20],
     fitViewOnInit: false,
     deleteKeyCode: 'Delete',
-    selectionKeyCode: 'Shift',
     multiSelectionKeyCode: 'Meta',
-    panOnDrag: true,
     zoomOnScroll: true,
     minZoom: 0.2,
     maxZoom: 3,
@@ -101,23 +99,11 @@ export function useVueFlowSetup(
 
   const toggleGroupSelect = () => {
     isGroupSelecting.value = !isGroupSelecting.value
-    if (isGroupSelecting.value) {
-      nodesDraggable.value = false
-      ;(panOnDrag as any).value = false
-    } else {
-      setCanvasMode(canvasMode.value)
-    }
   }
 
   const setCanvasMode = (mode: 'move' | 'select') => {
     canvasMode.value = mode
-    if (mode === 'move') {
-      nodesDraggable.value = true
-      ;(panOnDrag as any).value = true
-    } else {
-      nodesDraggable.value = false
-      ;(panOnDrag as any).value = false
-    }
+    isGroupSelecting.value = false
   }
 
   const currentZoomPercent = computed(() => {
@@ -281,7 +267,13 @@ export function useVueFlowSetup(
   }
 
   const deleteNode = (nodeId: string) => {
-    removeNodes([nodeId])
+    const targetNode = nodes.value.find(n => n.id === nodeId)
+    if (targetNode?.type === 'group') {
+      deleteGroup(nodeId)
+    }
+    else {
+      removeNodes([nodeId])
+    }
     flowStore.removeNode(nodeId)
     if (flowStore.selectedNodeId === nodeId) {
       flowStore.selectNode(null)
@@ -299,17 +291,137 @@ export function useVueFlowSetup(
     setViewport({ x: 0, y: 0, zoom: 1 })
   }
 
+  const NODE_DEFAULT_WIDTH = 220
+  const NODE_DEFAULT_HEIGHT = 80
+  const GROUP_PADDING = 30
+
+  const resolveNodeSize = (node: Node | GraphNode) => ({
+    width: (node as any).dimensions?.width || (node as any).width || NODE_DEFAULT_WIDTH,
+    height: (node as any).dimensions?.height || (node as any).height || NODE_DEFAULT_HEIGHT,
+  })
+
+  const createGroupFromSelection = () => {
+    const selected = getSelectedNodes.value.filter(
+      (n: GraphNode) => n.type !== 'group' && !n.parentNode,
+    )
+
+    if (selected.length < 2) {
+      if (selected.length > 0) {
+        ElMessage.warning(t('flowDesigner.selectAtLeastTwo') || '至少选择 2 个节点才能创建分组')
+      }
+      return
+    }
+
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    for (const node of selected) {
+      const { width, height } = resolveNodeSize(node)
+      const left = node.position.x
+      const top = node.position.y
+      minX = Math.min(minX, left)
+      minY = Math.min(minY, top)
+      maxX = Math.max(maxX, left + width)
+      maxY = Math.max(maxY, top + height)
+    }
+
+    const groupX = minX - GROUP_PADDING
+    const groupY = minY - GROUP_PADDING
+    const groupWidth = Math.max(260, maxX - minX + GROUP_PADDING * 2)
+    const groupHeight = Math.max(180, maxY - minY + GROUP_PADDING * 2)
+
+    const groupId = `group_${Date.now()}`
+
+    const groupNode: Node = {
+      id: groupId,
+      type: 'group',
+      position: { x: groupX, y: groupY },
+      data: { title: 'Group', width: groupWidth, height: groupHeight },
+      zIndex: 0,
+      style: { width: `${groupWidth}px`, height: `${groupHeight}px` },
+    }
+
+    const updatedChildren = selected.map(node => ({
+      ...node,
+      parentNode: groupId,
+      position: {
+        x: node.position.x - groupX,
+        y: node.position.y - groupY,
+      },
+      selected: false,
+    }))
+
+    const otherNodes = nodes.value.filter(
+      n => n.id !== groupId && !selected.some(s => s.id === n.id),
+    )
+
+    setNodes([groupNode, ...otherNodes.map(n => ({ ...n })), ...updatedChildren])
+
+    ElMessage.success(t('flowDesigner.groupCreated') || '分组创建成功')
+    isGroupSelecting.value = false
+  }
+
+  const deleteGroup = (groupId: string) => {
+    const groupNode = nodes.value.find(n => n.id === groupId)
+    if (!groupNode || groupNode.type !== 'group') return
+
+    const groupPos = groupNode.position
+
+    const updatedNodes = nodes.value
+      .filter(n => n.id !== groupId)
+      .map(n => {
+        if (n.parentNode !== groupId) return n
+        return {
+          ...n,
+          parentNode: undefined,
+          extent: undefined,
+          position: {
+            x: groupPos.x + n.position.x,
+            y: groupPos.y + n.position.y,
+          },
+        }
+      })
+
+    setNodes(updatedNodes)
+    ElMessage.success(t('flowDesigner.groupDeleted') || '分组已解散')
+  }
+
   const getGraphData = () => {
     return toObject()
   }
 
   const renderGraphData = (graphData: { nodes: any[], edges: any[] }) => {
-    const vfNodes: Node[] = graphData.nodes.map(n => ({
-      id: n.id,
-      type: toVueFlowType(n.type || n.properties?.typeName || ''),
-      position: { x: n.x ?? n.position?.x ?? 0, y: n.y ?? n.position?.y ?? 0 },
-      data: n.properties || n.data || {},
-    }))
+    const vfNodes: Node[] = graphData.nodes.map(n => {
+      const nodeType = n.type || n.properties?.typeName || ''
+      const vfType = nodeType === 'group' ? 'group' : toVueFlowType(nodeType)
+      const node: Node = {
+        id: n.id,
+        type: vfType,
+        position: { x: n.x ?? n.position?.x ?? 0, y: n.y ?? n.position?.y ?? 0 },
+        data: n.properties || n.data || {},
+      }
+      if (n.parentNode) node.parentNode = n.parentNode
+      if (n.zIndex != null) node.zIndex = n.zIndex
+      if (vfType === 'group' && node.data) {
+        node.style = {
+          width: `${node.data.width || 300}px`,
+          height: `${node.data.height || 200}px`,
+        }
+      }
+      return node
+    })
+
+    vfNodes.sort((a, b) => {
+      const aRoot = !a.parentNode
+      const bRoot = !b.parentNode
+      if (aRoot !== bRoot) return aRoot ? -1 : 1
+      const aGroup = a.type === 'group'
+      const bGroup = b.type === 'group'
+      if (aGroup !== bGroup) return aGroup ? -1 : 1
+      return 0
+    })
 
     const vfEdges: Edge[] = graphData.edges.map(e => ({
       id: e.id,
@@ -344,6 +456,8 @@ export function useVueFlowSetup(
     setCanvasMode,
     isGroupSelecting,
     toggleGroupSelect,
+    createGroupFromSelection,
+    deleteGroup,
     getGraphData,
     renderGraphData,
     project,
