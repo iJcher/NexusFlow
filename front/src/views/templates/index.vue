@@ -34,8 +34,8 @@
         v-for="cat in categories"
         :key="cat.value"
         :type="selectedCategory === cat.value ? 'primary' : 'info'"
-        :effect="selectedCategory === cat.value ? 'dark' : 'plain'"
-        class="category-tag"
+        effect="plain"
+        :class="['category-tag', { 'is-selected': selectedCategory === cat.value }]"
         @click="filterByCategory(cat.value)"
       >
         {{ cat.label }}
@@ -269,8 +269,12 @@ onMounted(() => {
   border-right: 1px solid var(--nf-border);
 }
 
+.tab-btn:hover {
+  color: #B0BEC5;
+}
+
 .tab-btn.active {
-  background: var(--nf-accent-muted);
+  background: rgba(0, 255, 159, 0.06);
   color: var(--nf-accent);
 }
 
@@ -284,6 +288,12 @@ onMounted(() => {
 .category-tag {
   cursor: pointer;
   transition: all 0.15s;
+}
+
+.category-tag.is-selected {
+  background-color: rgba(0, 255, 159, 0.06) !important;
+  border-color: var(--nf-accent) !important;
+  color: var(--nf-accent) !important;
 }
 
 .template-grid {

@@ -4,7 +4,6 @@
       <div class="topbar-inner">
         <div class="topbar-left" @click="$router.push('/studio')">
           <img src="@/assets/images/logo.png" alt="NexusFlow" class="topbar-logo" />
-
         </div>
 
         <nav class="topbar-nav">
@@ -117,6 +116,7 @@ const handleCommand = (command: string) => {
 }
 
 .topbar-left {
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -126,8 +126,7 @@ const handleCommand = (command: string) => {
 }
 
 .topbar-logo {
-  width: 30px;
-  height: 30px;
+  height: 100%;
   object-fit: contain;
 }
 

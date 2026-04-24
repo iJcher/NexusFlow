@@ -110,8 +110,15 @@
 
   /* ── Element Plus font ── */
   --el-font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+}
 
-  /* ── Element Plus core variable mapping ── */
+/*
+ * Override Element Plus dark theme with FUI green accent.
+ * html.dark specificity matches EP's own dark/css-vars.css,
+ * but loads later so our values win.
+ */
+html.dark {
+  /* ── Backgrounds ── */
   --el-bg-color: #080B10;
   --el-bg-color-page: #05070A;
   --el-bg-color-overlay: #0E1218;
@@ -123,12 +130,14 @@
   --el-fill-color-darker: #a1a1aa;
   --el-fill-color-blank: #080B10;
 
+  /* ── Text ── */
   --el-text-color-primary: #fafafa;
   --el-text-color-regular: #fafafa;
   --el-text-color-secondary: #a1a1aa;
   --el-text-color-placeholder: #52525b;
   --el-text-color-disabled: #52525b;
 
+  /* ── Borders ── */
   --el-border-color: #141A22;
   --el-border-color-light: #1E2733;
   --el-border-color-lighter: #1E2733;
@@ -136,26 +145,65 @@
   --el-border-color-dark: #2A3544;
   --el-border-color-darker: #3A4A5C;
 
+  /* ── Primary → Neon Mint Green ── */
   --el-color-primary: #00FF9F;
-  --el-color-primary-light-3: #33FFB3;
-  --el-color-primary-light-5: #66FFC6;
-  --el-color-primary-light-7: #99FFD9;
-  --el-color-primary-light-8: #B3FFE3;
-  --el-color-primary-light-9: #E6FFF5;
-  --el-color-primary-dark-2: #00CC7F;
+  --el-color-primary-light-3: #0D3D2A;
+  --el-color-primary-light-5: #0A2E20;
+  --el-color-primary-light-7: #071F16;
+  --el-color-primary-light-8: #051710;
+  --el-color-primary-light-9: #030F0A;
+  --el-color-primary-dark-2: #33FFB3;
 
+  /* ── Success → green ── */
+  --el-color-success: #34d399;
+  --el-color-success-light-3: #143D2D;
+  --el-color-success-light-5: #0F2E22;
+  --el-color-success-light-7: #0A1F17;
+  --el-color-success-light-8: #081710;
+  --el-color-success-light-9: #050F0A;
+  --el-color-success-dark-2: #5EDCAD;
+
+  /* ── Warning ── */
+  --el-color-warning: #fbbf24;
+  --el-color-warning-light-3: #3D3012;
+  --el-color-warning-light-5: #2E240D;
+  --el-color-warning-light-7: #1F1909;
+  --el-color-warning-light-8: #171307;
+  --el-color-warning-light-9: #0F0D05;
+  --el-color-warning-dark-2: #FCCC50;
+
+  /* ── Danger ── */
+  --el-color-danger: #f87171;
+  --el-color-danger-light-3: #3D1E1E;
+  --el-color-danger-light-5: #2E1717;
+  --el-color-danger-light-7: #1F1010;
+  --el-color-danger-light-8: #170C0C;
+  --el-color-danger-light-9: #0F0808;
+  --el-color-danger-dark-2: #F98D8D;
+
+  /* ── Info ── */
+  --el-color-info: #6B7D8E;
+  --el-color-info-light-3: #1E2733;
+  --el-color-info-light-5: #161B24;
+  --el-color-info-light-7: #0E1218;
+  --el-color-info-light-8: #0A0D12;
+  --el-color-info-light-9: #07090C;
+  --el-color-info-dark-2: #8899A8;
+
+  /* ── Masks & Shadows ── */
   --el-mask-color: rgba(0, 0, 0, 0.6);
   --el-mask-color-extra-light: rgba(0, 0, 0, 0.3);
-
   --el-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   --el-box-shadow-light: 0 4px 16px rgba(0, 0, 0, 0.35);
   --el-box-shadow-lighter: 0 2px 8px rgba(0, 0, 0, 0.25);
   --el-box-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.55);
 
+  /* ── Disabled ── */
   --el-disabled-bg-color: #0E1218;
   --el-disabled-text-color: #3A4A5C;
   --el-disabled-border-color: #141A22;
 
+  /* ── Overlay ── */
   --el-overlay-color: rgba(0, 0, 0, 0.6);
   --el-overlay-color-light: rgba(0, 0, 0, 0.45);
   --el-overlay-color-lighter: rgba(0, 0, 0, 0.3);

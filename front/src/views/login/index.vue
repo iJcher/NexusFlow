@@ -1,11 +1,12 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <!-- Header -->
+      <div class="card-border-streak" aria-hidden="true" />
+      <div class="card-corner-glint" aria-hidden="true" />
+
       <h1 class="card-heading">{{ t('login.welcome') }}</h1>
       <p class="card-subtitle">{{ t('login.formSubtitle') }}</p>
 
-      <!-- Form -->
       <el-form
         ref="formRef"
         :model="formData"
@@ -55,12 +56,10 @@
         </el-form-item>
       </el-form>
 
-      <!-- Divider -->
       <div class="divider">
         <span class="divider-text">{{ t('login.orContinueWith') }}</span>
       </div>
 
-      <!-- Social login -->
       <div class="social-row">
         <button class="social-btn" title="Google">
           <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
@@ -76,7 +75,6 @@
         </button>
       </div>
 
-      <!-- Register link -->
       <p class="register-hint">
         {{ t('login.noAccount') }}
         <a href="javascript:void(0)" class="register-link">{{ t('login.register') }}</a>
@@ -86,13 +84,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { withLoading } from '@/utils/decorator.util'
 import { Loading } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+
+const REMEMBER_KEY = 'nf_remember_phone'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -104,6 +104,20 @@ const rememberMe = ref(false)
 const formData = reactive({
   phoneNumber: '',
   password: '',
+})
+
+onMounted(() => {
+  const saved = localStorage.getItem(REMEMBER_KEY)
+  if (saved) {
+    formData.phoneNumber = saved
+    rememberMe.value = true
+  }
+})
+
+watch(rememberMe, (checked) => {
+  if (!checked) {
+    localStorage.removeItem(REMEMBER_KEY)
+  }
 })
 
 const rules = computed<FormRules>(() => ({
@@ -122,6 +136,12 @@ const handleSubmit = async () => {
 
   await formRef.value.validate(async (valid) => {
     if (valid) {
+      if (rememberMe.value) {
+        localStorage.setItem(REMEMBER_KEY, formData.phoneNumber)
+      } else {
+        localStorage.removeItem(REMEMBER_KEY)
+      }
+
       await withLoading(
         async () => {
           const response = await authStore.signIn(formData.phoneNumber, formData.password)
@@ -160,7 +180,9 @@ const handleSubmit = async () => {
   pointer-events: none;
 }
 
-/* ── Card — matte black, massive green atmosphere ── */
+/* ══════════════════════════════════════════
+   Card — Multi-tiered Neon Bloom Border
+   ══════════════════════════════════════════ */
 .login-card {
   position: relative;
   z-index: 1;
@@ -175,120 +197,199 @@ const handleSubmit = async () => {
   );
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1.5px solid rgba(0, 255, 159, 0.25);
+  /* Tier 1: 2px sharp core border */
+  border: 2px solid rgba(0, 255, 159, 0.45);
+  /* Tier 2+3: inner glow (10px) + massive outer diffusion (40-200px) */
   box-shadow:
-    0 0 0 1px rgba(0, 255, 159, 0.06) inset,
-    0 0 20px rgba(0, 255, 159, 0.12),
-    0 0 60px rgba(0, 255, 159, 0.08),
-    0 0 120px rgba(0, 255, 159, 0.05),
-    0 0 200px rgba(0, 255, 159, 0.03),
-    0 30px 80px rgba(0, 0, 0, 0.6);
+    0 0 0 1px rgba(0, 255, 159, 0.08) inset,
+    0 0 10px rgba(0, 255, 159, 0.2),
+    0 0 25px rgba(0, 255, 159, 0.12),
+    0 0 50px rgba(0, 255, 159, 0.08),
+    0 0 100px rgba(0, 255, 159, 0.05),
+    0 0 200px rgba(0, 255, 159, 0.025),
+    0 30px 80px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
 }
 
-/*
- * ── Ambient atmosphere layer ──
- * Massive diffused green radial glow expanding beyond the card.
- */
+/* Micro-hexagonal grid texture overlay */
 .login-card::before {
   content: '';
   position: absolute;
-  inset: -80px;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse 55% 55% at 50% 50%,
-    rgba(0, 255, 159, 0.06) 0%,
-    rgba(0, 255, 159, 0.03) 35%,
-    transparent 70%
-  );
+  inset: 0;
+  border-radius: 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%2300ff9f' fill-opacity='0.03'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.6;
   pointer-events: none;
-  z-index: -1;
+  z-index: 1;
 }
 
-/*
- * ── Bottom-right corner glint ──
- * Localized prismatic flash point pulsing on the corner edge.
- */
+/* Glassmorphism highlight edge */
 .login-card::after {
   content: '';
   position: absolute;
-  bottom: -1px;
-  right: 24px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 255, 255, var(--glint-peak, 0)) 0%,
-    rgba(200, 255, 230, var(--glint-mid, 0)) 15%,
-    rgba(0, 255, 159, var(--glint-outer, 0)) 40%,
-    transparent 70%
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 159, 0.15) 20%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(0, 255, 159, 0.15) 80%,
+    transparent 100%
   );
-  filter: blur(1px);
-  animation: cornerGlint 2.4s ease-in-out infinite;
   pointer-events: none;
   z-index: 2;
 }
 
-@property --glint-peak {
-  syntax: '<number>';
-  initial-value: 0;
+/* ── Traveling Energy Streak ──
+   Orbiting light beam along the card perimeter */
+.card-border-streak {
+  position: absolute;
+  inset: -2px;
+  border-radius: 16px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--streak-angle, 0deg) at 50% 50%,
+    transparent 0deg,
+    transparent 330deg,
+    rgba(0, 255, 159, 0.15) 340deg,
+    rgba(0, 255, 159, 0.4) 347deg,
+    rgba(200, 255, 230, 0.7) 350deg,
+    rgba(255, 255, 255, 0.85) 352deg,
+    rgba(200, 255, 230, 0.7) 354deg,
+    rgba(0, 255, 159, 0.4) 357deg,
+    rgba(0, 255, 159, 0.15) 359deg,
+    transparent 360deg
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  animation: streakOrbit 3.5s linear infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@property --streak-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
   inherits: false;
 }
 
-@property --glint-mid {
-  syntax: '<number>';
-  initial-value: 0;
-  inherits: false;
+@keyframes streakOrbit {
+  0%   { --streak-angle: 0deg; }
+  100% { --streak-angle: 360deg; }
 }
 
-@property --glint-outer {
-  syntax: '<number>';
-  initial-value: 0;
-  inherits: false;
+/* ── Bottom-right Specular Blade Glint ──
+   Star-burst diffraction at the corner */
+.card-corner-glint {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  z-index: 5;
+  animation: glintPulse 4s ease-in-out infinite;
 }
 
-@keyframes cornerGlint {
+/* Horizontal spike */
+.card-corner-glint::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 2px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 255, 159, 0.3) 20%,
+    rgba(200, 255, 230, 0.8) 40%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(200, 255, 230, 0.8) 60%,
+    rgba(0, 255, 159, 0.3) 80%,
+    transparent 100%
+  );
+  border-radius: 1px;
+}
+
+/* Vertical spike — cross pattern */
+.card-corner-glint::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 28px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 255, 159, 0.3) 20%,
+    rgba(200, 255, 230, 0.8) 40%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(200, 255, 230, 0.8) 60%,
+    rgba(0, 255, 159, 0.3) 80%,
+    transparent 100%
+  );
+  border-radius: 1px;
+}
+
+@keyframes glintPulse {
   0%, 100% {
-    --glint-peak: 0;
-    --glint-mid: 0;
-    --glint-outer: 0;
+    opacity: 0;
+    transform: scale(0.5) rotate(0deg);
     filter: blur(1px);
   }
-  /* Sharp flash-in */
-  42% {
-    --glint-peak: 0;
-    --glint-mid: 0;
-    --glint-outer: 0;
+  /* Long dormant period */
+  68% {
+    opacity: 0;
+    transform: scale(0.5) rotate(0deg);
     filter: blur(1px);
   }
-  46% {
-    --glint-peak: 0.95;
-    --glint-mid: 0.6;
-    --glint-outer: 0.35;
+  /* Flash in */
+  72% {
+    opacity: 1;
+    transform: scale(1.2) rotate(8deg);
     filter: blur(0px);
   }
-  50% {
-    --glint-peak: 0.3;
-    --glint-mid: 0.15;
-    --glint-outer: 0.08;
-    filter: blur(1px);
+  /* Quick dim */
+  76% {
+    opacity: 0.2;
+    transform: scale(0.8) rotate(4deg);
+    filter: blur(0.5px);
   }
-  /* Second staccato pulse */
-  54% {
-    --glint-peak: 0.7;
-    --glint-mid: 0.4;
-    --glint-outer: 0.2;
+  /* Second staccato flash */
+  79% {
+    opacity: 0.9;
+    transform: scale(1) rotate(-5deg);
     filter: blur(0px);
   }
-  58% {
-    --glint-peak: 0;
-    --glint-mid: 0;
-    --glint-outer: 0;
+  /* Fade out */
+  85% {
+    opacity: 0;
+    transform: scale(0.6) rotate(0deg);
     filter: blur(1px);
   }
 }
 
-.login-card > * {
+/* Card content z-index */
+.login-card > *:not(.card-border-streak):not(.card-corner-glint):not([aria-hidden]) {
+  position: relative;
+  z-index: 3;
+}
+
+.card-heading,
+.card-subtitle,
+.login-form,
+.divider,
+.social-row,
+.register-hint {
   position: relative;
   z-index: 3;
 }
