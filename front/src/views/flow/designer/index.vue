@@ -40,7 +40,6 @@
         @edge-context-menu="handleEdgeContextMenu"
         class="vue-flow-canvas"
       >
-        <Background :variant="BackgroundVariant.Dots" :gap="20" :size="2" />
         <MiniMap position="bottom-right" />
 
         <template #node-start="nodeProps">
@@ -119,7 +118,6 @@ import { useI18n } from 'vue-i18n'
 import { DocumentAdd, Close, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { VueFlow } from '@vue-flow/core'
-import { Background, BackgroundVariant } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -483,18 +481,50 @@ onBeforeUnmount(() => {
 .canvas-area {
   flex: 1;
   position: relative;
+  background: #020406;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.canvas-area::before,
+.canvas-area::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 24px micro-dot grid, low luminance only */
+.canvas-area::before {
+  z-index: 0;
+  background-color: #020406;
+  background-image: radial-gradient(circle at center, #1e242c 0.7px, transparent 0.8px);
+  background-size: 24px 24px;
+}
+
+/* ambient breathe halo, keep opacity under 0.03 */
+.canvas-area::after {
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse 60% 48% at 52% 46%,
+      rgba(0, 255, 159, 0.026) 0%,
+      rgba(0, 255, 159, 0.012) 32%,
+      rgba(0, 255, 159, 0.003) 62%,
+      transparent 100%
+    );
 }
 
 .vue-flow-canvas {
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
+  background: transparent;
 }
 
-/* Micro dot-grid canvas */
 :deep(.vue-flow__background) {
-  background-color: #05070A;
-  background-image: radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px);
-  background-size: 20px 20px;
+  background: transparent;
 }
 
 :deep(.vue-flow__edge-path) {

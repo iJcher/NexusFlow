@@ -1,7 +1,7 @@
 ---
 description: NEXUS 前端开发规范，涵盖 TypeScript 类型约束、样式规范、组件与状态管理约定
 globs: front/**/*.{vue,ts,tsx}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # NEXUS 前端开发规范
