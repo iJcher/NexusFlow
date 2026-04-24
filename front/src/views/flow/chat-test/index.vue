@@ -6,9 +6,9 @@
           <span>{{ t('flowChat.conversations') || '会话' }}</span>
           <el-tag size="small" type="info">{{ sortedConversations.length }}</el-tag>
         </div>
-        <div class="flex items-center gap-1">
-          <el-button :icon="Plus" text @click="startNewConversation">{{ t('flowChat.newConversation') || '新建会话' }}</el-button>
-          <el-button :icon="Refresh" text :loading="isConversationsLoading" @click="loadConversations(true)">{{ t('flowChat.refresh') || '刷新' }}</el-button>
+        <div class="top-btn-row">
+          <el-button :icon="Plus" text class="nf-top-btn" @click="startNewConversation">{{ t('flowChat.newConversation') || '新建会话' }}</el-button>
+          <el-button :icon="Refresh" text class="nf-top-btn" :loading="isConversationsLoading" @click="loadConversations(true)">{{ t('flowChat.refresh') || '刷新' }}</el-button>
         </div>
       </div>
 
@@ -51,7 +51,7 @@
       <!-- 顶部工具栏 -->
       <div class="nf-toolbar">
         <div class="flex items-center gap-3">
-          <el-button @click="closeWindow" :icon="Close" text>{{ t('flowChat.close') }}</el-button>
+          <el-button @click="closeWindow" :icon="Close" text class="nf-top-btn">{{ t('flowChat.close') }}</el-button>
           <el-divider direction="vertical" />
         </div>
         <div class="flex items-center gap-3">
@@ -60,6 +60,7 @@
             @click="clearConversation" 
             :icon="Delete"
             text
+            class="nf-top-btn"
           >
             {{ t('flowChat.clearConversation') }}
           </el-button>
@@ -335,37 +336,87 @@ onMounted(async () => {
 
 <style scoped>
 .chat-bg {
-  background: var(--nf-bg-base);
+  background:
+    radial-gradient(circle at 28% 22%, rgba(0, 255, 159, 0.02) 0%, transparent 46%),
+    radial-gradient(circle at 74% 68%, rgba(0, 255, 159, 0.015) 0%, transparent 40%),
+    var(--nf-bg-base, #020406);
+  color: var(--nf-text-body, #8B9DB0);
+}
+
+.top-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nf-toolbar {
+  height: 52px;
+  margin: 10px 12px 0;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 11, 16, 0.9);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nf-top-btn {
+  border: 1px solid rgba(0, 255, 159, 0.35) !important;
+  color: var(--nf-accent, #00FF9F) !important;
+  background: transparent !important;
+  border-radius: 6px;
+  padding: 6px 10px;
+  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.nf-top-btn:hover {
+  border-color: rgba(0, 255, 159, 0.5) !important;
+  color: var(--nf-accent-hover, #33FFB3) !important;
+  background: rgba(0, 255, 159, 0.06) !important;
+  box-shadow: 0 0 6px rgba(0, 255, 159, 0.25);
+}
+
+.nf-top-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 255, 159, 0.08);
+}
+
+.nf-top-btn :deep(.el-icon) {
+  color: inherit;
 }
 
 .conv-item {
-  background: var(--nf-bg-elevated);
-  border: 1px solid var(--nf-border);
+  background: rgba(8, 11, 16, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .conv-item:hover {
-  border-color: var(--nf-border-light);
-  background: var(--nf-bg-muted);
+  border-color: rgba(0, 255, 159, 0.3);
+  background: rgba(14, 18, 26, 0.86);
+  box-shadow: 0 0 8px rgba(0, 255, 159, 0.16);
 }
 
 .conv-item.active {
-  border-color: var(--nf-accent);
-  background: var(--nf-accent-muted);
+  border-color: rgba(0, 255, 159, 0.5);
+  background: rgba(0, 255, 159, 0.06);
+  box-shadow: 0 0 10px rgba(0, 255, 159, 0.2);
 }
 
 .chat-content {
   flex: 1;
   padding: 20px 24px;
   overflow-y: auto;
-  background: var(--nf-bg-card);
+  background: rgba(8, 11, 16, 0.9);
   margin: 12px;
   border-radius: 12px;
-  border: 1px solid var(--nf-border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -387,11 +438,11 @@ onMounted(async () => {
 
 .user-bubble {
   background: var(--nf-accent-muted);
-  color: var(--nf-text-primary);
+  color: var(--nf-text-primary, #E6EDF3);
   border-radius: 16px 16px 4px 16px;
   padding: 12px 16px;
   max-width: 70%;
-  border: 1px solid var(--nf-accent-muted);
+  border: 1px solid rgba(0, 255, 159, 0.35);
 }
 
 .user-avatar-bg {
@@ -407,8 +458,8 @@ onMounted(async () => {
 .ai-message { justify-content: flex-start; }
 
 .ai-bubble {
-  background: var(--nf-bg-elevated);
-  border: 1px solid var(--nf-border);
+  background: rgba(14, 18, 26, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px 16px 16px 4px;
   padding: 12px 16px;
   max-width: 70%;
@@ -421,7 +472,7 @@ onMounted(async () => {
   letter-spacing: 0.02em;
   word-wrap: break-word;
   white-space: pre-wrap;
-  color: #E6EDF3;
+  color: var(--nf-text-body, #8B9DB0);
 }
 
 .message-text :deep(p) { margin: 0; padding: 0; }
