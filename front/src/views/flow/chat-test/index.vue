@@ -1,23 +1,32 @@
 <template>
-  <div class="w-screen h-screen flex flex-row overflow-hidden chat-bg">
-    <aside class="w-80 bg-nf-base border-r border-nf-border flex flex-col p-4 gap-3">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2 font-600 text-nf-text-primary whitespace-nowrap">
+  <div :class="containerClass">
+    <aside :class="['chat-sidebar', { 'is-open': sidebarOpen || !isCompactLayout }]">
+      <div class="sidebar-header">
+        <div class="sidebar-title-wrap">
           <span>{{ t('flowChat.conversations') || '会话' }}</span>
           <el-tag size="small" type="info">{{ sortedConversations.length }}</el-tag>
         </div>
         <div class="top-btn-row">
+          <el-button
+            v-if="isCompactLayout"
+            :icon="Close"
+            text
+            class="nf-top-btn"
+            @click="sidebarOpen = false"
+          >
+            {{ t('flowChat.close') }}
+          </el-button>
           <el-button :icon="Plus" text class="nf-top-btn" @click="startNewConversation">{{ t('flowChat.newConversation') || '新建会话' }}</el-button>
           <el-button :icon="Refresh" text class="nf-top-btn" :loading="isConversationsLoading" @click="loadConversations(true)">{{ t('flowChat.refresh') || '刷新' }}</el-button>
         </div>
       </div>
 
-      <el-scrollbar class="flex-1">
+      <el-scrollbar class="sidebar-scroll">
         <div
           v-for="(conv, index) in sortedConversations"
           :key="conv.id || conv.title || index"
           :class="['conv-item', { active: conv.id === conversationId }]"
-          @click="selectConversation(conv)"
+          @click="handleSelectConversation(conv)"
         >
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2 font-600 text-nf-text-primary leading-tight">
@@ -46,11 +55,14 @@
         </div>
       </el-scrollbar>
     </aside>
+    <div v-if="isCompactLayout && sidebarOpen" class="sidebar-mask" @click="sidebarOpen = false"></div>
 
-    <section class="flex-1 flex flex-col">
-      <!-- 顶部工具栏 -->
+    <section class="chat-main">
       <div class="nf-toolbar">
         <div class="flex items-center gap-3">
+          <el-button v-if="isCompactLayout" :icon="Menu" text class="nf-top-btn" @click="sidebarOpen = true">
+            {{ t('flowChat.conversations') || '会话' }}
+          </el-button>
           <el-button @click="closeWindow" :icon="Close" text class="nf-top-btn">{{ t('flowChat.close') }}</el-button>
           <el-divider direction="vertical" />
         </div>
@@ -141,7 +153,7 @@
       </div>
 
       <!-- 输入区域 -->
-      <div class="px-6 pb-6 pt-4 bg-nf-card border-t border-nf-border shrink-0">
+      <div class="composer-wrap">
         <!-- 文件列表 -->
         <div v-if="files.length > 0" class="flex flex-wrap gap-2 mb-3">
           <div v-for="(file, index) in files" :key="index" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-nf-elevated border border-nf-border-light rounded-2 text-3.25 text-nf-text-secondary transition-all hover:bg-nf-border-light">
@@ -157,7 +169,7 @@
           </div>
         </div>
         
-        <div class="flex gap-3 items-stretch">
+        <div class="composer-inner">
           <el-input
             ref="inputRef"
             v-model="inputMessage"
@@ -168,7 +180,7 @@
             @keydown.enter.exact.prevent="sendMessage"
             class="flex-1"
           />
-          <div class="flex items-center gap-2 justify-end">
+          <div class="composer-actions">
             <el-button
               :icon="Paperclip"
               circle
@@ -182,6 +194,7 @@
               :loading="isLoading"
               :disabled="isLoading || !inputMessage.trim()"
               @click="sendMessage"
+              class="send-btn"
             >
               {{ t('flowChat.send') }}
             </el-button>
@@ -233,10 +246,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Close, Delete, User, ChatDotRound, Promotion, Paperclip, Plus, CloseBold, Refresh } from '@element-plus/icons-vue'
+import { Close, Delete, User, ChatDotRound, Promotion, Paperclip, Plus, CloseBold, Refresh, Menu } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import type { ChatMessage, FileItem } from '@/composables/useChatSSE'
@@ -247,7 +260,35 @@ import { useMarkdownRenderer } from '@/composables/useMarkdownRenderer'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const flowId = computed(() => route.params.flowId as string)
+interface IFlowChatTestProps {
+  flowId?: string | number
+  embedded?: boolean
+}
+
+const props = withDefaults(defineProps<IFlowChatTestProps>(), {
+  flowId: '',
+  embedded: false,
+})
+
+const emit = defineEmits<{
+  (event: 'close'): void
+}>()
+
+const flowId = computed(() => {
+  if (props.flowId !== '') {
+    return String(props.flowId)
+  }
+  return String(route.params.flowId ?? '')
+})
+
+const containerClass = computed(() => ([
+  'chat-shell',
+  'chat-bg',
+  props.embedded ? 'w-full h-full' : 'w-screen h-screen',
+]))
+const sidebarOpen = ref(true)
+const viewportWidth = ref<number>(window.innerWidth)
+const isCompactLayout = computed<boolean>(() => viewportWidth.value <= 1100)
 
 const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
@@ -289,6 +330,14 @@ const {
 } = convList
 
 const sendMessage = () => sseSend(inputMessage, files, inputRef)
+type IConversationItem = Parameters<typeof selectConversation>[0]
+
+const handleSelectConversation = async (conversation: IConversationItem) => {
+  await selectConversation(conversation)
+  if (isCompactLayout.value) {
+    sidebarOpen.value = false
+  }
+}
 
 const formatTime = (timestamp: number): string => {
   return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -325,16 +374,44 @@ const clearConversation = () => {
   nextTick(() => inputRef.value?.focus())
 }
 
-const closeWindow = () => router.back()
+const closeWindow = () => {
+  if (props.embedded) {
+    emit('close')
+    return
+  }
+  router.back()
+}
+
+const handleResize = () => {
+  viewportWidth.value = window.innerWidth
+  if (!isCompactLayout.value) {
+    sidebarOpen.value = true
+  }
+}
 
 onMounted(async () => {
+  window.addEventListener('resize', handleResize)
+  handleResize()
   scrollToBottom()
   nextTick(() => inputRef.value?.focus())
   await loadConversations(true)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>
+.chat-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  position: relative;
+}
+
 .chat-bg {
   background:
     radial-gradient(circle at 28% 22%, rgba(0, 255, 159, 0.02) 0%, transparent 46%),
@@ -343,10 +420,55 @@ onMounted(async () => {
   color: var(--nf-text-body, #8B9DB0);
 }
 
+.chat-sidebar {
+  width: 288px;
+  min-width: 240px;
+  max-width: 320px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 11, 16, 0.92);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+  z-index: 12;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #E6EDF3;
+  font-weight: 500;
+}
+
 .top-btn-row {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.sidebar-scroll {
+  flex: 1;
+}
+
+.sidebar-mask {
+  display: none;
+}
+
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .nf-toolbar {
@@ -411,15 +533,37 @@ onMounted(async () => {
 
 .chat-content {
   flex: 1;
-  padding: 20px 24px;
+  padding: 16px;
   overflow-y: auto;
   background: rgba(8, 11, 16, 0.9);
-  margin: 12px;
+  margin: 10px 12px 0;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.composer-wrap {
+  margin: 10px 12px 12px;
+  padding: 12px;
+  background: rgba(8, 11, 16, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.composer-inner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .message {
@@ -600,8 +744,102 @@ onMounted(async () => {
   background: var(--nf-accent-muted) !important;
 }
 
+.send-btn {
+  min-width: 72px;
+  height: 40px;
+  border: 1px solid var(--nf-accent) !important;
+  background: transparent !important;
+  color: var(--nf-accent) !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.send-btn:hover {
+  border-color: var(--nf-accent-hover) !important;
+  background: rgba(0, 255, 159, 0.06) !important;
+  color: var(--nf-accent-hover) !important;
+  box-shadow: var(--nf-glow-sm);
+}
+
+.send-btn.is-disabled,
+.send-btn.is-disabled:hover {
+  border-color: rgba(255, 255, 255, 0.03) !important;
+  color: #3A4A5C !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .chat-content::-webkit-scrollbar { width: 6px; }
 .chat-content::-webkit-scrollbar-track { background: transparent; }
 .chat-content::-webkit-scrollbar-thumb { background: var(--nf-scrollbar); border-radius: 3px; }
 .chat-content::-webkit-scrollbar-thumb:hover { background: var(--nf-scrollbar-hover); }
+
+@media (max-width: 1366px) {
+  .chat-sidebar {
+    width: 260px;
+    min-width: 220px;
+  }
+
+  .message-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .chat-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(78vw, 300px);
+    max-width: min(78vw, 300px);
+    transform: translateX(-100%);
+    border-right: 1px solid rgba(0, 255, 159, 0.25);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .chat-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-mask {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 11;
+  }
+}
+
+@media (max-width: 760px) {
+  .nf-toolbar {
+    margin: 8px 8px 0;
+    padding: 0 10px;
+    height: 46px;
+  }
+
+  .chat-content {
+    margin: 8px 8px 0;
+    padding: 10px;
+  }
+
+  .composer-wrap {
+    margin: 8px;
+    padding: 10px;
+  }
+
+  .composer-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .composer-actions {
+    justify-content: space-between;
+  }
+
+  .user-bubble,
+  .ai-bubble {
+    max-width: 86%;
+  }
+}
 </style>

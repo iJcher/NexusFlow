@@ -32,6 +32,12 @@ export async function executeLLMNode(
       if (resolved) messages.push({ role: 'user', content: resolved });
     }
 
+    // If userPrompt is not configured, fallback to current chat query.
+    // This keeps chat-test behavior aligned with user expectation.
+    if (!usrText && context.request?.query) {
+      messages.push({ role: 'user', content: context.request.query });
+    }
+
     if (messages.length === 0) {
       return createErrorResult(node.id, 'No prompt provided');
     }
