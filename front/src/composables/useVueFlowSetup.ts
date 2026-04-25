@@ -447,6 +447,69 @@ export function useVueFlowSetup(
     ElMessage.success(t('flowDesigner.nodeAdded', { name: nodeConfig.name }))
   }
 
+  const addNodeBeforeAndConnect = (targetNodeId: string, targetHandleId: string, nodeType: string) => {
+    const targetNode = nodes.value.find(n => n.id === targetNodeId)
+    if (!targetNode) return
+
+    const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
+    if (!nodeConfig) return
+
+    const validation = validateFlowConnection({
+      sourceId: `${nodeType}_preview`,
+      targetId: targetNodeId,
+      sourceType: nodeType,
+      targetType: resolveLogicNodeType(targetNode),
+      sourceHandle: `${nodeType}_preview_right`,
+      existingEdges: edges.value.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle || undefined,
+      })),
+    })
+
+    if (!validation.valid) {
+      ElMessage.warning(validation.reasonKey ? t(validation.reasonKey) : t('flowDesigner.connectionNotAllowed'))
+      return
+    }
+
+    const nodeId = generateNodeId(nodeType)
+    const newPos = {
+      x: (targetNode.position?.x ?? 0) - 350,
+      y: (targetNode.position?.y ?? 0),
+    }
+    const vfType = toVueFlowType(nodeType)
+    const defaultData = createDefaultNodeData(nodeType, nodeConfig, nodeId)
+
+    addNodes([{ id: nodeId, type: vfType, position: newPos, data: defaultData }])
+    flowStore.addNode({
+      id: nodeId,
+      type: nodeType,
+      x: newPos.x,
+      y: newPos.y,
+      properties: { ...defaultData } as NodeBase,
+    })
+
+    const edgeId = `e_${nodeId}_${targetNodeId}_${Date.now()}`
+    addEdges([{
+      id: edgeId,
+      source: nodeId,
+      target: targetNodeId,
+      sourceHandle: `${nodeId}_right`,
+      targetHandle: targetHandleId,
+      type: 'default',
+      markerEnd: MarkerType.ArrowClosed,
+    }])
+    flowStore.addEdge({
+      id: edgeId,
+      sourceNodeId: nodeId,
+      targetNodeId,
+      sourceAnchorId: `${nodeId}_right`,
+      targetAnchorId: targetHandleId,
+    })
+
+    ElMessage.success(t('flowDesigner.nodeAdded', { name: nodeConfig.name }))
+  }
+
   const handleSaveNodeProperties = (nodeId: string, properties: Record<string, unknown>) => {
     try {
       flowStore.updateNodeProperties(nodeId, properties)
@@ -645,6 +708,7 @@ export function useVueFlowSetup(
     initCanvas,
     addNodeAtCenter,
     addNodeAndConnect,
+    addNodeBeforeAndConnect,
     handleSaveNodeProperties,
     deleteNode,
     deleteEdge,

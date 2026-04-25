@@ -205,6 +205,7 @@ const {
   initCanvas,
   addNodeAtCenter,
   addNodeAndConnect,
+  addNodeBeforeAndConnect,
   deleteNode,
   deleteEdge,
   zoomIn,
@@ -235,6 +236,7 @@ const persistence = useFlowPersistenceVF(
 provide('canvasMode', canvasMode)
 provide('availableNodes', availableNodes)
 provide('addNodeAndConnect', addNodeAndConnect)
+provide('addNodeBeforeAndConnect', addNodeBeforeAndConnect)
 provide('deleteGroup', deleteGroup)
 
 let groupMouseUpCleanup: (() => void) | null = null

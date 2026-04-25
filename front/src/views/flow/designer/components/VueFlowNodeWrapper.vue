@@ -9,48 +9,69 @@
   >
     <component :is="widgetComponent" />
 
-    <!-- Target handle: large circle indicator -->
-    <Handle type="target" :position="Position.Left" :id="`${props.id}_left`" class="vf-handle-target" />
-
-    <!-- Source handle: hover shows "+", click opens node selector -->
-    <div class="source-handle-zone" @mouseenter="sourceHover = true" @mouseleave="onSourceLeave">
-      <Handle type="source" :position="Position.Right" :id="`${props.id}_right`" class="vf-handle-source" />
+    <div class="target-handle-zone" @mouseenter="targetHover = true" @mouseleave="onTargetLeave">
+      <Handle type="target" :position="Position.Left" :id="`${props.id}_left`" class="vf-handle-target" />
       <button
-        v-show="sourceHover || selectorOpen"
-        class="handle-plus-btn"
-        @click.stop="toggleSelector"
+        v-show="showTargetPlus"
+        class="handle-plus-btn handle-plus-btn--left"
+        :aria-label="t('flowDesigner.addPrevNode')"
+        @click.stop="openSelector('prev')"
         @mousedown.stop
       >
         <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </button>
+    </div>
 
-      <Transition name="selector-fade">
-        <div v-if="selectorOpen" class="handle-node-selector" @click.stop @mousedown.stop>
-          <div class="selector-header">
-            <span>添加后继节点</span>
-            <button class="selector-close" @click="selectorOpen = false">×</button>
-          </div>
-          <div class="selector-list">
-            <button
-              v-for="n in nodeList"
-              :key="n.typeName"
-              class="selector-item"
-              @click="handleSelectNode(n.typeName)"
-            >
-              <span class="selector-item-name">{{ n.name }}</span>
-              <span class="selector-item-desc">{{ n.description }}</span>
-            </button>
+    <div class="source-handle-zone" @mouseenter="sourceHover = true" @mouseleave="onSourceLeave">
+      <Handle type="source" :position="Position.Right" :id="`${props.id}_right`" class="vf-handle-source" />
+      <button
+        v-show="showSourcePlus"
+        class="handle-plus-btn handle-plus-btn--right"
+        :aria-label="t('flowDesigner.addNextNode')"
+        @click.stop="openSelector('next')"
+        @mousedown.stop
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <Transition name="selector-fade">
+      <div
+        v-if="selectorOpen"
+        class="handle-node-selector"
+        :class="selectorDirection === 'prev' ? 'handle-node-selector--left' : 'handle-node-selector--right'"
+        @click.stop
+        @mousedown.stop
+      >
+        <div class="selector-header">
+          <span>{{ selectorTitle }}</span>
+          <button class="selector-close" @click="selectorOpen = false">×</button>
+        </div>
+        <div class="selector-list">
+          <button
+            v-for="n in filteredNodeList"
+            :key="n.typeName"
+            class="selector-item"
+            @click="handleSelectNode(n.typeName)"
+          >
+            <span class="selector-item-name">{{ n.name }}</span>
+            <span class="selector-item-desc">{{ n.description }}</span>
+          </button>
+          <div v-if="filteredNodeList.length === 0" class="selector-empty">
+            {{ t('flowDesigner.noAvailableNode') }}
           </div>
         </div>
-      </Transition>
-    </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { provide, inject, ref, watch, computed, type Component, type Ref } from 'vue'
 import { Handle, Position, useNode } from '@vue-flow/core'
+import { useI18n } from 'vue-i18n'
 import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
+import { getAvailableNextNodeTypes, getAvailablePrevNodeTypes } from '@/utils/flowNodeRules'
 
 const props = defineProps<{
   id: string
@@ -60,27 +81,64 @@ const props = defineProps<{
 }>()
 
 const { node } = useNode()
+const { t } = useI18n()
 
 const canvasModeInjected = inject<Ref<'move' | 'select'>>('canvasMode', ref('move'))
 const currentMode = computed(() => canvasModeInjected.value)
 
 const nodeList = inject<Ref<NodeConfig[]>>('availableNodes', ref([]))
 const addNodeAndConnect = inject<(sourceId: string, sourceHandle: string, nodeType: string) => void>('addNodeAndConnect', () => {})
+const addNodeBeforeAndConnect = inject<(targetId: string, targetHandle: string, nodeType: string) => void>('addNodeBeforeAndConnect', () => {})
 
+const targetHover = ref(false)
 const sourceHover = ref(false)
 const selectorOpen = ref(false)
+const selectorDirection = ref<'prev' | 'next'>('next')
 
-const onSourceLeave = () => {
-  if (!selectorOpen.value) sourceHover.value = false
+const currentNodeType = computed<string>(() => String(props.data?.typeName || node.data?.typeName || node.type || ''))
+const availablePrevTypes = computed<string[]>(() => getAvailablePrevNodeTypes(currentNodeType.value))
+const availableNextTypes = computed<string[]>(() => getAvailableNextNodeTypes(currentNodeType.value))
+const filteredNodeList = computed<NodeConfig[]>(() => {
+  const allowedTypes = selectorDirection.value === 'prev' ? availablePrevTypes.value : availableNextTypes.value
+  return nodeList.value.filter(n => allowedTypes.includes(n.typeName))
+})
+const selectorTitle = computed<string>(() =>
+  selectorDirection.value === 'prev' ? t('flowDesigner.addPrevNode') : t('flowDesigner.addNextNode'),
+)
+const showTargetPlus = computed<boolean>(() => (
+  props.selected || targetHover.value || (selectorDirection.value === 'prev' && selectorOpen.value)
+) && availablePrevTypes.value.length > 0)
+const showSourcePlus = computed<boolean>(() => (
+  props.selected || sourceHover.value || (selectorDirection.value === 'next' && selectorOpen.value)
+) && availableNextTypes.value.length > 0)
+
+const onTargetLeave = () => {
+  if (!selectorOpen.value || selectorDirection.value !== 'prev') targetHover.value = false
 }
 
-const toggleSelector = () => {
-  selectorOpen.value = !selectorOpen.value
+const onSourceLeave = () => {
+  if (!selectorOpen.value || selectorDirection.value !== 'next') sourceHover.value = false
+}
+
+const openSelector = (direction: 'prev' | 'next') => {
+  if (selectorOpen.value && selectorDirection.value === direction) {
+    selectorOpen.value = false
+    return
+  }
+
+  selectorDirection.value = direction
+  selectorOpen.value = true
 }
 
 const handleSelectNode = (nodeType: string) => {
-  addNodeAndConnect(props.id, `${props.id}_right`, nodeType)
+  if (selectorDirection.value === 'prev') {
+    addNodeBeforeAndConnect(props.id, `${props.id}_left`, nodeType)
+  }
+  else {
+    addNodeAndConnect(props.id, `${props.id}_right`, nodeType)
+  }
   selectorOpen.value = false
+  targetHover.value = false
   sourceHover.value = false
 }
 
@@ -126,7 +184,17 @@ const widgetComponent = props.widget
   box-shadow: 0 0 16px rgba(0, 255, 159, 0.15), 0 0 32px rgba(0, 255, 159, 0.05);
 }
 
-/* ── Target handle (left) ── */
+/* ── Target handle zone (left) ── */
+.target-handle-zone {
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  z-index: 5;
+}
+
 .vf-handle-target {
   width: 8px;
   height: 8px;
@@ -135,9 +203,8 @@ const widgetComponent = props.widget
   border-radius: 50%;
   transition: all 0.2s;
 }
-.vf-handle-target:hover {
+.target-handle-zone:hover .vf-handle-target {
   border-color: var(--nf-accent);
-  background: var(--nf-accent);
   box-shadow: var(--nf-glow-sm);
 }
 
@@ -168,30 +235,39 @@ const widgetComponent = props.widget
 
 .handle-plus-btn {
   position: absolute;
-  left: 14px;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid #1E2733;
+  border: 1px solid rgba(0, 255, 159, 0.35);
   background: rgba(8, 11, 16, 0.9);
-  color: #5A6A7C;
+  color: var(--nf-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
   padding: 0;
-}
-.handle-plus-btn:hover {
-  border-color: var(--nf-accent);
-  color: var(--nf-accent);
   box-shadow: var(--nf-glow-sm);
+}
+
+.handle-plus-btn--left {
+  right: 14px;
+}
+
+.handle-plus-btn--right {
+  left: 14px;
+}
+
+.handle-plus-btn:hover {
+  border-color: var(--nf-accent-hover);
+  color: var(--nf-accent-hover);
+  background: rgba(0, 255, 159, 0.06);
+  box-shadow: var(--nf-glow-md);
 }
 
 /* ── Node selector dropdown ── */
 .handle-node-selector {
   position: absolute;
-  left: 40px;
   top: 50%;
   transform: translateY(-50%);
   width: 210px;
@@ -204,15 +280,23 @@ const widgetComponent = props.widget
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
+.handle-node-selector--left {
+  right: calc(100% + 34px);
+}
+
+.handle-node-selector--right {
+  left: calc(100% + 34px);
+}
+
 .selector-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
   font-family: var(--nf-font-display);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: #5A6A7C;
+  color: var(--nf-text-body);
   border-bottom: 1px solid #141A22;
 }
 .selector-close {
@@ -261,16 +345,24 @@ const widgetComponent = props.widget
   line-height: 1.3;
 }
 .selector-item:hover .selector-item-name {
-  color: #e4e4e7;
+  color: #E6EDF3;
 }
 .selector-item-desc {
   font-family: var(--nf-font-display);
-  font-size: 11px;
-  color: #3A4A5C;
-  line-height: 1.3;
+  font-size: 12px;
+  color: var(--nf-text-tertiary);
+  line-height: 1.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.selector-empty {
+  padding: 10px 8px;
+  color: var(--nf-text-secondary);
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .selector-fade-enter-active,
