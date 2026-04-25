@@ -35,7 +35,7 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CodeMirrorEditor from '../components/CodeMirrorEditor.vue';
 import VariableSelector from '../components/VariableSelector.vue';
-import type { VariableItem } from '../components/VariableSelector.vue';
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types';
 import type { FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
 
 interface Props {

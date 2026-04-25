@@ -35,6 +35,9 @@
             placeholder="e.g. age > 18"
             @input="commitConditionExpr(idx)"
           />
+          <button class="variable-btn" @click.stop="openVariableSelector(idx)">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
           <button v-if="conditions.length > 1" class="remove-btn" @click.stop="removeCondition(idx)">
             <el-icon :size="12"><Close /></el-icon>
           </button>
@@ -50,14 +53,24 @@
         <div class="cond-anchor-dot" />
       </div>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, inject, type Ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Share, Plus, Close } from '@element-plus/icons-vue'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
+
+const { t } = useI18n()
 
 interface ConditionRule {
   id: string;
@@ -67,6 +80,7 @@ interface ConditionRule {
 }
 
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const displayName = ref(nodeData.value.displayName || 'Condition')
@@ -78,6 +92,8 @@ const extractExpr = (unit: JSExpressionUnit): string => {
 }
 
 const conditionExprs = ref<string[]>(conditions.value.map(c => extractExpr(c.expressionUnit)))
+const variableSelectorVisible = ref(false)
+const variableTargetIndex = ref(0)
 
 const update = (key: string, value: any) => onUpdate({ [key]: value })
 
@@ -114,6 +130,17 @@ const removeCondition = (idx: number) => {
   conditions.value.splice(idx, 1)
   conditionExprs.value.splice(idx, 1)
   commitConditions()
+}
+
+const openVariableSelector = (idx: number) => {
+  variableTargetIndex.value = idx
+  variableSelectorVisible.value = true
+}
+
+const handleVariableSelect = (variable: VariableItem) => {
+  const idx = variableTargetIndex.value
+  conditionExprs.value[idx] = `${conditionExprs.value[idx] || ''}{{${variable.key}}}`
+  commitConditionExpr(idx)
 }
 
 watch(() => nodeData.value.conditions, (newConds) => {
@@ -204,6 +231,25 @@ watch(() => nodeData.value.conditions, (newConds) => {
 
 .cond-expr-row {
   display: flex; align-items: center; gap: 4px;
+}
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
 }
 
 .remove-btn {

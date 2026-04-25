@@ -27,10 +27,18 @@
             class="url-input"
             @input="commitUrl"
           />
+          <button class="variable-btn variable-btn--compact" @click.stop="openVariableSelector('url')">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
         </div>
 
         <div class="widget-field">
-          <label class="field-label">Headers</label>
+          <div class="field-label-row">
+            <label class="field-label">Headers</label>
+            <button class="variable-btn" @click.stop="openVariableSelector('headers')">
+              {{ t('flowComponents.insertVariable') }}
+            </button>
+          </div>
           <el-input
             v-model="headersText"
             type="textarea"
@@ -43,7 +51,12 @@
         </div>
 
         <div class="widget-field">
-          <label class="field-label">Body</label>
+          <div class="field-label-row">
+            <label class="field-label">Body</label>
+            <button class="variable-btn" @click.stop="openVariableSelector('body')">
+              {{ t('flowComponents.insertVariable') }}
+            </button>
+          </div>
           <el-input
             v-model="bodyText"
             type="textarea"
@@ -65,16 +78,26 @@
       <span class="method-badge">{{ method }}</span>
       <span class="summary-text">{{ urlPreview }}</span>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, inject, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Link, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { AnyExpressionUnit, FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
 
+const { t } = useI18n()
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const collapsed = ref(false)
@@ -93,6 +116,8 @@ const extractText = (unit: AnyExpressionUnit | string | undefined): string => {
 const urlText = ref(extractText(nodeData.value.url))
 const headersText = ref(extractText(nodeData.value.headers))
 const bodyText = ref(extractText(nodeData.value.body))
+const variableSelectorVisible = ref(false)
+const variableTarget = ref<'url' | 'headers' | 'body'>('body')
 
 const urlPreview = computed(() => {
   const u = urlText.value.trim()
@@ -117,6 +142,27 @@ const commitField = (key: string, text: string) => {
   } else {
     update(key, ExpressionUnitFactory.createFullTextExpression(text))
   }
+}
+
+const openVariableSelector = (target: 'url' | 'headers' | 'body') => {
+  variableTarget.value = target
+  variableSelectorVisible.value = true
+}
+
+const handleVariableSelect = (variable: VariableItem) => {
+  const placeholder = `{{${variable.key}}}`
+  if (variableTarget.value === 'url') {
+    urlText.value += placeholder
+    commitUrl()
+    return
+  }
+  if (variableTarget.value === 'headers') {
+    headersText.value += placeholder
+    commitField('headers', headersText.value)
+    return
+  }
+  bodyText.value += placeholder
+  commitField('body', bodyText.value)
 }
 </script>
 
@@ -167,6 +213,37 @@ const commitField = (key: string, text: string) => {
 .field-label {
   font-size: 11px; font-weight: 500;
   color: var(--nf-text-secondary, #a1a1aa);
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn--compact {
+  height: 24px;
+  align-self: center;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
 }
 
 .collapsed-summary {

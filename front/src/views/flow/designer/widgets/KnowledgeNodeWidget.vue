@@ -37,7 +37,12 @@
         </p>
       </div>
       <div class="widget-field">
-        <label class="field-label">{{ t('flowComponents.knowledgeQuery') }}</label>
+        <div class="field-label-row">
+          <label class="field-label">{{ t('flowComponents.knowledgeQuery') }}</label>
+          <button class="variable-btn" @click.stop="variableSelectorVisible = true">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
+        </div>
         <el-input
           v-model="queryText"
           type="textarea"
@@ -59,6 +64,11 @@
         </div>
       </div>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
@@ -67,9 +77,12 @@ import { ref, inject, onMounted, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Collection } from '@element-plus/icons-vue'
 import { KnowledgeService, type IKnowledgeBaseDto } from '@/services/knowledge.service'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
 
 const { t } = useI18n()
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const displayName = ref(nodeData.value.displayName || 'Knowledge')
@@ -78,6 +91,7 @@ const selectedKnowledgeBaseIds = ref<string[]>((nodeData.value.knowledgeBaseIds 
 const queryText = ref(nodeData.value.queryExpression?.text || nodeData.value.queryExpression?.Text || '{{sys.query}}')
 const topK = ref(nodeData.value.topK ?? 5)
 const threshold = ref(nodeData.value.threshold ?? 0.1)
+const variableSelectorVisible = ref(false)
 
 const update = (key: string, value: any) => onUpdate({ [key]: value })
 
@@ -87,6 +101,11 @@ const commitKbIds = () => {
 
 const commitQuery = () => {
   update('queryExpression', { typeName: 'FullTextExpressionUnit', text: queryText.value, Text: queryText.value })
+}
+
+const handleVariableSelect = (variable: VariableItem) => {
+  queryText.value += `{{${variable.key}}}`
+  commitQuery()
 }
 
 const loadKnowledgeBases = async () => {
@@ -148,6 +167,31 @@ onMounted(loadKnowledgeBases)
 .field-label {
   font-size: 12px; font-weight: 500;
   color: var(--nf-text-secondary, #a1a1aa); line-height: 1.3;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
 }
 
 .field-hint {

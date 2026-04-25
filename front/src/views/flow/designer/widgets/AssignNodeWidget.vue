@@ -34,19 +34,32 @@
           class="expr-input"
           @input="commitAssignExpr(idx)"
         />
+        <button class="variable-btn" @click.stop="openVariableSelector(idx)">
+          {{ t('flowComponents.insertVariable') }}
+        </button>
         <button v-if="assignments.length > 1" class="remove-btn" @click.stop="removeAssignment(idx)">
           <el-icon :size="12"><Close /></el-icon>
         </button>
       </div>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, inject, type Ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { EditPen, Plus, Close } from '@element-plus/icons-vue'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
+
+const { t } = useI18n()
 
 interface AssignmentItem {
   id: string;
@@ -55,6 +68,7 @@ interface AssignmentItem {
 }
 
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const displayName = ref(nodeData.value.displayName || 'Assign')
@@ -66,6 +80,8 @@ const extractExpr = (unit: JSExpressionUnit): string => {
 }
 
 const assignExprs = ref<string[]>(assignments.value.map(a => extractExpr(a.expressionUnit)))
+const variableSelectorVisible = ref(false)
+const variableTargetIndex = ref(0)
 
 const update = (key: string, value: any) => onUpdate({ [key]: value })
 
@@ -101,6 +117,17 @@ const removeAssignment = (idx: number) => {
   assignments.value.splice(idx, 1)
   assignExprs.value.splice(idx, 1)
   commitAssignments()
+}
+
+const openVariableSelector = (idx: number) => {
+  variableTargetIndex.value = idx
+  variableSelectorVisible.value = true
+}
+
+const handleVariableSelect = (variable: VariableItem) => {
+  const idx = variableTargetIndex.value
+  assignExprs.value[idx] = `${assignExprs.value[idx] || ''}{{${variable.key}}}`
+  commitAssignExpr(idx)
 }
 
 watch(() => nodeData.value.assignments, (newItems) => {
@@ -162,6 +189,25 @@ watch(() => nodeData.value.assignments, (newItems) => {
   flex-shrink: 0;
 }
 .expr-input { flex: 1; min-width: 0; }
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
+}
 
 .remove-btn {
   display: flex; align-items: center; justify-content: center;
