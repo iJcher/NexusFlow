@@ -64,12 +64,6 @@ const router = createRouter({
       name: 'flowDesigner',
       component: () => import('@/views/flow/designer/index.vue'),
       meta: { layout: 'simple', requiresAuth: true }
-    },
-    {
-      path: '/flow/chat-test/:flowId',
-      name: 'flowChatTest',
-      component: () => import('@/views/flow/chat-test/index.vue'),
-      meta: { layout: 'simple', requiresAuth: true }
     }
   ]
 })

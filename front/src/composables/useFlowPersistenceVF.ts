@@ -214,10 +214,10 @@ export function useFlowPersistenceVF(
     return JSON.stringify(webConfig)
   }
 
-  const saveFlow = async () => {
+  const saveFlow = async (): Promise<boolean> => {
     if (!flowId.value) {
       ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
-      return
+      return false
     }
 
     try {
@@ -253,14 +253,17 @@ export function useFlowPersistenceVF(
 
       if (response.errCode === 0) {
         ElMessage.success(t('flowDesigner.flowSaveSuccess'))
+        return true
       }
       else {
         ElMessage.error(response.errMsg || t('flowDesigner.saveFailed'))
+        return false
       }
     }
     catch (error) {
       console.error('Save flow failed:', error)
       ElMessage.error(t('flowDesigner.saveFlowFailed'))
+      return false
     }
   }
 

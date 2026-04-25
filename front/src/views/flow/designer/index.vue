@@ -108,6 +108,25 @@
       @group="toggleGroupSelect"
       @mode-change="setCanvasMode"
     />
+
+    <el-drawer
+      v-model="chatTestDrawerVisible"
+      direction="ltr"
+      :size="chatTestDrawerSize"
+      :append-to-body="true"
+      :destroy-on-close="false"
+      class="chat-test-drawer"
+    >
+      <template #header>
+        <span class="chat-test-drawer__title">{{ t('flowDesigner.run') }}</span>
+      </template>
+      <FlowChatTest
+        v-if="flowId"
+        :flow-id="flowId"
+        embedded
+        @close="chatTestDrawerVisible = false"
+      />
+    </el-drawer>
   </div>
 </template>
 
@@ -144,6 +163,7 @@ import GroupVFNode from './vf-nodes/GroupVFNode.vue'
 
 import { useVueFlowSetup } from '@/composables/useVueFlowSetup'
 import { useFlowPersistenceVF } from '@/composables/useFlowPersistenceVF'
+import FlowChatTest from '@/views/flow/chat-test/index.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -151,6 +171,17 @@ const router = useRouter()
 const canvasRef = ref<HTMLElement | null>(null)
 const rightMenuRef = ref<InstanceType<typeof FlowRightMenuComponent> | null>(null)
 const flowStore = useFlowDesignerStore()
+const chatTestDrawerVisible = ref(false)
+const viewportWidth = ref<number>(window.innerWidth)
+const chatTestDrawerSize = computed<string>(() => {
+  if (viewportWidth.value <= 900) {
+    return '100%'
+  }
+  if (viewportWidth.value <= 1366) {
+    return '55%'
+  }
+  return '40%'
+})
 
 const flowType = computed(() => route.params.flowType as string)
 const flowId = computed(() => route.params.id ? Number(route.params.id) : null)
@@ -322,12 +353,16 @@ const addNodeFromPalette = (nodeType: string) => {
 
 const closeWindow = () => router.back()
 
-const openChatTest = () => {
+const openChatTest = async () => {
   if (!flowId.value) {
     ElMessage.warning(t('flowDesigner.flowIdNotExist'))
     return
   }
-  router.push({ name: 'flowChatTest', params: { flowId: String(flowId.value) } })
+  const saved = await persistence.saveFlow()
+  if (!saved) {
+    return
+  }
+  chatTestDrawerVisible.value = true
 }
 
 const handleOpenAddNodeDialog = () => {
@@ -350,7 +385,13 @@ const closeAllMenusFn = () => {
   closeNodeContextMenu()
 }
 
+const handleResize = () => {
+  viewportWidth.value = window.innerWidth
+}
+
 onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  handleResize()
   const flowIdString = flowId.value ? flowId.value.toString() : `temp-${Date.now()}`
   flowStore.initFlow(flowIdString, currentFlowName.value || t('flowDesigner.unnamedFlow'))
   initCanvas()
@@ -358,6 +399,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
   document.removeEventListener('click', closeAllMenusFn)
   if (groupMouseUpCleanup) {
     groupMouseUpCleanup()
@@ -595,5 +637,41 @@ onBeforeUnmount(() => {
 
 .el-overlay.is-message-box {
   z-index: 1999 !important;
+}
+
+.chat-test-drawer .chat-test-drawer__title {
+  color: #E8EAF0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chat-test-drawer :deep(.el-drawer) {
+  background: #05070A;
+}
+
+.chat-test-drawer :deep(.el-drawer__body) {
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .editor-header {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .header-center {
+    display: none;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 6px;
+  }
+
+  .fui-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }
 </style>
