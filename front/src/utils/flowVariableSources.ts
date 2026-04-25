@@ -26,7 +26,11 @@ const NODE_OUTPUT_SCHEMA: Record<string, NodeOutputItem[]> = {
   ],
   HttpNode: [
     { name: 'responseBody', variableType: VariableItemType.StringVariable },
+    { name: 'json', variableType: VariableItemType.ObjectVariable },
     { name: 'statusCode', variableType: VariableItemType.LongVariable },
+    { name: 'headers', variableType: VariableItemType.ObjectVariable },
+    { name: 'ok', variableType: VariableItemType.BooleanVariable },
+    { name: 'url', variableType: VariableItemType.StringVariable },
   ],
   JSCodeNode: [
     { name: 'result', variableType: VariableItemType.ObjectVariable },
