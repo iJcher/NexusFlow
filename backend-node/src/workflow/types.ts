@@ -54,6 +54,7 @@ export interface FlowRuntimeContext {
   conversationId?: string;
   dialogueCount?: number;
   files?: AIFileRequest[];
+  chatHistory?: ChatHistoryMessage[];
 }
 
 export interface AIChatRequest {
@@ -70,6 +71,16 @@ export interface AIFileRequest {
   name?: string;
   size?: number;
   mimeType?: string;
+}
+
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface LLMChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
 
 export interface TokenUsage {

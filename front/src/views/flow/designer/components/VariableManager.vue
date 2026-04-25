@@ -49,7 +49,7 @@
             <el-tag 
               v-if="type === 'input'"
               :type="variable.required ? 'danger' : 'info'" 
-              size="mini"
+              size="small"
               class="required-tag"
             >
               {{ variable.required ? t('flowComponents.required') : t('flowComponents.optional') }}
@@ -249,6 +249,8 @@ import { VariableFactory } from '@/types/flow-designer/Parameters/Variable';
 
 const { t } = useI18n();
 
+type ElementTagType = 'success' | 'info' | 'primary' | 'warning' | 'danger';
+
 // Props 定义
 interface Props {
   /** 变量类型：'input' | 'session' */
@@ -280,7 +282,7 @@ const config = computed(() => {
     description: isInput ? t('flowComponents.inputParameterDesc') : t('flowComponents.sessionVariableDesc'),
     icon: isInput ? Document : Collection,
     iconColor: 'var(--nf-text-secondary)',
-    tagType: isInput ? 'primary' : 'success',
+    tagType: (isInput ? 'primary' : 'success') as ElementTagType,
     buttonClass: '',
     cardClass: isInput ? 'input-card' : 'session-card',
     dialogClass: isInput ? 'input-dialog' : 'session-dialog'
@@ -390,8 +392,8 @@ const getVariableIcon = (typeName: VariableItemType) => {
 };
 
 // 获取变量标签类型
-const getVariableTagType = (typeName: VariableItemType) => {
-  const typeMap = {
+const getVariableTagType = (typeName: VariableItemType): ElementTagType => {
+  const typeMap: Record<VariableItemType, ElementTagType> = {
     StringVariable: 'primary',
     LongVariable: 'success',
     DecimalVariable: 'success',

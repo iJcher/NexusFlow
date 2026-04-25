@@ -1,4 +1,5 @@
 import type { TApiResponse } from '@/types/ApiResponse{T}'
+import type { IFlowConfigInfo } from '@/types/flow.types'
 import { HttpUtil } from '@/utils/http.util'
 
 export interface ITemplateDto {
@@ -8,7 +9,7 @@ export interface ITemplateDto {
   flowType: number
   category: string
   tags: string[]
-  configInfoForRun: any
+  configInfoForRun: IFlowConfigInfo | null
   configInfoForWeb: string | null
   isOfficial: boolean
   createdBy: string
@@ -28,7 +29,7 @@ export class TemplateService {
     flowType: number
     category?: string
     tags?: string[]
-    configInfoForRun?: any
+    configInfoForRun?: IFlowConfigInfo | null
     configInfoForWeb?: string
   }): Promise<TApiResponse<ITemplateDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<ITemplateDto>>(

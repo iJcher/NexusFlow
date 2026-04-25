@@ -16,11 +16,14 @@
           v-model="messageText"
           type="textarea"
           :rows="3"
-          placeholder="Enter reply message, use {{variable}} to reference variables"
+          placeholder="留空将自动回复上一节点输出，例如 LLM 的流式回答"
           resize="vertical"
           size="small"
           @input="commitMessage"
         />
+        <p class="field-hint">
+          无需手写变量：常规 AI 问答保持留空即可；只有需要固定前缀或模板时再填写。
+        </p>
       </div>
     </div>
   </div>
@@ -92,9 +95,16 @@ const commitMessage = () => {
 .widget-field { display: flex; flex-direction: column; gap: 3px; }
 
 .field-label {
-  font-size: 11px; font-weight: 500;
+  font-size: 12px; font-weight: 500;
   color: var(--nf-text-secondary, #a1a1aa); line-height: 1.3;
 }
 
-:deep(.el-textarea__inner) { font-size: 11px; min-height: 36px !important; padding: 4px 7px; }
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nf-text-body, #8B9DB0);
+}
+
+:deep(.el-textarea__inner) { font-size: 12px; min-height: 36px !important; padding: 4px 7px; }
 </style>

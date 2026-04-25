@@ -150,6 +150,17 @@ const modelDisplayName = computed(() => {
   return parts.length === 2 ? parts[1] : modelSelection.value
 })
 
+const getFirstAvailableModel = (providers: IFlowLLMProviderDto[]): string => {
+  for (const provider of providers) {
+    const platformName = provider.platformName
+    const firstModelName = provider.llmNames?.[0]
+    if (platformName && firstModelName) {
+      return `${platformName}|${firstModelName}`
+    }
+  }
+  return ''
+}
+
 const update = (key: string, value: any) => {
   onUpdate({ [key]: value })
 }
@@ -172,6 +183,13 @@ const loadModelProviders = async () => {
     const response = await LLMProviderService.getProviderList()
     if (response.errCode === 0 && response.data) {
       modelProviders.value = response.data
+      if (!modelSelection.value) {
+        const firstModel = getFirstAvailableModel(response.data)
+        if (firstModel) {
+          modelSelection.value = firstModel
+          update('modelSelection', firstModel)
+        }
+      }
     }
   } catch (e) {
     console.error('Failed to load model providers:', e)

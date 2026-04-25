@@ -253,8 +253,24 @@ export class KnowledgeService {
     query: string,
     options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
   ) {
+    const targetKnowledgeBaseIds = knowledgeBaseIds.length
+      ? knowledgeBaseIds
+      : (
+          await this.prisma.knowledgeBaseEntity.findMany({
+            where: {
+              status: 'active',
+              chunkCount: { gt: 0 },
+            },
+            select: { id: true },
+          })
+        ).map((kb) => kb.id);
+
+    if (targetKnowledgeBaseIds.length === 0) {
+      return [];
+    }
+
     const results = await Promise.all(
-      knowledgeBaseIds.map((id) => this.searchSimilar(id, query, options)),
+      targetKnowledgeBaseIds.map((id) => this.searchSimilar(id, query, options)),
     );
 
     return results

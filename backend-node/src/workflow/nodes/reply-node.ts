@@ -11,13 +11,51 @@ export async function executeReplyNode(
     const text = (await computeExpression(node.message, context, runtime))?.toString() || '';
 
     const streamingExecutor = async function* (): AsyncGenerator<string> {
-      yield* parseAndStreamText(text, context, runtime);
+      if (text.trim()) {
+        yield* parseAndStreamText(text, context, runtime);
+        return;
+      }
+
+      yield* streamPreviousNodeOutput(node, context, runtime);
     };
 
     return createSuccessResult(node.id, { mode: 'streaming' }, streamingExecutor);
   } catch (e: any) {
     return { nodeId: node.id, isSuccess: false, errorMsg: `reply node failed: ${e.message}`, errorCode: 61002 };
   }
+}
+
+async function* streamPreviousNodeOutput(
+  node: NodeConfig,
+  context: FlowRuntimeContext,
+  runtime: FlowRuntime,
+): AsyncGenerator<string> {
+  const incomingLine = context.flowConfigInfoForRun.lines.find((line) => line.toNodeId === node.id);
+  if (!incomingLine) {
+    if (context.request?.query) yield context.request.query;
+    return;
+  }
+
+  const previousResult = await runtime.getNodeExecuteResult(context, incomingLine.fromNodeId);
+  if (!previousResult) return;
+
+  if (previousResult.streamingExecutor) {
+    yield* previousResult.streamingExecutor();
+    return;
+  }
+
+  const value = previousResult.result;
+  if (value === undefined || value === null) {
+    if (context.request?.query) yield context.request.query;
+    return;
+  }
+
+  if (typeof value === 'string') {
+    yield value;
+    return;
+  }
+
+  yield JSON.stringify(value);
 }
 
 async function* parseAndStreamText(

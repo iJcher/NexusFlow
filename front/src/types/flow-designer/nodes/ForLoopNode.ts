@@ -113,7 +113,7 @@ class ForLoopNodeView extends HtmlNode {
 
   setHtml(rootEl: SVGForeignObjectElement) {
     const { properties } = this.props.model;
-    const nodeData = properties as ForLoopNodeData;
+    const nodeData = properties as unknown as ForLoopNodeData;
 
     // 取循环次数预览文本（表达式模式）
     const loopExpression = (nodeData.loopCount?.expressionCode || '').trim() || '10';

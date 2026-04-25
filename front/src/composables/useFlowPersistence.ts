@@ -145,7 +145,7 @@ export function useFlowPersistence(
 
       Object.entries(node.properties).forEach(([key, value]) => {
         if (!uiKeys.has(key)) {
-          ;(runNode as Record<string, unknown>)[key] = value
+          ;(runNode as unknown as Record<string, unknown>)[key] = value
         }
       })
 

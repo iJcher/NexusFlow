@@ -8,6 +8,8 @@ import type { FlowTypeKey, NodeConfig } from '@/types/flow-designer/nodeConfig'
 import { generateNodeId } from '@/utils/uuid'
 import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import { validateFlowConnection } from '@/utils/flowNodeRules'
 
 const NODE_TYPE_MAP: Record<string, string> = {
   StartNode: 'start',
@@ -19,6 +21,62 @@ const NODE_TYPE_MAP: Record<string, string> = {
   HttpNode: 'http',
   ResultNode: 'result',
   KnowledgeNode: 'knowledge',
+}
+
+const DEFAULT_AI_SYSTEM_PROMPT = `你是 NEXUS 工作流设计器的产品向导，必须基于当前系统能力回答用户。
+
+当前产品上下文：
+- NEXUS 是类似 Dify 的工作流系统，推荐新手搭建 AI 知识库问答工作流的最小链路是 Start -> Knowledge -> LLM -> Reply。
+- Start 是流程入口；Knowledge 根据用户问题检索知识库；LLM 基于检索结果和用户问题生成回答；Reply 默认会把上一节点输出回复给用户。
+- 用户通常不需要手写 {{sys.query}} 或节点 ID；默认 AI 工作流会自动把用户输入交给 LLM。
+- 运行前需要在 Models 页面配置模型供应商、在 Knowledge 页面创建知识库并上传文档；若只有一个可用模型或知识库，系统会自动选择。
+- 设计器右上角 Save 保存流程，Run 打开对话调试抽屉，执行日志可用于排查问题。
+
+回答规则：
+- 如果用户询问“怎么搭建工作流”，优先给 NEXUS 内部的具体点击路径和节点配置，不要推荐 Zapier、Airflow、n8n 等外部工具。
+- 回答要一步一步、可操作、简洁。
+- 如果用户的问题缺少前提，先给最小可运行方案，再补充可选增强。`
+
+interface IDefaultNodeData extends Record<string, unknown> {
+  id: string
+  typeName: string
+  displayName: string
+}
+
+function createDefaultNodeData(nodeType: string, nodeConfig: NodeConfig, nodeId: string): IDefaultNodeData {
+  const baseData: IDefaultNodeData = {
+    typeName: nodeType,
+    displayName: nodeConfig.name,
+    id: nodeId,
+  }
+
+  if (nodeType === 'LLMNode') {
+    return {
+      ...baseData,
+      temperature: 0.7,
+      systemPrompt: ExpressionUnitFactory.createFullTextExpression(DEFAULT_AI_SYSTEM_PROMPT),
+      userPrompt: ExpressionUnitFactory.createFullTextExpression('用户问题：{{sys.query}}'),
+    }
+  }
+
+  if (nodeType === 'ReplyNode') {
+    return {
+      ...baseData,
+      description: '默认自动回复上一节点输出；也可以填写固定回复内容。',
+    }
+  }
+
+  if (nodeType === 'KnowledgeNode') {
+    return {
+      ...baseData,
+      queryExpression: ExpressionUnitFactory.createFullTextExpression('{{sys.query}}'),
+      topK: 5,
+      threshold: 0.1,
+      outputVariable: 'knowledge_context',
+    }
+  }
+
+  return baseData
 }
 
 function toVueFlowType(typeName: string): string {
@@ -114,6 +172,28 @@ export function useVueFlowSetup(
   onConnect((connection: Connection) => {
     if (!connection.source || !connection.target) return
 
+    const sourceNode = nodes.value.find(n => n.id === connection.source)
+    const targetNode = nodes.value.find(n => n.id === connection.target)
+    if (!sourceNode || !targetNode) return
+
+    const validation = validateFlowConnection({
+      sourceId: connection.source,
+      targetId: connection.target,
+      sourceType: resolveLogicNodeType(sourceNode),
+      targetType: resolveLogicNodeType(targetNode),
+      sourceHandle: connection.sourceHandle || undefined,
+      existingEdges: edges.value.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle || undefined,
+      })),
+    })
+
+    if (!validation.valid) {
+      ElMessage.warning(validation.reasonKey ? t(validation.reasonKey) : t('flowDesigner.connectionNotAllowed'))
+      return
+    }
+
     const edgeId = `e_${connection.source}_${connection.target}_${Date.now()}`
     const newEdge: Edge = {
       id: edgeId,
@@ -164,6 +244,114 @@ export function useVueFlowSetup(
     }
   }
 
+  const createWorkflowNode = (nodeType: string, position: { x: number, y: number }): Node | null => {
+    const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
+    if (!nodeConfig) return null
+
+    const nodeId = generateNodeId(nodeType)
+    const data = createDefaultNodeData(nodeType, nodeConfig, nodeId)
+    return {
+      id: nodeId,
+      type: toVueFlowType(nodeType),
+      position,
+      data,
+    }
+  }
+
+  const resolveLogicNodeType = (node: Node): string => {
+    return String(node.data?.typeName || toLogicFlowType(node.type || ''))
+  }
+
+  const addWorkflowNodeToStore = (node: Node) => {
+    const typeName = toLogicFlowType(node.type || '')
+    flowStore.addNode({
+      id: node.id,
+      type: typeName,
+      x: node.position.x,
+      y: node.position.y,
+      properties: {
+        ...node.data,
+        typeName: node.data?.typeName || typeName,
+      } as NodeBase,
+    })
+  }
+
+  const createWorkflowEdge = (source: Node, target: Node): Edge => {
+    const edgeId = `e_${source.id}_${target.id}_${Date.now()}`
+    return {
+      id: edgeId,
+      source: source.id,
+      target: target.id,
+      sourceHandle: `${source.id}_right`,
+      targetHandle: `${target.id}_left`,
+      type: 'default',
+      markerEnd: MarkerType.ArrowClosed,
+    }
+  }
+
+  const addWorkflowEdgeToStore = (edge: Edge) => {
+    flowStore.addEdge({
+      id: edge.id,
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+      sourceAnchorId: edge.sourceHandle || undefined,
+      targetAnchorId: edge.targetHandle || undefined,
+    })
+  }
+
+  const createDefaultAiWorkflow = () => {
+    const startNode = createWorkflowNode('StartNode', { x: 120, y: 180 })
+    const knowledgeNode = createWorkflowNode('KnowledgeNode', { x: 440, y: 150 })
+    const llmNode = createWorkflowNode('LLMNode', { x: 780, y: 150 })
+    const replyNode = createWorkflowNode('ReplyNode', { x: 1140, y: 180 })
+    if (!startNode || !knowledgeNode || !llmNode || !replyNode) return
+
+    const starterNodes = [startNode, knowledgeNode, llmNode, replyNode]
+    const starterEdges = [
+      createWorkflowEdge(startNode, knowledgeNode),
+      createWorkflowEdge(knowledgeNode, llmNode),
+      createWorkflowEdge(llmNode, replyNode),
+    ]
+
+    addNodes(starterNodes)
+    addEdges(starterEdges)
+    starterNodes.forEach(addWorkflowNodeToStore)
+    starterEdges.forEach(addWorkflowEdgeToStore)
+    ElMessage.success(t('flowDesigner.emptyCanvasInitialized') || '已生成默认 AI 工作流')
+  }
+
+  const upgradeSimpleAiWorkflowToRag = () => {
+    const hasKnowledgeNode = nodes.value.some(node => node.data?.typeName === 'KnowledgeNode')
+    if (hasKnowledgeNode || nodes.value.length !== 3) return
+
+    const startNode = nodes.value.find(node => node.data?.typeName === 'StartNode')
+    const llmNode = nodes.value.find(node => node.data?.typeName === 'LLMNode')
+    const replyNode = nodes.value.find(node => node.data?.typeName === 'ReplyNode')
+    if (!startNode || !llmNode || !replyNode) return
+
+    const startToLlmEdge = edges.value.find(edge => edge.source === startNode.id && edge.target === llmNode.id)
+    const llmToReplyEdge = edges.value.find(edge => edge.source === llmNode.id && edge.target === replyNode.id)
+    if (!startToLlmEdge || !llmToReplyEdge || edges.value.length !== 2) return
+
+    const knowledgeNode = createWorkflowNode('KnowledgeNode', {
+      x: (startNode.position.x + llmNode.position.x) / 2,
+      y: Math.min(startNode.position.y, llmNode.position.y) - 30,
+    })
+    if (!knowledgeNode) return
+
+    removeEdges([startToLlmEdge.id])
+    flowStore.removeEdge(startToLlmEdge.id)
+
+    const startToKnowledgeEdge = createWorkflowEdge(startNode, knowledgeNode)
+    const knowledgeToLlmEdge = createWorkflowEdge(knowledgeNode, llmNode)
+
+    addNodes([knowledgeNode])
+    addEdges([startToKnowledgeEdge, knowledgeToLlmEdge])
+    addWorkflowNodeToStore(knowledgeNode)
+    addWorkflowEdgeToStore(startToKnowledgeEdge)
+    addWorkflowEdgeToStore(knowledgeToLlmEdge)
+  }
+
   const addNodeAtCenter = (nodeType: string, position?: { x: number, y: number }) => {
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
     if (!nodeConfig) return
@@ -173,11 +361,7 @@ export function useVueFlowSetup(
 
     const vfType = toVueFlowType(nodeType)
 
-    const defaultData: Record<string, any> = {
-      typeName: nodeType,
-      displayName: nodeConfig.name,
-      id: nodeId,
-    }
+    const defaultData = createDefaultNodeData(nodeType, nodeConfig, nodeId)
 
     const newNode: Node = {
       id: nodeId,
@@ -206,6 +390,24 @@ export function useVueFlowSetup(
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
     if (!nodeConfig) return
 
+    const validation = validateFlowConnection({
+      sourceId: sourceNodeId,
+      targetId: `${nodeType}_preview`,
+      sourceType: resolveLogicNodeType(sourceNode),
+      targetType: nodeType,
+      sourceHandle: sourceHandleId,
+      existingEdges: edges.value.map(edge => ({
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle || undefined,
+      })),
+    })
+
+    if (!validation.valid) {
+      ElMessage.warning(validation.reasonKey ? t(validation.reasonKey) : t('flowDesigner.connectionNotAllowed'))
+      return
+    }
+
     const nodeId = generateNodeId(nodeType)
     const newPos = {
       x: (sourceNode.position?.x ?? 0) + 350,
@@ -213,11 +415,7 @@ export function useVueFlowSetup(
     }
 
     const vfType = toVueFlowType(nodeType)
-    const defaultData: Record<string, any> = {
-      typeName: nodeType,
-      displayName: nodeConfig.name,
-      id: nodeId,
-    }
+    const defaultData = createDefaultNodeData(nodeType, nodeConfig, nodeId)
 
     addNodes([{ id: nodeId, type: vfType, position: newPos, data: defaultData }])
     flowStore.addNode({

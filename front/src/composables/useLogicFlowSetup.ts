@@ -153,14 +153,14 @@ export function useLogicFlowSetup(
       lf.render({ nodes: [], edges: [] })
     }
 
-    lf.on('node:click', ({ data }: { data: { id: string, type: string, x: number, y: number, properties: Record<string, unknown> } }) => {
+    lf.on('node:click', ({ data }) => {
       flowStore.addNode({
         id: data.id,
         type: data.type,
         x: data.x,
         y: data.y,
         properties: {
-          ...data.properties,
+          ...(data.properties || {}),
           typeName: (data.properties?.typeName as string) || data.type,
         } as NodeBase,
       })
@@ -236,7 +236,7 @@ export function useLogicFlowSetup(
       }
     })
 
-    lf.on('connection:not-allowed', ({ msg }: { msg: string }) => {
+    lf.on('connection:not-allowed', ({ msg }) => {
       ElMessage.warning(msg || t('flowDesigner.connectionNotAllowed'))
     })
 

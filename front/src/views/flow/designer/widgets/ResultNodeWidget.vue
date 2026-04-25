@@ -165,19 +165,25 @@ const runWorkflow = async () => {
           const data = line.substring(6).trim()
           if (data === '[DONE]') break
 
+          let event: { event?: string, answer?: string, message?: string } | null = null
           try {
-            const event = JSON.parse(data)
-            if (event.event === 'message' && event.answer) {
-              result.value += event.answer
-              scrollToBottom()
-            }
+            event = JSON.parse(data) as { event?: string, answer?: string, message?: string }
           } catch {
             // skip malformed events
+          }
+          if (event?.event === 'message' && event.answer) {
+            result.value += event.answer
+            scrollToBottom()
+          } else if (event?.event === 'error') {
+            throw new Error(event.message || 'Workflow execution failed')
           }
         }
       }
     }
 
+    if (!result.value.trim()) {
+      result.value = '工作流已结束，但没有产生回复。请确认流程中存在 Reply 节点，并且 Reply 连接到了 LLM 或其他有输出的节点。'
+    }
     status.value = 'done'
     onUpdate({ status: 'done', result: result.value })
   } catch (err: any) {

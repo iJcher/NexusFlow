@@ -46,7 +46,7 @@
 
         <div
           v-for="flow in filteredFlows"
-          :key="flow.id"
+          :key="flow.id ?? flow.displayName ?? flow.lastModified ?? 'workflow-card'"
           class="workflow-card"
           @click="openDesigner(flow)"
         >
@@ -128,7 +128,7 @@
         </el-form>
       </div>
 
-      <div v-if="createMode === 'template' && !editingFlow" class="template-list">
+      <div v-if="createMode === 'template' && !editingFlow" v-loading="templateLoading" class="template-list">
         <div
           v-for="tpl in availableTemplates"
           :key="tpl.id"
@@ -160,12 +160,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, DocumentCopy, Files, MoreFilled, Grid, MagicStick, Share, CircleCheck } from '@element-plus/icons-vue'
 import { FlowService } from '@/services/flow.service'
 import { FlowType, type IFlowDto } from '@/types/flow.types'
+import { TemplateService, type ITemplateDto } from '@/services/template.service'
 
 const { t } = useI18n()
 const router = useRouter()
 
 const allFlows = ref<IFlowDto[]>([])
+const templates = ref<ITemplateDto[]>([])
 const loading = ref(false)
+const templateLoading = ref(false)
 const searchQuery = ref('')
 const activeFilter = ref('all')
 const dialogVisible = ref(false)
@@ -198,22 +201,7 @@ const flowTypes = computed(() => [
   { value: FlowType.ApprovalFlow, label: t('nav.approvalFlow'), icon: markRaw(CircleCheck) },
 ])
 
-interface TemplateItem {
-  id: string
-  name: string
-  description: string
-  flowType: FlowType
-  configInfoForRun?: any
-  configInfoForWeb?: string
-}
-
-const availableTemplates = computed<TemplateItem[]>(() => {
-  const officialRaw = localStorage.getItem('nf_official_templates')
-  const myRaw = localStorage.getItem('nf_my_templates')
-  const official: TemplateItem[] = officialRaw ? JSON.parse(officialRaw) : []
-  const my: TemplateItem[] = myRaw ? JSON.parse(myRaw) : []
-  return [...official, ...my]
-})
+const availableTemplates = computed<ITemplateDto[]>(() => templates.value)
 
 const filteredFlows = computed(() => {
   let list = allFlows.value
@@ -283,19 +271,46 @@ const loadAllFlows = async () => {
   }
 }
 
+const loadTemplates = async () => {
+  try {
+    templateLoading.value = true
+    const response = await TemplateService.getList({ pageIndex: 1, pageSize: 100 })
+    if (response.errCode === 0 && response.data) {
+      templates.value = response.data.items
+    }
+    else {
+      ElMessage.error(response.errMsg || t('errors.loadFailed'))
+    }
+  }
+  catch (error) {
+    console.error('Failed to load templates:', error)
+    ElMessage.error(t('errors.loadFailed'))
+  }
+  finally {
+    templateLoading.value = false
+  }
+}
+
 const showCreateDialog = () => {
   editingFlow.value = null
   createMode.value = 'blank'
   selectedTemplateId.value = null
   formData.value = { name: '', description: '', flowType: FlowType.AIFlow }
   dialogVisible.value = true
+  loadTemplates()
 }
 
-const selectTemplate = (tpl: TemplateItem) => {
+const toFlowType = (flowType: number | FlowType | undefined): FlowType => {
+  if (flowType === FlowType.AIFlow || flowType === 1) return FlowType.AIFlow
+  if (flowType === FlowType.ApprovalFlow || flowType === 2) return FlowType.ApprovalFlow
+  return FlowType.LogicFlow
+}
+
+const selectTemplate = (tpl: ITemplateDto) => {
   selectedTemplateId.value = tpl.id
   formData.value.name = tpl.name
   formData.value.description = tpl.description
-  formData.value.flowType = tpl.flowType
+  formData.value.flowType = toFlowType(tpl.flowType)
 }
 
 const saveFlow = async () => {
@@ -321,6 +336,11 @@ const saveFlow = async () => {
       const selectedTpl = createMode.value === 'template'
         ? availableTemplates.value.find(t => t.id === selectedTemplateId.value)
         : null
+
+      if (createMode.value === 'template' && !selectedTpl) {
+        ElMessage.warning(t('templates.emptyOfficial'))
+        return
+      }
 
       const response = await FlowService.createFlow({
         displayName: formData.value.name,
@@ -397,19 +417,27 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
   }
 }
 
-const saveAsTemplate = (flow: IFlowDto) => {
-  const myRaw = localStorage.getItem('nf_my_templates')
-  const my: TemplateItem[] = myRaw ? JSON.parse(myRaw) : []
-  my.push({
-    id: `my_${Date.now()}`,
-    name: flow.displayName || t('flowList.unnamedFlow'),
-    description: flow.description || '',
-    flowType: flow.flowType || FlowType.LogicFlow,
-    configInfoForRun: flow.configInfoForRun,
-    configInfoForWeb: flow.configInfoForWeb,
-  })
-  localStorage.setItem('nf_my_templates', JSON.stringify(my))
-  ElMessage.success(t('studio.saveAsTemplateSuccess'))
+const saveAsTemplate = async (flow: IFlowDto) => {
+  if (!flow.id) return
+  try {
+    const response = await TemplateService.createFromFlow({
+      flowId: String(flow.id),
+      name: flow.displayName || t('flowList.unnamedFlow'),
+      description: flow.description || '',
+      category: 'custom',
+      tags: [],
+    })
+    if (response.errCode === 0) {
+      ElMessage.success(t('studio.saveAsTemplateSuccess'))
+      await loadTemplates()
+      return
+    }
+    ElMessage.error(response.errMsg || t('errors.operationFailed'))
+  }
+  catch (error) {
+    console.error('Failed to save template:', error)
+    ElMessage.error(t('errors.operationFailed'))
+  }
 }
 
 const formatDateTime = (dateStr?: string | null) => {
@@ -420,6 +448,7 @@ const formatDateTime = (dateStr?: string | null) => {
 
 onMounted(() => {
   loadAllFlows()
+  loadTemplates()
 })
 </script>
 

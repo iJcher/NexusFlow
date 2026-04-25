@@ -16,6 +16,7 @@ export interface NodeOutputItem {
  * 定义所有节点的公共数据结构
  */
 export interface NodeBase {
+  [key: string]: unknown;
   /** 节点ID */
   id?: string;
   /** 节点描述 */
@@ -106,7 +107,7 @@ export class NodeBaseModel extends HtmlNodeModel {
    * 返回节点的业务属性数据
    */
   getNodeData(): NodeBase {
-    return this.properties as NodeBase;
+    return this.properties as unknown as NodeBase;
   }
 
   /**
