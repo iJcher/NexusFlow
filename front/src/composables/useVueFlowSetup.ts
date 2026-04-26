@@ -43,6 +43,14 @@ interface IDefaultNodeData extends Record<string, unknown> {
   displayName: string
 }
 
+interface IConditionBranch extends Record<string, unknown> {
+  id: string
+  lineId?: string
+}
+
+const createConditionBranchId = (prefix: 'condition' | 'else'): string =>
+  `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
 function createDefaultNodeData(nodeType: string, nodeConfig: NodeConfig, nodeId: string): IDefaultNodeData {
   const baseData: IDefaultNodeData = {
     typeName: nodeType,
@@ -73,6 +81,26 @@ function createDefaultNodeData(nodeType: string, nodeConfig: NodeConfig, nodeId:
       topK: 5,
       threshold: 0.1,
       outputVariable: 'knowledge_context',
+    }
+  }
+
+  if (nodeType === 'ConditionNode') {
+    return {
+      ...baseData,
+      conditions: [{
+        id: createConditionBranchId('condition'),
+        description: 'Condition 1',
+        expressionUnit: ExpressionUnitFactory.createJSExpression('', ''),
+        mode: 'simple',
+        leftVariableKey: '',
+        operator: 'eq',
+        rightValue: '',
+      }],
+      elseRule: {
+        id: createConditionBranchId('else'),
+        description: 'Else branch',
+        expressionUnit: ExpressionUnitFactory.createJSExpression('', ''),
+      },
     }
   }
 
@@ -213,6 +241,7 @@ export function useVueFlowSetup(
       sourceAnchorId: connection.sourceHandle || undefined,
       targetAnchorId: connection.targetHandle || undefined,
     })
+    syncConditionBranchLine(connection.source, connection.sourceHandle || undefined, edgeId)
   })
 
   onNodeDragStop(({ node }) => {
@@ -260,6 +289,35 @@ export function useVueFlowSetup(
 
   const resolveLogicNodeType = (node: Node): string => {
     return String(node.data?.typeName || toLogicFlowType(node.type || ''))
+  }
+
+  const resolveDefaultSourceHandle = (node: Node): string => {
+    if (resolveLogicNodeType(node) !== 'ConditionNode') return `${node.id}_right`
+
+    const conditions = Array.isArray(node.data?.conditions) ? node.data.conditions as IConditionBranch[] : []
+    return conditions[0]?.id || `${node.id}_right`
+  }
+
+  const syncConditionBranchLine = (nodeId: string, sourceHandle: string | undefined, lineId?: string) => {
+    if (!sourceHandle) return
+
+    const node = nodes.value.find(n => n.id === nodeId)
+    if (!node || resolveLogicNodeType(node) !== 'ConditionNode') return
+
+    const conditions = Array.isArray(node.data?.conditions)
+      ? (node.data.conditions as IConditionBranch[]).map(condition => (
+          condition.id === sourceHandle ? { ...condition, lineId } : condition
+        ))
+      : []
+    const elseRule = node.data?.elseRule as IConditionBranch | undefined
+    const nextElseRule = elseRule?.id === sourceHandle ? { ...elseRule, lineId } : elseRule
+    const patch: Record<string, unknown> = {
+      conditions,
+      ...(nextElseRule ? { elseRule: nextElseRule } : {}),
+    }
+
+    node.data = { ...node.data, ...patch }
+    flowStore.updateNodeProperties(nodeId, patch)
   }
 
   const addWorkflowNodeToStore = (node: Node) => {
@@ -443,6 +501,7 @@ export function useVueFlowSetup(
       sourceAnchorId: sourceHandleId,
       targetAnchorId: `${nodeId}_left`,
     })
+    syncConditionBranchLine(sourceNodeId, sourceHandleId, edgeId)
 
     ElMessage.success(t('flowDesigner.nodeAdded', { name: nodeConfig.name }))
   }
@@ -490,11 +549,13 @@ export function useVueFlowSetup(
     })
 
     const edgeId = `e_${nodeId}_${targetNodeId}_${Date.now()}`
+    const sourceHandleId = resolveDefaultSourceHandle({ id: nodeId, type: vfType, data: defaultData, position: newPos } as Node)
+
     addEdges([{
       id: edgeId,
       source: nodeId,
       target: targetNodeId,
-      sourceHandle: `${nodeId}_right`,
+      sourceHandle: sourceHandleId,
       targetHandle: targetHandleId,
       type: 'default',
       markerEnd: MarkerType.ArrowClosed,
@@ -503,9 +564,10 @@ export function useVueFlowSetup(
       id: edgeId,
       sourceNodeId: nodeId,
       targetNodeId,
-      sourceAnchorId: `${nodeId}_right`,
+      sourceAnchorId: sourceHandleId,
       targetAnchorId: targetHandleId,
     })
+    syncConditionBranchLine(nodeId, sourceHandleId, edgeId)
 
     ElMessage.success(t('flowDesigner.nodeAdded', { name: nodeConfig.name }))
   }
@@ -542,6 +604,10 @@ export function useVueFlowSetup(
   }
 
   const deleteEdge = (edgeId: string) => {
+    const edge = edges.value.find(item => item.id === edgeId)
+    if (edge) {
+      syncConditionBranchLine(edge.source, edge.sourceHandle || undefined, undefined)
+    }
     removeEdges([edgeId])
     flowStore.removeEdge(edgeId)
   }
