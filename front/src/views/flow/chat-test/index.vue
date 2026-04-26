@@ -1164,7 +1164,30 @@ onBeforeUnmount(() => {
   .composer-wrap {
     width: calc(100% - 16px);
     margin: 0 8px 8px;
-    padding: 10px;
+    padding: 8px 10px 10px;
+    border-radius: 22px;
+  }
+
+  .composer-wrap :deep(.el-textarea__inner) {
+    min-height: 44px !important;
+    max-height: 160px;
+    padding: 6px 2px 4px;
+    line-height: 1.55;
+  }
+
+  .composer-footer {
+    padding-top: 2px;
+  }
+
+  .tool-chip {
+    height: 28px;
+    padding: 0 6px;
+  }
+
+  .send-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
   }
 
   .welcome-panel,
