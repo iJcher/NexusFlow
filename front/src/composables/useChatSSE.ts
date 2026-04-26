@@ -19,13 +19,16 @@ interface ChatMessage {
 }
 
 interface StreamEvent {
-  event: 'workflow_started' | 'message' | 'workflow_finished'
+  event: 'workflow_started' | 'node_started' | 'node_finished' | 'message' | 'workflow_finished' | 'error'
   data?: {
     conversationId?: string
     flowInstanceId?: number
     createdAt?: number
   }
   answer?: string
+  message?: string
+  node_id?: string
+  node_type?: string
   createdAt?: number
   metadata?: { node_id?: string }
 }
@@ -77,6 +80,14 @@ export function useChatSSE(
         break
       case 'workflow_finished':
         break
+      case 'error': {
+        const message = event.message || t('flowChat.sendFailed')
+        if (currentAIMessage.value) {
+          currentAIMessage.value.content = `工作流运行失败：${message}`
+        }
+        ElMessage.error(message)
+        break
+      }
     }
   }
 
@@ -152,6 +163,10 @@ export function useChatSSE(
           }
         }
         scrollToBottom()
+      }
+
+      if (!aiMessage.content.trim()) {
+        aiMessage.content = '工作流已结束，但没有产生回复。请确认流程中存在 Reply 节点，并且 Reply 连接到了 LLM 或其他有输出的节点。'
       }
 
       currentAIMessage.value = null

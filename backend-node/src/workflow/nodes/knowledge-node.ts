@@ -25,9 +25,6 @@ export async function executeKnowledgeNode(
 ): Promise<NodeExecuteResult> {
   try {
     const knowledgeBaseIds: string[] = node.knowledgeBaseIds || [];
-    if (knowledgeBaseIds.length === 0) {
-      return createErrorResult(node.id, 'No knowledge base selected');
-    }
 
     const queryText = node.queryExpression?.text || node.queryExpression?.Text || '{{sys.query}}';
     const resolvedQuery = await replacePlaceholders(context, runtime, queryText);
@@ -46,12 +43,14 @@ export async function executeKnowledgeNode(
       { topK, threshold, embeddingModel },
     );
 
-    const contextText = results
-      .map(
-        (r, i) =>
-          `[${i + 1}] (Source: ${r.fileName}, Chunk ${r.chunkIndex + 1}, Similarity: ${(r.similarity * 100).toFixed(1)}%)\n${r.content}`,
-      )
-      .join('\n\n---\n\n');
+    const contextText = results.length
+      ? results
+          .map(
+            (r, i) =>
+              `[${i + 1}] (Source: ${r.fileName}, Chunk ${r.chunkIndex + 1}, Similarity: ${(r.similarity * 100).toFixed(1)}%)\n${r.content}`,
+          )
+          .join('\n\n---\n\n')
+      : '';
 
     const outputVariable = node.outputVariable || 'knowledge_context';
     const targetVar = context.variables.find(

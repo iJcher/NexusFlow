@@ -131,7 +131,7 @@ class WhileLoopNodeModel extends GroupNodeModel {
     
     // 折叠时显示条件预览
     if (folded) {
-      const nodeData = this.properties as WhileLoopNodeData;
+      const nodeData = this.properties as unknown as WhileLoopNodeData;
       const condition = nodeData.condition;
       if (condition) {
         const expressionCode = condition.expressionCode || condition.functionCode || '';
@@ -166,7 +166,7 @@ class WhileLoopNodeModel extends GroupNodeModel {
    * 获取节点数据
    */
   getNodeData(): WhileLoopNodeData {
-    return this.properties as WhileLoopNodeData;
+    return this.properties as unknown as WhileLoopNodeData;
   }
 }
 

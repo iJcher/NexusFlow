@@ -4,6 +4,7 @@ import { LlmProviderService } from '../llm-provider/llm-provider.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { nextId } from '../common/snowflake';
 import {
+  ChatHistoryMessage,
   FlowConfigInfo,
   FlowRuntimeContext,
   NodeConfig,
@@ -59,9 +60,11 @@ export class FlowRuntimeService {
           where: { conversationId: request.conversationId },
         })
       : null;
+    let chatHistory: ChatHistoryMessage[] = [];
 
     if (conversationEntity) {
       dialogueCount = conversationEntity.messageCount;
+      chatHistory = await this.getRecentChatHistory(flowId, request.user, conversationId);
       const savedVars: Record<string, any> = conversationEntity.variables
         ? JSON.parse(conversationEntity.variables)
         : {};
@@ -98,6 +101,7 @@ export class FlowRuntimeService {
       conversationId,
       dialogueCount,
       files: request.files,
+      chatHistory,
     };
 
     const nodeResults = new Map<string, NodeExecuteResult>();
@@ -198,6 +202,30 @@ export class FlowRuntimeService {
       },
     });
     res.end();
+  }
+
+  private async getRecentChatHistory(
+    flowId: bigint,
+    user: string,
+    conversationId: string,
+    limit = 6,
+  ): Promise<ChatHistoryMessage[]> {
+    const messages = await this.prisma.flowChatMessageEntity.findMany({
+      where: { flowId, user, conversationId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return messages.reverse().flatMap((message) => {
+      const history: ChatHistoryMessage[] = [];
+      if (message.question) {
+        history.push({ role: 'user', content: message.question });
+      }
+      if (message.answer) {
+        history.push({ role: 'assistant', content: message.answer });
+      }
+      return history;
+    });
   }
 
   private async runNextNode(

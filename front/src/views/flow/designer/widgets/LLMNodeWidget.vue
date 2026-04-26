@@ -51,7 +51,12 @@
       </div>
 
       <div class="widget-field">
-        <label class="field-label">{{ t('flowComponents.systemPrompt') }}</label>
+        <div class="field-label-row">
+          <label class="field-label">{{ t('flowComponents.systemPrompt') }}</label>
+          <button class="variable-btn" @click.stop="openVariableSelector('systemPrompt')">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
+        </div>
         <el-input
           v-model="systemPromptText"
           type="textarea"
@@ -64,7 +69,12 @@
       </div>
 
       <div class="widget-field">
-        <label class="field-label">{{ t('flowComponents.userPrompt') }}</label>
+        <div class="field-label-row">
+          <label class="field-label">{{ t('flowComponents.userPrompt') }}</label>
+          <button class="variable-btn" @click.stop="openVariableSelector('userPrompt')">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
+        </div>
         <el-input
           v-model="userPromptText"
           type="textarea"
@@ -103,6 +113,11 @@
     <div v-else class="collapsed-summary">
       <span class="summary-text">{{ modelDisplayName }} · T={{ temperature }}</span>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
@@ -114,10 +129,13 @@ import { LLMProviderService } from '@/services/llmProvider.service'
 import type { IFlowLLMProviderDto } from '@/types/llmProvider.types'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { AnyExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
 
 const { t } = useI18n()
 
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const collapsed = ref(false)
@@ -129,6 +147,8 @@ const temperature = ref(nodeData.value.temperature ?? 0.7)
 const memoryEnabled = ref(nodeData.value.memoryEnabled ?? false)
 const memoryRounds = ref(nodeData.value.memoryRounds ?? 5)
 const enableThinking = ref(nodeData.value.enableThinking ?? false)
+const variableSelectorVisible = ref(false)
+const variableTarget = ref<'systemPrompt' | 'userPrompt'>('userPrompt')
 
 const extractText = (unit: AnyExpressionUnit | string | undefined): string => {
   if (!unit) return ''
@@ -150,6 +170,17 @@ const modelDisplayName = computed(() => {
   return parts.length === 2 ? parts[1] : modelSelection.value
 })
 
+const getFirstAvailableModel = (providers: IFlowLLMProviderDto[]): string => {
+  for (const provider of providers) {
+    const platformName = provider.platformName
+    const firstModelName = provider.llmNames?.[0]
+    if (platformName && firstModelName) {
+      return `${platformName}|${firstModelName}`
+    }
+  }
+  return ''
+}
+
 const update = (key: string, value: any) => {
   onUpdate({ [key]: value })
 }
@@ -167,11 +198,35 @@ const commitPrompt = (key: string, text: string) => {
   }
 }
 
+const openVariableSelector = (target: 'systemPrompt' | 'userPrompt') => {
+  variableTarget.value = target
+  variableSelectorVisible.value = true
+}
+
+const handleVariableSelect = (variable: VariableItem) => {
+  const placeholder = `{{${variable.key}}}`
+  if (variableTarget.value === 'systemPrompt') {
+    systemPromptText.value += placeholder
+    commitPrompt('systemPrompt', systemPromptText.value)
+    return
+  }
+
+  userPromptText.value += placeholder
+  commitPrompt('userPrompt', userPromptText.value)
+}
+
 const loadModelProviders = async () => {
   try {
     const response = await LLMProviderService.getProviderList()
     if (response.errCode === 0 && response.data) {
       modelProviders.value = response.data
+      if (!modelSelection.value) {
+        const firstModel = getFirstAvailableModel(response.data)
+        if (firstModel) {
+          modelSelection.value = firstModel
+          update('modelSelection', firstModel)
+        }
+      }
     }
   } catch (e) {
     console.error('Failed to load model providers:', e)
@@ -253,6 +308,31 @@ onMounted(loadModelProviders)
   font-weight: 500;
   color: var(--nf-text-secondary, #a1a1aa);
   line-height: 1.3;
+}
+
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
 }
 
 .slider-row {

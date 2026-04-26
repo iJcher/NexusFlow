@@ -3,8 +3,13 @@
     v-model="visible"
     :title="t('flowComponents.selectVariable')"
     width="520px"
+    append-to-body
+    align-center
+    :lock-scroll="false"
     :close-on-click-modal="false"
     class="variable-selector-dialog"
+    modal-class="variable-selector-modal"
+    @opened="handleOpened"
   >
     <!-- 搜索框 -->
     <div class="search-container">
@@ -34,13 +39,13 @@
             v-for="output in nodeGroup.outputs"
             :key="output.key"
             class="variable-item variable-item-nested"
-            @click="handleSelect(output)"
+            @click="handleSelect({ ...output, type: getVariableTypeLabel(output.variableType) })"
           >
             <div class="variable-info">
               <el-icon class="variable-icon node-icon" :size="12"><Connection /></el-icon>
               <span class="variable-name">{{ output.outputName }}</span>
             </div>
-            <span class="variable-type">{{ output.type }}</span>
+            <span class="variable-type">{{ getVariableTypeLabel(output.variableType) }}</span>
           </div>
         </div>
       </div>
@@ -109,20 +114,15 @@ import { useI18n } from 'vue-i18n';
 import { Search, Promotion, Connection, Document, Collection, Setting } from '@element-plus/icons-vue';
 import { useFlowDesignerStore } from '@/stores/flowDesigner';
 import type { AnyVariable, VariableItemType } from '@/types/flow-designer/Parameters/Variable';
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types';
+import { buildNodeOutputGroups } from '@/utils/flowVariableSources';
 
 const { t } = useI18n();
-
-// 变量项接口
-export interface VariableItem {
-  key: string;        // 变量唯一标识
-  label: string;      // 显示名称
-  type: string;       // 类型标签（String、Number等）
-  category: 'node' | 'input' | 'session' | 'system'; // 分类
-}
 
 // Props
 interface Props {
   visible: boolean;
+  currentNodeId?: string;
 }
 
 const props = defineProps<Props>();
@@ -160,45 +160,15 @@ const systemVariables = ref<VariableItem[]>([
   { key: 'sys.files', label: 'sys.files', type: 'Array', category: 'system' }
 ]);
 
-// 节点输出分组接口
-interface NodeOutputGroup {
-  nodeId: string;
-  nodeName: string;
-  outputs: {
-    key: string;         // nodeId.属性名
-    label: string;       // 显示名称（节点名.属性名）
-    outputName: string;  // 属性名
-    type: string;        // 类型标签
-    category: 'node';
-  }[];
-}
+type NodeOutputGroup = ReturnType<typeof buildNodeOutputGroups>[number];
 
 // 节点输出分组（按节点分组）
 const nodeOutputGroups = computed<NodeOutputGroup[]>(() => {
-  const groups: NodeOutputGroup[] = [];
-  const nodes = flowStore.currentNodes || [];
-  
-  nodes.forEach(node => {
-    // 检查节点是否有输出定义
-    if (node.properties?.outputs && Array.isArray(node.properties.outputs) && node.properties.outputs.length > 0) {
-      const nodeName = node.properties?.displayName || node.id;
-      const outputs = node.properties.outputs.map((output: any) => ({
-        key: `${node.id}.${output.name}`,           // 代码格式：nodeId.属性名
-        label: `${nodeName}.${output.name}`,        // 显示格式：节点名.属性名
-        outputName: output.name,                     // 属性名
-        type: getVariableTypeLabel(output.variableType), // 输出类型
-        category: 'node' as const
-      }));
-      
-      groups.push({
-        nodeId: node.id,
-        nodeName,
-        outputs
-      });
-    }
-  });
-  
-  return groups;
+  return buildNodeOutputGroups(
+    props.currentNodeId,
+    flowStore.currentNodes || [],
+    flowStore.currentEdges || [],
+  );
 });
 
 // 过滤函数
@@ -279,6 +249,10 @@ watch(visible, (newValue) => {
     searchKeyword.value = '';
   }
 });
+
+const handleOpened = () => {
+  searchKeyword.value = '';
+};
 </script>
 
 <style scoped lang="scss">
@@ -431,5 +405,37 @@ watch(visible, (newValue) => {
   background: var(--nf-scrollbar);
   border-radius: 2px;
   &:hover { background: var(--nf-scrollbar-hover); }
+}
+</style>
+
+<style lang="scss">
+.variable-selector-modal {
+  z-index: 3000;
+}
+
+.variable-selector-dialog.el-dialog {
+  background: var(--nf-bg-elevated, #0E121A);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  .el-dialog__header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .el-dialog__title {
+    color: var(--nf-text-primary, #E6EDF3);
+    font-family: var(--nf-font-display);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  .el-dialog__body {
+    padding: 0;
+    min-height: 260px;
+    overflow: hidden;
+  }
 }
 </style>

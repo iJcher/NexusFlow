@@ -12,20 +12,42 @@
     <div class="widget-body" @mousedown.stop>
       <div class="widget-field">
         <label class="field-label">{{ t('flowComponents.knowledgeBaseSelect') }}</label>
-        <el-input
-          v-model="kbIdsText"
+        <el-select
+          v-model="selectedKnowledgeBaseIds"
+          multiple
+          filterable
+          collapse-tags
+          collapse-tags-tooltip
           size="small"
           :placeholder="t('flowComponents.knowledgeBaseSelectPlaceholder')"
+          :teleported="false"
+          class="knowledge-select"
           @change="commitKbIds"
-        />
+        >
+          <el-option
+            v-for="kb in knowledgeBases"
+            :key="kb.id"
+            :label="`${kb.name} (${kb.chunkCount || 0} chunks)`"
+            :value="kb.id"
+            :disabled="!kb.chunkCount"
+          />
+        </el-select>
+        <p class="field-hint">
+          {{ knowledgeBases.length ? '默认优先选择已有文档切片的知识库。' : '暂无知识库：可先保存流程，或到 Knowledge 页面创建并上传文档。' }}
+        </p>
       </div>
       <div class="widget-field">
-        <label class="field-label">{{ t('flowComponents.knowledgeQuery') }}</label>
+        <div class="field-label-row">
+          <label class="field-label">{{ t('flowComponents.knowledgeQuery') }}</label>
+          <button class="variable-btn" @click.stop="variableSelectorVisible = true">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
+        </div>
         <el-input
           v-model="queryText"
           type="textarea"
           :rows="2"
-          placeholder="{{sys.query}}"
+          placeholder="默认使用用户问题"
           resize="vertical"
           size="small"
           @input="commitQuery"
@@ -42,34 +64,69 @@
         </div>
       </div>
     </div>
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, inject, type Ref } from 'vue'
+import { ref, inject, onMounted, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Collection } from '@element-plus/icons-vue'
+import { KnowledgeService, type IKnowledgeBaseDto } from '@/services/knowledge.service'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import VariableSelector from '../components/VariableSelector.vue'
 
 const { t } = useI18n()
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
 
 const displayName = ref(nodeData.value.displayName || 'Knowledge')
-const kbIdsText = ref((nodeData.value.knowledgeBaseIds || []).join(', '))
+const knowledgeBases = ref<IKnowledgeBaseDto[]>([])
+const selectedKnowledgeBaseIds = ref<string[]>((nodeData.value.knowledgeBaseIds || []).map(String))
 const queryText = ref(nodeData.value.queryExpression?.text || nodeData.value.queryExpression?.Text || '{{sys.query}}')
 const topK = ref(nodeData.value.topK ?? 5)
-const threshold = ref(nodeData.value.threshold ?? 0.3)
+const threshold = ref(nodeData.value.threshold ?? 0.1)
+const variableSelectorVisible = ref(false)
 
 const update = (key: string, value: any) => onUpdate({ [key]: value })
 
 const commitKbIds = () => {
-  const ids = kbIdsText.value.split(/[,，\s]+/).filter(Boolean)
-  update('knowledgeBaseIds', ids)
+  update('knowledgeBaseIds', selectedKnowledgeBaseIds.value)
 }
 
 const commitQuery = () => {
   update('queryExpression', { typeName: 'FullTextExpressionUnit', text: queryText.value, Text: queryText.value })
 }
+
+const handleVariableSelect = (variable: VariableItem) => {
+  queryText.value += `{{${variable.key}}}`
+  commitQuery()
+}
+
+const loadKnowledgeBases = async () => {
+  try {
+    const response = await KnowledgeService.getList({ pageSize: 100 })
+    if (response.errCode !== 0 || !response.data) return
+
+    knowledgeBases.value = response.data.items
+    if (selectedKnowledgeBaseIds.value.length > 0) return
+
+    const firstReadyKb = knowledgeBases.value.find(kb => kb.chunkCount > 0)
+    if (!firstReadyKb) return
+
+    selectedKnowledgeBaseIds.value = [firstReadyKb.id]
+    commitKbIds()
+  } catch (error) {
+    console.error('Failed to load knowledge bases:', error)
+  }
+}
+
+onMounted(loadKnowledgeBases)
 </script>
 
 <style scoped>
@@ -108,10 +165,46 @@ const commitQuery = () => {
 .widget-field.mini { flex: 1; }
 
 .field-label {
-  font-size: 11px; font-weight: 500;
+  font-size: 12px; font-weight: 500;
   color: var(--nf-text-secondary, #a1a1aa); line-height: 1.3;
 }
 
-:deep(.el-textarea__inner) { font-size: 11px; min-height: 36px !important; padding: 4px 7px; }
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.variable-btn {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nf-accent, #00FF9F);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.variable-btn:hover {
+  border-color: rgba(0, 255, 159, 0.45);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--nf-text-body, #8B9DB0);
+}
+
+.knowledge-select {
+  width: 100%;
+}
+
+:deep(.el-textarea__inner) { font-size: 12px; min-height: 36px !important; padding: 4px 7px; }
 :deep(.el-input-number) { width: 100%; }
 </style>

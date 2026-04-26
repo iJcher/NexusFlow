@@ -137,21 +137,21 @@ const flowConfig = computed(() => {
       flowTypeEnum: FlowType.LogicFlow,
       designerRoute: 'logic',
       showTag: false,
-      tagType: '',
+      tagType: undefined,
       tagText: ''
     },
     ai: {
       flowTypeEnum: FlowType.AIFlow,
       designerRoute: 'ai',
       showTag: true,
-      tagType: 'warning',
+      tagType: 'warning' as const,
       tagText: 'AI'
     },
     approval: {
       flowTypeEnum: FlowType.ApprovalFlow,
       designerRoute: 'approval',
       showTag: true,
-      tagType: 'success',
+      tagType: 'success' as const,
       tagText: '审批'
     }
   };
