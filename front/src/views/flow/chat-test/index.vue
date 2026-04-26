@@ -90,7 +90,7 @@
                 </div>
               </div>
               <div class="nf-avatar user-avatar-bg">
-                <el-icon :size="20"><User /></el-icon>
+                <img :src="defaultAvatarImage" alt="" class="user-avatar-img" />
               </div>
             </div>
 
@@ -193,7 +193,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { User, Promotion, Paperclip, Plus, CloseBold, Refresh, MoreFilled, Fold, Expand } from '@element-plus/icons-vue'
+import { Promotion, Paperclip, Plus, CloseBold, Refresh, MoreFilled, Fold, Expand } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import type { ChatMessage, FileItem } from '@/composables/useChatSSE'
@@ -201,6 +201,7 @@ import { useChatSSE } from '@/composables/useChatSSE'
 import { useConversationList } from '@/composables/useConversationList'
 import { useMarkdownRenderer } from '@/composables/useMarkdownRenderer'
 import botImage from '@/assets/images/bot.png'
+import defaultAvatarImage from '@/assets/images/default.png'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -736,9 +737,16 @@ onBeforeUnmount(() => {
 }
 
 .user-avatar-bg {
-  background: rgba(14, 18, 26, 0.96);
-  color: var(--nf-text-primary, #E6EDF3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.user-avatar-img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  display: block;
 }
 
 .ai-avatar-bg {
