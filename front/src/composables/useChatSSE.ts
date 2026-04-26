@@ -107,6 +107,13 @@ export function useChatSSE(
     inputMessage.value = ''
     files.value = []
     isLoading.value = true
+    const aiMessage = reactive<ChatMessage>({
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+    })
+    messages.value.push(aiMessage)
+    currentAIMessage.value = aiMessage
     scrollToBottom()
 
     try {
@@ -129,14 +136,6 @@ export function useChatSSE(
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       if (!reader) throw new Error(t('flowChat.noResponse'))
-
-      const aiMessage = reactive<ChatMessage>({
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-      })
-      messages.value.push(aiMessage)
-      currentAIMessage.value = aiMessage
 
       let buffer = ''
 
