@@ -218,14 +218,29 @@ function validateConditionNode(
     if (!hasExpressionText(condition.expressionUnit)) {
       issues.push(createIssue('flowDesigner.validationConditionBranchMissingExpression', { branch: label }))
     }
-    if (!condition.lineId || !edges.some(edge => edge.id === condition.lineId && edge.sourceNodeId === node.id)) {
+    if (!isConditionBranchConnected(node.id, condition, edges)) {
       issues.push(createIssue('flowDesigner.validationConditionBranchMissingLine', { branch: label }))
     }
   })
 
-  if (!elseRule?.lineId || !edges.some(edge => edge.id === elseRule.lineId && edge.sourceNodeId === node.id)) {
+  if (!isConditionBranchConnected(node.id, elseRule, edges)) {
     issues.push(createIssue('flowDesigner.validationConditionElseMissingLine', { node: getNodeName(node) }))
   }
+}
+
+function isConditionBranchConnected(
+  nodeId: string,
+  branch: IConditionRule | IElseRule | undefined,
+  edges: FlowEdge[],
+): boolean {
+  if (!branch) return false
+  return edges.some(edge =>
+    edge.sourceNodeId === nodeId
+    && (
+      (!!branch.lineId && edge.id === branch.lineId)
+      || (!!branch.id && edge.sourceAnchorId === branch.id)
+    ),
+  )
 }
 
 function validateAssignNode(node: FlowNode, issues: IFlowValidationIssue[]) {

@@ -35,6 +35,39 @@ function formatValidationMessages(
   return lines.join('\n')
 }
 
+function syncConditionLineIds(flowStore: ReturnType<typeof useFlowDesignerStore>) {
+  flowStore.currentNodes.forEach((node) => {
+    if (node.properties.typeName !== 'ConditionNode') return
+
+    const outgoingEdges = flowStore.currentEdges.filter(edge => edge.sourceNodeId === node.id)
+    const conditions = Array.isArray(node.properties.conditions)
+      ? node.properties.conditions.map((condition) => {
+          if (!condition || typeof condition !== 'object') return condition
+          const item = condition as Record<string, unknown>
+          const matchedEdge = outgoingEdges.find(edge =>
+            edge.sourceAnchorId === item.id || edge.id === item.lineId,
+          )
+          return {
+            ...item,
+            lineId: matchedEdge?.id,
+          }
+        })
+      : []
+
+    const elseRule = node.properties.elseRule && typeof node.properties.elseRule === 'object'
+      ? node.properties.elseRule as Record<string, unknown>
+      : null
+    const elseEdge = elseRule
+      ? outgoingEdges.find(edge => edge.sourceAnchorId === elseRule.id || edge.id === elseRule.lineId)
+      : undefined
+
+    flowStore.updateNodeProperties(node.id, {
+      conditions,
+      ...(elseRule ? { elseRule: { ...elseRule, lineId: elseEdge?.id } } : {}),
+    })
+  })
+}
+
 export function useFlowPersistenceVF(
   flowType: Ref<string>,
   flowId: Ref<number | null>,
@@ -250,6 +283,7 @@ export function useFlowPersistenceVF(
           targetAnchorId: vfEdge.targetHandle || undefined,
         })
       })
+      syncConditionLineIds(flowStore)
 
       const validationIssues = validateFlowGraph({
         nodes: flowStore.currentNodes,

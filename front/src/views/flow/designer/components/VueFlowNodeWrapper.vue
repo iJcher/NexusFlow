@@ -6,11 +6,19 @@
       'node-move-mode': currentMode === 'move',
       'node-select-mode': currentMode === 'select',
     }"
+    @wheel.stop
   >
     <component :is="widgetComponent" />
 
+    <Handle
+      type="target"
+      :position="Position.Left"
+      :id="`${props.id}_left`"
+      class="vf-handle-target vf-handle-hit-area"
+      @mouseenter="targetHover = true"
+      @mouseleave="onTargetLeave"
+    />
     <div class="target-handle-zone" @mouseenter="targetHover = true" @mouseleave="onTargetLeave">
-      <Handle type="target" :position="Position.Left" :id="`${props.id}_left`" class="vf-handle-target" />
       <button
         v-show="showTargetPlus"
         class="handle-plus-btn handle-plus-btn--left"
@@ -22,18 +30,19 @@
       </button>
     </div>
 
-    <div v-if="!usesCustomSourceHandles" class="source-handle-zone" @mouseenter="sourceHover = true" @mouseleave="onSourceLeave">
-      <Handle type="source" :position="Position.Right" :id="`${props.id}_right`" class="vf-handle-source" />
-      <button
-        v-show="showSourcePlus"
-        class="handle-plus-btn handle-plus-btn--right"
-        :aria-label="t('flowDesigner.addNextNode')"
-        @click.stop="openSelector('next')"
-        @mousedown.stop
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </button>
-    </div>
+    <Handle
+      v-if="!usesCustomSourceHandles"
+      type="source"
+      :position="Position.Right"
+      :id="`${props.id}_right`"
+      class="vf-handle-source vf-handle-hit-area handle-plus-handle"
+      :class="{ 'is-visible': showSourcePlus }"
+      :aria-label="t('flowDesigner.addNextNode')"
+      @mouseenter="sourceHover = true"
+      @mouseleave="onSourceLeave"
+      @pointerdown="recordPointerDown"
+      @click.stop="handlePlusClick('next', $event)"
+    />
 
     <Transition name="selector-fade">
       <div
@@ -94,6 +103,7 @@ const targetHover = ref(false)
 const sourceHover = ref(false)
 const selectorOpen = ref(false)
 const selectorDirection = ref<'prev' | 'next'>('next')
+const pointerDownPosition = ref<{ x: number; y: number } | null>(null)
 
 const currentNodeType = computed<string>(() => String(props.data?.typeName || node.data?.typeName || node.type || ''))
 const usesCustomSourceHandles = computed<boolean>(() => currentNodeType.value === 'ConditionNode')
@@ -131,6 +141,20 @@ const openSelector = (direction: 'prev' | 'next') => {
   selectorOpen.value = true
 }
 
+const recordPointerDown = (event: PointerEvent) => {
+  pointerDownPosition.value = { x: event.clientX, y: event.clientY }
+}
+
+const handlePlusClick = (direction: 'prev' | 'next', event: MouseEvent) => {
+  const start = pointerDownPosition.value
+  pointerDownPosition.value = null
+  if (start) {
+    const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
+    if (moved > 5) return
+  }
+  openSelector(direction)
+}
+
 const handleSelectNode = (nodeType: string) => {
   if (selectorDirection.value === 'prev') {
     addNodeBeforeAndConnect(props.id, `${props.id}_left`, nodeType)
@@ -151,6 +175,7 @@ watch(() => props.data, (newData) => {
 
 provide('nodeData', nodeDataRef)
 provide('nodeId', props.id)
+provide('nodeSelected', computed<boolean>(() => Boolean(props.selected)))
 provide('onUpdate', (patch: Record<string, any>) => {
   node.data = { ...node.data, ...patch }
   nodeDataRef.value = { ...node.data }
@@ -185,53 +210,104 @@ const widgetComponent = props.widget
   box-shadow: 0 0 16px rgba(0, 255, 159, 0.15), 0 0 32px rgba(0, 255, 159, 0.05);
 }
 
-/* ── Target handle zone (left) ── */
+/* ── Target handle and add-prev control ── */
 .target-handle-zone {
   position: absolute;
-  left: -6px;
+  left: -26px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  width: 40px;
+  height: 36px;
   z-index: 5;
+}
+
+.vf-handle-hit-area {
+  border: none;
+  outline: none !important;
+  box-shadow: none;
 }
 
 .vf-handle-target {
-  width: 8px;
-  height: 8px;
-  background: #05070A;
-  border: 1.5px solid #2A3544;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-.target-handle-zone:hover .vf-handle-target {
-  border-color: var(--nf-accent);
-  box-shadow: var(--nf-glow-sm);
-}
-
-/* ── Source handle zone (right) ── */
-.source-handle-zone {
-  position: absolute;
-  right: -6px;
+  left: -18px;
   top: 50%;
+  width: 28px;
+  height: 34px;
+  background: transparent !important;
+  border-radius: 0;
   transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  z-index: 5;
+  transition: transform 0.2s ease;
+  z-index: 6;
 }
 
-.vf-handle-source {
-  width: 6px;
-  height: 6px;
-  background: #05070A;
-  border: 1.5px solid #2A3544;
-  border-radius: 50%;
-  position: relative;
-  transition: all 0.2s;
+.vf-handle-target::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 8px;
+  width: 2px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(0, 255, 159, 0);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
-.source-handle-zone:hover .vf-handle-source {
-  border-color: var(--nf-accent);
+
+.vf-handle-target:hover::after {
+  background: rgba(0, 255, 159, 0.45);
   box-shadow: var(--nf-glow-sm);
+}
+
+/* ── Source handle: the plus itself ── */
+.vf-handle-source {
+  right: -10px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  background: rgba(8, 11, 16, 0.92) !important;
+  border: 1px solid rgba(0, 255, 159, 0.35);
+  border-radius: 50%;
+  position: absolute;
+  transform: translateY(-50%);
+  transition: opacity 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--nf-glow-sm);
+  opacity: 0;
+  z-index: 7;
+}
+
+.vf-handle-source.is-visible,
+.vf-handle-source:hover {
+  opacity: 1;
+}
+
+.vf-handle-source:hover {
+  border-color: var(--nf-accent-hover);
+  box-shadow: var(--nf-glow-md);
+}
+
+.handle-plus-handle {
+  color: var(--nf-accent);
+  cursor: crosshair;
+  pointer-events: all;
+}
+
+.handle-plus-handle::before,
+.handle-plus-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 1.6px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.handle-plus-handle::after {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .handle-plus-btn {
@@ -452,7 +528,8 @@ const widgetComponent = props.widget
 .node-move-mode :deep(.el-slider),
 .node-move-mode :deep(.el-switch),
 .node-move-mode :deep(.el-input-number) {
-  pointer-events: none !important;
+  pointer-events: auto !important;
+  user-select: text !important;
 }
 
 /* ── Select mode ── */
