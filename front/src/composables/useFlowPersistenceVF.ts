@@ -1,4 +1,4 @@
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import type { Ref } from 'vue'
 import type { Node, Edge } from '@vue-flow/core'
@@ -7,6 +7,7 @@ import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import type { IFlowConfigInfo, IUpdateFlowRequest } from '@/types/flow.types'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
 import type { NodeLine } from '@/types/flow-designer/NodeLine'
+import { validateFlowGraph } from '@/utils/flowGraphValidator'
 
 const LOCAL_STORAGE_PREFIX = 'nf_flow_web_'
 
@@ -20,6 +21,18 @@ function loadFromLocal(flowId: number | string): string | null {
   try {
     return localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${flowId}`)
   } catch { return null }
+}
+
+function formatValidationMessages(
+  issues: ReturnType<typeof validateFlowGraph>,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const visibleIssues = issues.slice(0, 8)
+  const lines = visibleIssues.map((issue, index) => `${index + 1}. ${t(issue.messageKey, issue.params)}`)
+  if (issues.length > visibleIssues.length) {
+    lines.push(t('flowDesigner.validationMoreIssues', { count: issues.length - visibleIssues.length }))
+  }
+  return lines.join('\n')
 }
 
 export function useFlowPersistenceVF(
@@ -237,6 +250,22 @@ export function useFlowPersistenceVF(
           targetAnchorId: vfEdge.targetHandle || undefined,
         })
       })
+
+      const validationIssues = validateFlowGraph({
+        nodes: flowStore.currentNodes,
+        edges: flowStore.currentEdges,
+      })
+      if (validationIssues.length > 0) {
+        await ElMessageBox.alert(
+          formatValidationMessages(validationIssues, t),
+          t('flowDesigner.validationFailedTitle'),
+          {
+            confirmButtonText: t('common.confirm'),
+            type: 'warning',
+          },
+        )
+        return false
+      }
 
       const configInfoForRun = generateConfigInfoForRun()
       const configInfoForWeb = generateConfigInfoForWeb()
