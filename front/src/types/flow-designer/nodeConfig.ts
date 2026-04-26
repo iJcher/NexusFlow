@@ -77,13 +77,7 @@ export const ALL_NODES: NodeConfig[] = [
     category: NodeCategory.AI,
     description: 'Send reply message',
   },
-  {
-    typeName: 'ResultNode',
-    name: 'Result',
-    icon: 'Promotion',
-    category: NodeCategory.BASIC,
-    description: 'Run workflow and show real-time result',
-  },
+  // ResultNode 暂未接入后端运行时，先不暴露给用户新增，避免设计期误用。
   {
     typeName: 'KnowledgeNode',
     name: 'Knowledge',

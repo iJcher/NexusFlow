@@ -82,7 +82,7 @@
           </button>
         </div>
 
-        <div class="cond-anchor-dot" />
+        <Handle type="source" :position="Position.Right" :id="cond.id" class="cond-branch-handle" />
       </div>
 
       <div class="condition-row else-row">
@@ -90,7 +90,7 @@
           <span class="cond-index else-badge">E</span>
           <span class="else-label">ELSE</span>
         </div>
-        <div class="cond-anchor-dot" />
+        <Handle type="source" :position="Position.Right" :id="elseRule.id" class="cond-branch-handle else-handle" />
       </div>
     </div>
 
@@ -105,6 +105,7 @@
 <script setup lang="ts">
 import { computed, ref, inject, type Ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Handle, Position } from '@vue-flow/core'
 import { Share, Plus, Close } from '@element-plus/icons-vue'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
@@ -113,6 +114,13 @@ import VariableSelector from '../components/VariableSelector.vue'
 
 type ConditionMode = 'simple' | 'advanced'
 type ConditionOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notContains' | 'startsWith' | 'endsWith' | 'empty' | 'notEmpty'
+
+interface ElseRule {
+  id: string
+  description?: string
+  lineId?: string
+  expressionUnit?: JSExpressionUnit
+}
 
 interface ConditionRule {
   id: string
@@ -132,6 +140,7 @@ const onUpdate = inject<(patch: Record<string, unknown>) => void>('onUpdate')!
 
 const displayName = ref<string>(String(nodeData.value.displayName || 'Condition'))
 const conditions = ref<ConditionRule[]>(normalizeConditions(nodeData.value.conditions))
+const elseRule = ref<ElseRule>(normalizeElseRule(nodeData.value.elseRule))
 const conditionExprs = ref<string[]>(conditions.value.map(c => extractExpr(c.expressionUnit)))
 const variableSelectorVisible = ref<boolean>(false)
 const variableTargetIndex = ref<number>(0)
@@ -170,6 +179,16 @@ function normalizeConditions(value: unknown): ConditionRule[] {
   }))
 }
 
+function normalizeElseRule(value: unknown): ElseRule {
+  const item = (value || {}) as Partial<ElseRule>
+  return {
+    id: item.id || `else_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    expressionUnit: item.expressionUnit || ExpressionUnitFactory.createJSExpression('', ''),
+    description: item.description || 'Else branch',
+    lineId: item.lineId,
+  }
+}
+
 function createConditionRule(index: number): ConditionRule {
   return {
     id: generateId(),
@@ -193,6 +212,7 @@ function generateId(): string {
 
 function commitConditions() {
   update('conditions', [...conditions.value])
+  update('elseRule', { ...elseRule.value })
 }
 
 function commitConditionExpr(idx: number) {
@@ -320,6 +340,10 @@ function handleVariableSelect(variable: VariableItem) {
 watch(() => nodeData.value.conditions, (newConds) => {
   conditions.value = normalizeConditions(newConds)
   conditionExprs.value = conditions.value.map((c: ConditionRule) => extractExpr(c.expressionUnit))
+}, { deep: true })
+
+watch(() => nodeData.value.elseRule, (newElseRule) => {
+  elseRule.value = normalizeElseRule(newElseRule)
 }, { deep: true })
 </script>
 
@@ -499,20 +523,20 @@ watch(() => nodeData.value.conditions, (newConds) => {
   color: #ef4444;
 }
 
-.cond-anchor-dot {
-  position: absolute;
+.cond-branch-handle {
   right: -7px;
-  top: 50%;
-  transform: translateY(-50%);
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: var(--nf-accent, #00d4aa);
   border: 2px solid var(--nf-bg-card, #09090b);
+  box-shadow: var(--nf-glow-sm);
 }
 
-.else-row .cond-anchor-dot {
+.else-handle {
   background: #ef4444;
+  border-color: var(--nf-bg-card, #09090b);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
 }
 
 :deep(.el-input__inner) {

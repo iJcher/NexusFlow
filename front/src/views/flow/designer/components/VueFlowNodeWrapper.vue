@@ -22,7 +22,7 @@
       </button>
     </div>
 
-    <div class="source-handle-zone" @mouseenter="sourceHover = true" @mouseleave="onSourceLeave">
+    <div v-if="!usesCustomSourceHandles" class="source-handle-zone" @mouseenter="sourceHover = true" @mouseleave="onSourceLeave">
       <Handle type="source" :position="Position.Right" :id="`${props.id}_right`" class="vf-handle-source" />
       <button
         v-show="showSourcePlus"
@@ -96,6 +96,7 @@ const selectorOpen = ref(false)
 const selectorDirection = ref<'prev' | 'next'>('next')
 
 const currentNodeType = computed<string>(() => String(props.data?.typeName || node.data?.typeName || node.type || ''))
+const usesCustomSourceHandles = computed<boolean>(() => currentNodeType.value === 'ConditionNode')
 const availablePrevTypes = computed<string[]>(() => getAvailablePrevNodeTypes(currentNodeType.value))
 const availableNextTypes = computed<string[]>(() => getAvailableNextNodeTypes(currentNodeType.value))
 const filteredNodeList = computed<NodeConfig[]>(() => {
