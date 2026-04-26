@@ -13,19 +13,9 @@
       </div>
 
       <div class="header-right">
-        <button
-          v-if="flowId"
-          class="fui-btn fui-btn--ghost"
-          @click="openChatTest"
-        >
-          {{ t('flowDesigner.run') }}
-        </button>
-        <FlowExecutionLogDropdown
-          v-if="flowId"
-          :flow-id="flowId"
-        />
-        <button class="fui-btn fui-btn--primary" @click="persistence.saveFlow()">
-          {{ t('flowDesigner.save') }}
+        <button class="fui-btn fui-btn--primary" @click="openChatTest">
+          <el-icon :size="13"><VideoPlay /></el-icon>
+          <span>{{ t('flowDesigner.run') }}</span>
         </button>
       </div>
     </header>
@@ -135,7 +125,7 @@
 import { ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DocumentAdd, Close, VideoPlay } from '@element-plus/icons-vue'
+import { VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
@@ -148,7 +138,6 @@ import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
 import CanvasControlBar from './components/CanvasControlBar.vue'
 import NodeContextMenu from './components/NodeContextMenu.vue'
-import FlowExecutionLogDropdown from './components/FlowExecutionLogDropdown.vue'
 import NodePalette from './components/NodePalette.vue'
 
 import StartVFNode from './vf-nodes/StartVFNode.vue'
@@ -360,7 +349,17 @@ const addNodeFromPalette = (nodeType: string) => {
   addNodeAtCenter(nodeType, { x: projected.x + offsetX, y: projected.y + offsetY })
 }
 
-const closeWindow = () => router.back()
+const closeWindow = async () => {
+  if (!flowId.value) {
+    router.back()
+    return
+  }
+
+  const saved = await persistence.saveFlow()
+  if (saved) {
+    router.back()
+  }
+}
 
 const openChatTest = async () => {
   if (!flowId.value) {
