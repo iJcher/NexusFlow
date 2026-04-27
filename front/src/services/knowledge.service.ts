@@ -9,6 +9,7 @@ export interface IKnowledgeBaseDto {
   docCount: number
   chunkCount: number
   status: string
+  embeddingModel: string
   createdAt: string
   updatedAt: string
   documents?: IKnowledgeDocDto[]
@@ -52,6 +53,7 @@ export class KnowledgeService {
   static async create(data: {
     name: string
     description?: string
+    embeddingModel?: string
   }): Promise<TApiResponse<IKnowledgeBaseDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<IKnowledgeBaseDto>>(
       '/Knowledge/Create',
@@ -84,6 +86,7 @@ export class KnowledgeService {
     id: string
     name?: string
     description?: string
+    embeddingModel?: string
   }): Promise<TApiResponse<IKnowledgeBaseDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<IKnowledgeBaseDto>>(
       '/Knowledge/Update',

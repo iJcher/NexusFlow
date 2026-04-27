@@ -1,4 +1,4 @@
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import type { Ref } from 'vue'
 import type { Node, Edge } from '@vue-flow/core'
@@ -7,6 +7,7 @@ import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import type { IFlowConfigInfo, IUpdateFlowRequest } from '@/types/flow.types'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
 import type { NodeLine } from '@/types/flow-designer/NodeLine'
+import { validateFlowGraph } from '@/utils/flowGraphValidator'
 
 const LOCAL_STORAGE_PREFIX = 'nf_flow_web_'
 
@@ -20,6 +21,51 @@ function loadFromLocal(flowId: number | string): string | null {
   try {
     return localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${flowId}`)
   } catch { return null }
+}
+
+function formatValidationMessages(
+  issues: ReturnType<typeof validateFlowGraph>,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const visibleIssues = issues.slice(0, 8)
+  const lines = visibleIssues.map((issue, index) => `${index + 1}. ${t(issue.messageKey, issue.params)}`)
+  if (issues.length > visibleIssues.length) {
+    lines.push(t('flowDesigner.validationMoreIssues', { count: issues.length - visibleIssues.length }))
+  }
+  return lines.join('\n')
+}
+
+function syncConditionLineIds(flowStore: ReturnType<typeof useFlowDesignerStore>) {
+  flowStore.currentNodes.forEach((node) => {
+    if (node.properties.typeName !== 'ConditionNode') return
+
+    const outgoingEdges = flowStore.currentEdges.filter(edge => edge.sourceNodeId === node.id)
+    const conditions = Array.isArray(node.properties.conditions)
+      ? node.properties.conditions.map((condition) => {
+          if (!condition || typeof condition !== 'object') return condition
+          const item = condition as Record<string, unknown>
+          const matchedEdge = outgoingEdges.find(edge =>
+            edge.sourceAnchorId === item.id || edge.id === item.lineId,
+          )
+          return {
+            ...item,
+            lineId: matchedEdge?.id,
+          }
+        })
+      : []
+
+    const elseRule = node.properties.elseRule && typeof node.properties.elseRule === 'object'
+      ? node.properties.elseRule as Record<string, unknown>
+      : null
+    const elseEdge = elseRule
+      ? outgoingEdges.find(edge => edge.sourceAnchorId === elseRule.id || edge.id === elseRule.lineId)
+      : undefined
+
+    flowStore.updateNodeProperties(node.id, {
+      conditions,
+      ...(elseRule ? { elseRule: { ...elseRule, lineId: elseEdge?.id } } : {}),
+    })
+  })
 }
 
 export function useFlowPersistenceVF(
@@ -214,45 +260,32 @@ export function useFlowPersistenceVF(
     return JSON.stringify(webConfig)
   }
 
-  const saveFlow = async (): Promise<boolean> => {
+  /**
+   * 同步画布数据到 store 并持久化到后端，不做校验。
+   * 用于返回/退出时的自动保存。
+   */
+  const saveFlow = async (options?: { silent?: boolean }): Promise<boolean> => {
     if (!flowId.value) {
-      ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
+      if (!options?.silent) ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
       return false
     }
 
     try {
-      const graphData = getGraphData()
-
-      graphData.nodes.forEach((vfNode) => {
-        flowStore.updateNodePosition(vfNode.id, vfNode.position.x, vfNode.position.y)
-      })
-
-      flowStore.currentFlow?.edges.splice(0)
-      graphData.edges.forEach((vfEdge) => {
-        flowStore.addEdge({
-          id: vfEdge.id,
-          sourceNodeId: vfEdge.source,
-          targetNodeId: vfEdge.target,
-          sourceAnchorId: vfEdge.sourceHandle || undefined,
-          targetAnchorId: vfEdge.targetHandle || undefined,
-        })
-      })
+      syncGraphToStore()
 
       const configInfoForRun = generateConfigInfoForRun()
       const configInfoForWeb = generateConfigInfoForWeb()
 
       saveToLocal(flowId.value, configInfoForWeb)
 
-      const updateRequest: IUpdateFlowRequest = {
+      const response = await FlowService.updateFlow({
         id: flowId.value,
         configInfoForRun,
         configInfoForWeb,
-      }
-
-      const response = await FlowService.updateFlow(updateRequest)
+      })
 
       if (response.errCode === 0) {
-        ElMessage.success(t('flowDesigner.flowSaveSuccess'))
+        if (!options?.silent) ElMessage.success(t('flowDesigner.flowSaveSuccess'))
         return true
       }
       else {
@@ -267,9 +300,71 @@ export function useFlowPersistenceVF(
     }
   }
 
+  /**
+   * 先校验工作流合法性，通过后保存并返回 true。
+   * 用于运行/测试前的检查。
+   */
+  const validateAndSave = async (): Promise<boolean> => {
+    if (!flowId.value) {
+      ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
+      return false
+    }
+
+    try {
+      syncGraphToStore()
+
+      const validationIssues = validateFlowGraph({
+        nodes: flowStore.currentNodes,
+        edges: flowStore.currentEdges,
+      })
+      if (validationIssues.length > 0) {
+        await ElMessageBox.alert(
+          formatValidationMessages(validationIssues, t),
+          t('flowDesigner.validationFailedTitle'),
+          {
+            confirmButtonText: t('common.confirm'),
+            type: 'warning',
+          },
+        )
+        return false
+      }
+
+      return saveFlow()
+    }
+    catch (error) {
+      console.error('Validate and save failed:', error)
+      ElMessage.error(t('flowDesigner.saveFlowFailed'))
+      return false
+    }
+  }
+
+  /** 将 Vue Flow 画布数据同步到 Pinia store */
+  const syncGraphToStore = () => {
+    const graphData = getGraphData()
+
+    const storeNodes = graphData.nodes.map(vfNode => ({
+      id: vfNode.id,
+      type: vfNode.data?.typeName || vfNode.type || '',
+      x: vfNode.position.x,
+      y: vfNode.position.y,
+      properties: (vfNode.data || {}) as NodeBase,
+    }))
+    const storeEdges = graphData.edges.map(vfEdge => ({
+      id: vfEdge.id,
+      sourceNodeId: vfEdge.source,
+      targetNodeId: vfEdge.target,
+      sourceAnchorId: vfEdge.sourceHandle || undefined,
+      targetAnchorId: vfEdge.targetHandle || undefined,
+    }))
+
+    flowStore.syncFromLogicFlow({ nodes: storeNodes, edges: storeEdges })
+    syncConditionLineIds(flowStore)
+  }
+
   return {
     loadFlowData,
     saveFlow,
+    validateAndSave,
     generateConfigInfoForRun,
     generateConfigInfoForWeb,
   }

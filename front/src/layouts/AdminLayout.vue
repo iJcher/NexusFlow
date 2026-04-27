@@ -22,7 +22,7 @@
           <LanguageSwitcher />
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="user-avatar">
-              {{ (userInfo?.name || 'U').charAt(0).toUpperCase() }}
+              <img :src="defaultAvatarImage" alt="" class="user-avatar-img" />
             </div>
             <template #dropdown>
               <el-dropdown-menu>
@@ -59,6 +59,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { DataBoard, Files, Collection, Setting, SwitchButton } from '@element-plus/icons-vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import defaultAvatarImage from '@/assets/images/default.png'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -197,20 +198,26 @@ const handleCommand = (command: string) => {
 .user-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  background: var(--nf-avatar-gradient);
+  border-radius: 50%;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--nf-avatar-text);
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  overflow: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .user-avatar:hover {
   opacity: 0.85;
+  transform: translateY(-1px);
 }
 
 /* ── Main content ── */

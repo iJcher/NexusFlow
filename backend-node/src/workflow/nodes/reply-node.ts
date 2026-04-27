@@ -30,13 +30,21 @@ async function* streamPreviousNodeOutput(
   context: FlowRuntimeContext,
   runtime: FlowRuntime,
 ): AsyncGenerator<string> {
-  const incomingLine = context.flowConfigInfoForRun.lines.find((line) => line.toNodeId === node.id);
-  if (!incomingLine) {
+  const incomingLines = context.flowConfigInfoForRun.lines.filter((line) => line.toNodeId === node.id);
+  if (incomingLines.length === 0) {
     if (context.request?.query) yield context.request.query;
     return;
   }
 
-  const previousResult = await runtime.getNodeExecuteResult(context, incomingLine.fromNodeId);
+  let previousResult: NodeExecuteResult | null = null;
+  for (const incomingLine of incomingLines) {
+    const candidate = await runtime.getNodeExecuteResult(context, incomingLine.fromNodeId);
+    if (candidate?.isSuccess) {
+      previousResult = candidate;
+      break;
+    }
+  }
+
   if (!previousResult) return;
 
   if (previousResult.streamingExecutor) {

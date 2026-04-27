@@ -13,19 +13,9 @@
       </div>
 
       <div class="header-right">
-        <button
-          v-if="flowId"
-          class="fui-btn fui-btn--ghost"
-          @click="openChatTest"
-        >
-          {{ t('flowDesigner.run') }}
-        </button>
-        <FlowExecutionLogDropdown
-          v-if="flowId"
-          :flow-id="flowId"
-        />
-        <button class="fui-btn fui-btn--primary" @click="persistence.saveFlow()">
-          {{ t('flowDesigner.save') }}
+        <button class="fui-btn fui-btn--primary" @click="openChatTest">
+          <el-icon :size="13"><VideoPlay /></el-icon>
+          <span>{{ t('flowDesigner.run') }}</span>
         </button>
       </div>
     </header>
@@ -115,16 +105,17 @@
       :size="chatTestDrawerSize"
       :append-to-body="true"
       :destroy-on-close="false"
+      :with-header="false"
+      :show-close="false"
+      :style="chatTestDrawerStyle"
+      modal-class="chat-test-drawer-overlay"
+      body-class="chat-test-drawer__body"
       class="chat-test-drawer"
     >
-      <template #header>
-        <span class="chat-test-drawer__title">{{ t('flowDesigner.run') }}</span>
-      </template>
       <FlowChatTest
         v-if="flowId"
         :flow-id="flowId"
         embedded
-        @close="chatTestDrawerVisible = false"
       />
     </el-drawer>
   </div>
@@ -134,7 +125,7 @@
 import { ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DocumentAdd, Close, VideoPlay } from '@element-plus/icons-vue'
+import { VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
@@ -147,7 +138,6 @@ import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
 import CanvasControlBar from './components/CanvasControlBar.vue'
 import NodeContextMenu from './components/NodeContextMenu.vue'
-import FlowExecutionLogDropdown from './components/FlowExecutionLogDropdown.vue'
 import NodePalette from './components/NodePalette.vue'
 
 import StartVFNode from './vf-nodes/StartVFNode.vue'
@@ -173,6 +163,12 @@ const rightMenuRef = ref<InstanceType<typeof FlowRightMenuComponent> | null>(nul
 const flowStore = useFlowDesignerStore()
 const chatTestDrawerVisible = ref(false)
 const viewportWidth = ref<number>(window.innerWidth)
+const chatTestDrawerStyle = computed<Record<string, string>>(() => ({
+  '--el-drawer-padding-primary': '0',
+  margin: '0',
+  padding: '0',
+  background: '#020406',
+}))
 const chatTestDrawerSize = computed<string>(() => {
   if (viewportWidth.value <= 900) {
     return '100%'
@@ -353,15 +349,23 @@ const addNodeFromPalette = (nodeType: string) => {
   addNodeAtCenter(nodeType, { x: projected.x + offsetX, y: projected.y + offsetY })
 }
 
-const closeWindow = () => router.back()
+const closeWindow = async () => {
+  if (!flowId.value) {
+    router.back()
+    return
+  }
+
+  await persistence.saveFlow({ silent: true })
+  router.back()
+}
 
 const openChatTest = async () => {
   if (!flowId.value) {
     ElMessage.warning(t('flowDesigner.flowIdNotExist'))
     return
   }
-  const saved = await persistence.saveFlow()
-  if (!saved) {
+  const passed = await persistence.validateAndSave()
+  if (!passed) {
     return
   }
   chatTestDrawerVisible.value = true
@@ -615,6 +619,30 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
+.chat-test-drawer {
+  --el-drawer-padding-primary: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #020406 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.chat-test-drawer__body {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #020406 !important;
+}
+
+.chat-test-drawer-overlay {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+</style>
+
+<style>
 .input-dialog .el-dialog__header,
 .session-dialog .el-dialog__header {
   background: #080B10;
@@ -641,19 +669,33 @@ onBeforeUnmount(() => {
   z-index: 1999 !important;
 }
 
-.chat-test-drawer .chat-test-drawer__title {
-  color: #E8EAF0;
-  font-size: 13px;
-  font-weight: 600;
+:global(.chat-test-drawer.el-drawer),
+:global(.chat-test-drawer .el-drawer) {
+  margin: 0 !important;
+  padding: 0 !important;
+  --el-drawer-padding-primary: 0;
+  background: #020406 !important;
+  border: none;
+  box-shadow: none;
 }
 
-.chat-test-drawer :deep(.el-drawer) {
-  background: #05070A;
+:global(.chat-test-drawer-overlay.el-overlay) {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: rgba(2, 4, 6, 0.72) !important;
 }
 
-.chat-test-drawer :deep(.el-drawer__body) {
-  padding: 0;
+:global(.chat-test-drawer-overlay .el-overlay) {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:global(.chat-test-drawer .el-drawer__body) {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
   overflow: hidden;
+  background: #020406 !important;
 }
 
 @media (max-width: 900px) {

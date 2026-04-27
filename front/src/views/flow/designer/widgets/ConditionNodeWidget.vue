@@ -1,5 +1,5 @@
 <template>
-  <div class="widget-node condition-widget">
+  <div class="widget-node condition-widget" @wheel.stop>
     <div class="widget-header">
       <el-icon :size="16" class="widget-icon"><Share /></el-icon>
       <input
@@ -82,7 +82,15 @@
           </button>
         </div>
 
-        <Handle type="source" :position="Position.Right" :id="cond.id" class="cond-branch-handle" />
+        <Handle
+          type="source"
+          :position="Position.Right"
+          :id="cond.id"
+          class="cond-branch-handle"
+          :aria-label="t('flowDesigner.addNextNode')"
+          @pointerdown="recordPointerDown"
+          @click.stop="handleBranchPlusClick(cond.id, $event)"
+        />
       </div>
 
       <div class="condition-row else-row">
@@ -90,9 +98,45 @@
           <span class="cond-index else-badge">E</span>
           <span class="else-label">ELSE</span>
         </div>
-        <Handle type="source" :position="Position.Right" :id="elseRule.id" class="cond-branch-handle else-handle" />
+        <Handle
+          type="source"
+          :position="Position.Right"
+          :id="elseRule.id"
+          class="cond-branch-handle else-handle"
+          :aria-label="t('flowDesigner.addNextNode')"
+          @pointerdown="recordPointerDown"
+          @click.stop="handleBranchPlusClick(elseRule.id, $event)"
+        />
       </div>
     </div>
+
+    <Transition name="selector-fade">
+      <div
+        v-if="branchSelectorOpen"
+        class="condition-node-selector"
+        @click.stop
+        @mousedown.stop
+      >
+        <div class="selector-header">
+          <span>{{ t('flowDesigner.addNextNode') }}</span>
+          <button class="selector-close" @click="branchSelectorOpen = false">×</button>
+        </div>
+        <div class="selector-list">
+          <button
+            v-for="n in filteredNodeList"
+            :key="n.typeName"
+            class="selector-item"
+            @click="handleSelectNextNode(n.typeName)"
+          >
+            <span class="selector-item-name">{{ n.name }}</span>
+            <span class="selector-item-desc">{{ n.description }}</span>
+          </button>
+          <div v-if="filteredNodeList.length === 0" class="selector-empty">
+            {{ t('flowDesigner.noAvailableNode') }}
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <VariableSelector
       v-model:visible="variableSelectorVisible"
@@ -107,9 +151,11 @@ import { computed, ref, inject, type Ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Handle, Position } from '@vue-flow/core'
 import { Share, Plus, Close } from '@element-plus/icons-vue'
+import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import { getAvailableNextNodeTypes } from '@/utils/flowNodeRules'
 import VariableSelector from '../components/VariableSelector.vue'
 
 type ConditionMode = 'simple' | 'advanced'
@@ -137,6 +183,8 @@ const { t } = useI18n()
 const nodeData = inject<Ref<Record<string, unknown>>>('nodeData')!
 const nodeId = inject<string>('nodeId')
 const onUpdate = inject<(patch: Record<string, unknown>) => void>('onUpdate')!
+const nodeList = inject<Ref<NodeConfig[]>>('availableNodes', ref<NodeConfig[]>([]))
+const addNodeAndConnect = inject<(sourceId: string, sourceHandle: string, nodeType: string) => void>('addNodeAndConnect', () => {})
 
 const displayName = ref<string>(String(nodeData.value.displayName || 'Condition'))
 const conditions = ref<ConditionRule[]>(normalizeConditions(nodeData.value.conditions))
@@ -144,6 +192,9 @@ const elseRule = ref<ElseRule>(normalizeElseRule(nodeData.value.elseRule))
 const conditionExprs = ref<string[]>(conditions.value.map(c => extractExpr(c.expressionUnit)))
 const variableSelectorVisible = ref<boolean>(false)
 const variableTargetIndex = ref<number>(0)
+const branchSelectorOpen = ref<boolean>(false)
+const activeBranchHandle = ref<string>('')
+const pointerDownPosition = ref<{ x: number; y: number } | null>(null)
 
 const operatorOptions = computed<Array<{ value: ConditionOperator; label: string }>>(() => [
   { value: 'eq', label: t('flowComponents.conditionOpEq') },
@@ -159,6 +210,10 @@ const operatorOptions = computed<Array<{ value: ConditionOperator; label: string
   { value: 'empty', label: t('flowComponents.conditionOpEmpty') },
   { value: 'notEmpty', label: t('flowComponents.conditionOpNotEmpty') },
 ])
+const filteredNodeList = computed<NodeConfig[]>(() => {
+  const allowedTypes = getAvailableNextNodeTypes('ConditionNode')
+  return nodeList.value.filter(n => allowedTypes.includes(n.typeName))
+})
 
 const update = (key: string, value: unknown) => onUpdate({ [key]: value })
 
@@ -337,6 +392,29 @@ function handleVariableSelect(variable: VariableItem) {
   commitConditionExpr(idx)
 }
 
+function recordPointerDown(event: PointerEvent) {
+  pointerDownPosition.value = { x: event.clientX, y: event.clientY }
+}
+
+function handleBranchPlusClick(branchHandle: string, event: MouseEvent) {
+  const start = pointerDownPosition.value
+  pointerDownPosition.value = null
+  if (start) {
+    const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
+    if (moved > 5) return
+  }
+
+  const isSameBranch = activeBranchHandle.value === branchHandle
+  branchSelectorOpen.value = !(branchSelectorOpen.value && isSameBranch)
+  activeBranchHandle.value = branchHandle
+}
+
+function handleSelectNextNode(nodeType: string) {
+  if (!nodeId || !activeBranchHandle.value) return
+  addNodeAndConnect(nodeId, activeBranchHandle.value, nodeType)
+  branchSelectorOpen.value = false
+}
+
 watch(() => nodeData.value.conditions, (newConds) => {
   conditions.value = normalizeConditions(newConds)
   conditionExprs.value = conditions.value.map((c: ConditionRule) => extractExpr(c.expressionUnit))
@@ -357,7 +435,8 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   flex-direction: column;
   gap: 4px;
   font-family: var(--nf-font-display);
-  overflow-y: auto;
+  overflow: visible;
+  position: relative;
 }
 
 .widget-header {
@@ -416,7 +495,7 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
 
 .condition-row {
   position: relative;
-  padding: 5px 7px;
+  padding: 5px 32px 5px 7px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 5px;
   background: var(--nf-bg-elevated, #18181b);
@@ -524,19 +603,157 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
 }
 
 .cond-branch-handle {
-  right: -7px;
-  width: 10px;
-  height: 10px;
+  right: 6px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--nf-accent, #00d4aa);
-  border: 2px solid var(--nf-bg-card, #09090b);
+  background: var(--nf-bg-surface, #080B10);
+  border: 1px solid rgba(0, 255, 159, 0.35);
+  color: var(--nf-accent, #00FF9F);
   box-shadow: var(--nf-glow-sm);
+  cursor: crosshair;
+  transform: translateY(-50%);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cond-branch-handle::before,
+.cond-branch-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 1.6px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cond-branch-handle::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.cond-branch-handle:hover {
+  border-color: var(--nf-accent-hover, #33FFB3);
+  color: var(--nf-accent-hover, #33FFB3);
+  background: rgba(0, 255, 159, 0.06);
+  box-shadow: var(--nf-glow-md);
 }
 
 .else-handle {
-  background: #ef4444;
-  border-color: var(--nf-bg-card, #09090b);
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.2);
+}
+
+.else-handle:hover {
+  border-color: #fca5a5;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.06);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+}
+
+.condition-node-selector {
+  position: absolute;
+  right: -230px;
+  top: 40px;
+  width: 210px;
+  background: rgba(8, 11, 16, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 100;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--nf-text-body, #8B9DB0);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.selector-close {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--nf-text-secondary, #6B7D8E);
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.selector-close:hover {
+  color: var(--nf-accent, #00FF9F);
+}
+
+.selector-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.selector-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.selector-item:hover {
+  background: rgba(0, 255, 159, 0.06);
+  border-left-color: var(--nf-accent, #00FF9F);
+}
+
+.selector-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--nf-text-body, #8B9DB0);
+  line-height: 1.3;
+}
+
+.selector-item:hover .selector-item-name {
+  color: var(--nf-text-primary, #E6EDF3);
+}
+
+.selector-item-desc {
+  font-size: 12px;
+  color: var(--nf-text-tertiary, #4A5C6E);
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selector-empty {
+  padding: 10px 8px;
+  color: var(--nf-text-secondary, #6B7D8E);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.selector-fade-enter-active,
+.selector-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.selector-fade-enter-from,
+.selector-fade-leave-to {
+  opacity: 0;
 }
 
 :deep(.el-input__inner) {

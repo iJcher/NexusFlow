@@ -3,10 +3,14 @@
     <!-- Header -->
     <div class="detail-header">
       <div class="header-left">
-        <el-button text :icon="ArrowLeft" @click="router.push('/knowledge')">{{ t('common.back') }}</el-button>
         <div class="header-info">
-          <h2 class="kb-title">{{ kb?.name }}</h2>
-          <p class="kb-description">{{ kb?.description || t('flowList.noDescription') }}</p>
+          <div class="kb-breadcrumb">
+            <button class="breadcrumb-link" type="button" @click="router.push('/knowledge')">
+              {{ t('knowledge.title') }}
+            </button>
+            <span class="breadcrumb-separator"> &gt; </span>
+            <span class="breadcrumb-current">{{ kb?.name || '-' }}</span>
+          </div>
         </div>
       </div>
       <div class="header-stats">
@@ -154,7 +158,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Document, Grid, Upload, Search } from '@element-plus/icons-vue'
+import { Document, Grid, Upload, Search } from '@element-plus/icons-vue'
 import {
   KnowledgeService,
   type IKnowledgeBaseDto,
@@ -326,22 +330,50 @@ onMounted(() => {
 .header-left {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  min-width: 0;
 }
 
-.kb-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  color: #E6EDF3;
-  letter-spacing: 0.06em;
+.header-info {
+  min-width: 0;
 }
 
-.kb-description {
+.kb-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--nf-font-display);
   font-size: 13px;
-  color: #6B7D8E;
-  margin: 0;
+  line-height: 1.5;
   letter-spacing: 0.04em;
+}
+
+.breadcrumb-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--nf-text-body, #8B9DB0);
+  font: inherit;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+  color: var(--nf-accent, #00FF9F);
+}
+
+.breadcrumb-separator {
+  color: var(--nf-text-tertiary, #4A5C6E);
+  font-size: 12px;
+}
+
+.breadcrumb-current {
+  min-width: 0;
+  color: var(--nf-text-primary, #E6EDF3);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header-stats {
