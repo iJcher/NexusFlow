@@ -82,6 +82,43 @@ export class LlmProviderService {
     return all.length > 0 ? this.toDto(all[0]) : null;
   }
 
+  /**
+   * 查找可用于 embedding 调用的 provider。
+   *
+   * 匹配策略（按优先级）：
+   * 1. llmNames 精确包含目标 embedding 模型名
+   * 2. llmNames 中含有任何 "embedding" 关键字的 provider
+   * 3. 放弃匹配，返回 null（由 EmbeddingService 走 TF-IDF 降级）
+   */
+  async findProviderForEmbedding(embeddingModelName?: string) {
+    const all = await this.prisma.flowLLMProviderEntity.findMany();
+    if (all.length === 0) return null;
+
+    if (embeddingModelName) {
+      for (const p of all) {
+        const names: string[] = JSON.parse(p.llmNames || '[]');
+        if (names.includes(embeddingModelName)) {
+          this.logger.log(`Embedding provider matched by model name: ${p.platformName}`);
+          return this.toDto(p);
+        }
+      }
+    }
+
+    for (const p of all) {
+      const names: string[] = JSON.parse(p.llmNames || '[]');
+      if (names.some((n) => n.toLowerCase().includes('embedding'))) {
+        this.logger.log(`Embedding provider matched by keyword: ${p.platformName}`);
+        return this.toDto(p);
+      }
+    }
+
+    this.logger.warn(
+      `No provider has an embedding model in llmNames. ` +
+        `Please add the embedding model name (e.g. text-embedding-v4) to a provider's model list.`,
+    );
+    return null;
+  }
+
   private toDto(entity: any) {
     return {
       id: entity.id.toString(),

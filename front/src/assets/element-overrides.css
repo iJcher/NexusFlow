@@ -86,6 +86,57 @@
 
 .el-input__inner::placeholder { color: var(--nf-text-muted) !important; }
 
+/* ── Input Group (input + append button) ── */
+.el-input-group {
+  display: inline-flex !important;
+}
+
+.el-input-group .el-input__wrapper {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.el-input-group__append {
+  background-color: var(--nf-bg-muted) !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px var(--nf-border) inset !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 8px !important;
+  border-bottom-right-radius: 8px !important;
+  margin-left: -1px;
+  color: var(--nf-text-secondary) !important;
+  transition: all 0.15s ease !important;
+}
+
+.el-input-group__append:hover {
+  color: var(--nf-accent) !important;
+}
+
+.el-input-group__append .el-button {
+  border: none !important;
+  border-radius: 0 !important;
+  color: inherit !important;
+  background: transparent !important;
+}
+
+.el-input-group__prepend {
+  background-color: var(--nf-bg-muted) !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px var(--nf-border) inset !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-top-left-radius: 8px !important;
+  border-bottom-left-radius: 8px !important;
+  margin-right: -1px;
+  color: var(--nf-text-secondary) !important;
+}
+
+.el-input-group--prepend .el-input__wrapper {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
 /* ── Textarea ── */
 .el-textarea__inner {
   background-color: var(--nf-bg-muted) !important;

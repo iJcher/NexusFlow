@@ -47,6 +47,11 @@
             {{ t('knowledge.chunkCount', { count: kb.chunkCount }) }}
           </span>
         </div>
+        <div v-if="kb.embeddingModel" class="kb-embedding-model">
+          <el-tag size="small" effect="plain" type="warning">
+            {{ kb.embeddingModel }}
+          </el-tag>
+        </div>
         <div class="kb-status">
           <el-tag :type="kb.status === 'active' ? 'success' : 'info'" size="small" effect="plain">
             {{ kb.status === 'active' ? t('knowledge.completed') : kb.status }}
@@ -78,6 +83,23 @@
         <el-form-item :label="t('knowledge.description')">
           <el-input v-model="formData.description" type="textarea" :rows="3" :placeholder="t('knowledge.descPlaceholder')" />
         </el-form-item>
+        <el-form-item :label="t('knowledge.embeddingModel')">
+          <el-select
+            v-model="formData.embeddingModel"
+            :placeholder="t('knowledge.embeddingModelPlaceholder')"
+            clearable
+            filterable
+            allow-create
+          >
+            <el-option
+              v-for="model in allEmbeddingModels"
+              :key="model"
+              :label="model"
+              :value="model"
+            />
+          </el-select>
+          <div class="form-hint">{{ t('knowledge.embeddingModelHint') }}</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
@@ -94,6 +116,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Collection, Document, Grid, MoreFilled, Edit, Delete } from '@element-plus/icons-vue'
 import { KnowledgeService, type IKnowledgeBaseDto } from '@/services/knowledge.service'
+import { LLMProviderService } from '@/services/llmProvider.service'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -103,7 +126,8 @@ const submitting = ref(false)
 const knowledgeBases = ref<IKnowledgeBaseDto[]>([])
 const dialogVisible = ref(false)
 const editingKb = ref<IKnowledgeBaseDto | null>(null)
-const formData = ref({ name: '', description: '' })
+const formData = ref({ name: '', description: '', embeddingModel: '' })
+const allEmbeddingModels = ref<string[]>([])
 
 const loadList = async () => {
   loading.value = true
@@ -119,16 +143,39 @@ const loadList = async () => {
   }
 }
 
+const loadEmbeddingModels = async () => {
+  try {
+    const res = await LLMProviderService.getProviderList()
+    if (res.errCode === 0 && res.data) {
+      const models: string[] = []
+      for (const provider of res.data) {
+        if (provider.llmNames) {
+          for (const name of provider.llmNames) {
+            if (name.toLowerCase().includes('embedding')) {
+              models.push(name)
+            }
+          }
+        }
+      }
+      allEmbeddingModels.value = models
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 const showCreateDialog = () => {
   editingKb.value = null
-  formData.value = { name: '', description: '' }
+  formData.value = { name: '', description: '', embeddingModel: '' }
+  loadEmbeddingModels()
   dialogVisible.value = true
 }
 
 const handleCommand = (command: string, kb: IKnowledgeBaseDto) => {
   if (command === 'edit') {
     editingKb.value = kb
-    formData.value = { name: kb.name, description: kb.description }
+    formData.value = { name: kb.name, description: kb.description, embeddingModel: kb.embeddingModel || '' }
+    loadEmbeddingModels()
     dialogVisible.value = true
   } else if (command === 'delete') {
     ElMessageBox.confirm(
@@ -158,6 +205,7 @@ const handleSubmit = async () => {
         id: editingKb.value.id,
         name: formData.value.name,
         description: formData.value.description,
+        embeddingModel: formData.value.embeddingModel || undefined,
       })
       if (res.errCode === 0) {
         ElMessage.success(t('success.updated', { name: t('knowledge.title') }))
@@ -165,7 +213,11 @@ const handleSubmit = async () => {
         loadList()
       }
     } else {
-      const res = await KnowledgeService.create(formData.value)
+      const res = await KnowledgeService.create({
+        name: formData.value.name,
+        description: formData.value.description,
+        embeddingModel: formData.value.embeddingModel || undefined,
+      })
       if (res.errCode === 0) {
         ElMessage.success(t('success.created', { name: t('knowledge.title') }))
         dialogVisible.value = false
@@ -306,6 +358,17 @@ onMounted(() => {
   font-size: 11px;
   color: #4A5C6E;
   font-variant-numeric: tabular-nums;
+}
+
+.kb-embedding-model {
+  margin-bottom: 8px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #4A5C6E;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 
 .kb-status {

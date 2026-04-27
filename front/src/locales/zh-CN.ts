@@ -341,6 +341,9 @@ export default {
     chunkSize: '分块大小',
     chunkOverlap: '分块重叠',
     editKb: '编辑知识库',
+    embeddingModel: 'Embedding 模型',
+    embeddingModelPlaceholder: '选择或输入 Embedding 模型名称',
+    embeddingModelHint: '选择用于文档向量化的模型。建议在模型供应商中先添加该模型名，未选择则使用默认模型',
   },
 
   // About 使用指南

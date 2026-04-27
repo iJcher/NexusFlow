@@ -112,15 +112,16 @@ model FlowTemplateEntity {
 // ==================== RAG 知识库 ====================
 
 model KnowledgeBaseEntity {
-  id          BigInt   @id
-  name        String
-  description String   @default("")
-  createdBy   String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-  docCount    Int      @default(0)
-  chunkCount  Int      @default(0)
-  status      String   @default("active")
+  id             BigInt   @id
+  name           String
+  description    String   @default("")
+  createdBy      String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+  docCount       Int      @default(0)
+  chunkCount     Int      @default(0)
+  status         String   @default("active")
+  embeddingModel String   @default("")
 
   documents KnowledgeDocumentEntity[]
 

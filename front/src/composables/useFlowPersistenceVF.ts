@@ -260,30 +260,58 @@ export function useFlowPersistenceVF(
     return JSON.stringify(webConfig)
   }
 
-  const saveFlow = async (): Promise<boolean> => {
+  /**
+   * 同步画布数据到 store 并持久化到后端，不做校验。
+   * 用于返回/退出时的自动保存。
+   */
+  const saveFlow = async (options?: { silent?: boolean }): Promise<boolean> => {
+    if (!flowId.value) {
+      if (!options?.silent) ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
+      return false
+    }
+
+    try {
+      syncGraphToStore()
+
+      const configInfoForRun = generateConfigInfoForRun()
+      const configInfoForWeb = generateConfigInfoForWeb()
+
+      saveToLocal(flowId.value, configInfoForWeb)
+
+      const response = await FlowService.updateFlow({
+        id: flowId.value,
+        configInfoForRun,
+        configInfoForWeb,
+      })
+
+      if (response.errCode === 0) {
+        if (!options?.silent) ElMessage.success(t('flowDesigner.flowSaveSuccess'))
+        return true
+      }
+      else {
+        ElMessage.error(response.errMsg || t('flowDesigner.saveFailed'))
+        return false
+      }
+    }
+    catch (error) {
+      console.error('Save flow failed:', error)
+      ElMessage.error(t('flowDesigner.saveFlowFailed'))
+      return false
+    }
+  }
+
+  /**
+   * 先校验工作流合法性，通过后保存并返回 true。
+   * 用于运行/测试前的检查。
+   */
+  const validateAndSave = async (): Promise<boolean> => {
     if (!flowId.value) {
       ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
       return false
     }
 
     try {
-      const graphData = getGraphData()
-
-      graphData.nodes.forEach((vfNode) => {
-        flowStore.updateNodePosition(vfNode.id, vfNode.position.x, vfNode.position.y)
-      })
-
-      flowStore.currentFlow?.edges.splice(0)
-      graphData.edges.forEach((vfEdge) => {
-        flowStore.addEdge({
-          id: vfEdge.id,
-          sourceNodeId: vfEdge.source,
-          targetNodeId: vfEdge.target,
-          sourceAnchorId: vfEdge.sourceHandle || undefined,
-          targetAnchorId: vfEdge.targetHandle || undefined,
-        })
-      })
-      syncConditionLineIds(flowStore)
+      syncGraphToStore()
 
       const validationIssues = validateFlowGraph({
         nodes: flowStore.currentNodes,
@@ -301,38 +329,42 @@ export function useFlowPersistenceVF(
         return false
       }
 
-      const configInfoForRun = generateConfigInfoForRun()
-      const configInfoForWeb = generateConfigInfoForWeb()
-
-      saveToLocal(flowId.value, configInfoForWeb)
-
-      const updateRequest: IUpdateFlowRequest = {
-        id: flowId.value,
-        configInfoForRun,
-        configInfoForWeb,
-      }
-
-      const response = await FlowService.updateFlow(updateRequest)
-
-      if (response.errCode === 0) {
-        ElMessage.success(t('flowDesigner.flowSaveSuccess'))
-        return true
-      }
-      else {
-        ElMessage.error(response.errMsg || t('flowDesigner.saveFailed'))
-        return false
-      }
+      return saveFlow()
     }
     catch (error) {
-      console.error('Save flow failed:', error)
+      console.error('Validate and save failed:', error)
       ElMessage.error(t('flowDesigner.saveFlowFailed'))
       return false
     }
   }
 
+  /** 将 Vue Flow 画布数据同步到 Pinia store */
+  const syncGraphToStore = () => {
+    const graphData = getGraphData()
+
+    const storeNodes = graphData.nodes.map(vfNode => ({
+      id: vfNode.id,
+      type: vfNode.data?.typeName || vfNode.type || '',
+      x: vfNode.position.x,
+      y: vfNode.position.y,
+      properties: (vfNode.data || {}) as NodeBase,
+    }))
+    const storeEdges = graphData.edges.map(vfEdge => ({
+      id: vfEdge.id,
+      sourceNodeId: vfEdge.source,
+      targetNodeId: vfEdge.target,
+      sourceAnchorId: vfEdge.sourceHandle || undefined,
+      targetAnchorId: vfEdge.targetHandle || undefined,
+    }))
+
+    flowStore.syncFromLogicFlow({ nodes: storeNodes, edges: storeEdges })
+    syncConditionLineIds(flowStore)
+  }
+
   return {
     loadFlowData,
     saveFlow,
+    validateAndSave,
     generateConfigInfoForRun,
     generateConfigInfoForWeb,
   }

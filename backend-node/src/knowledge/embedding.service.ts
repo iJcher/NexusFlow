@@ -4,6 +4,7 @@ import { LlmProviderService } from '../llm-provider/llm-provider.service';
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
+  private embeddingUnavailableLogged = false;
 
   constructor(private llmProviderService: LlmProviderService) {}
 
@@ -14,22 +15,21 @@ export class EmbeddingService {
   async getEmbedding(text: string, modelName?: string): Promise<number[]> {
     const provider = await this.findEmbeddingProvider(modelName);
     if (!provider) {
-      this.logger.warn('No embedding provider found, using TF-IDF fallback');
+      this.logEmbeddingFallback('No embedding provider configured');
       return this.tfidfFallback(text);
     }
 
     try {
-      const apiUrl = provider.llmAPIUrl.replace(/\/chat\/completions\/?$/, '/embeddings');
+      const apiUrl = this.buildEmbeddingUrl(provider.llmAPIUrl);
+      const model = modelName || 'text-embedding-ada-002';
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${provider.llmAPIKey}`,
         },
-        body: JSON.stringify({
-          model: modelName || 'text-embedding-ada-002',
-          input: text,
-        }),
+        body: JSON.stringify({ model, input: text }),
       });
 
       if (!response.ok) {
@@ -40,7 +40,7 @@ export class EmbeddingService {
       const result: any = await response.json();
       return result.data?.[0]?.embedding || [];
     } catch (e: any) {
-      this.logger.error(`Embedding API failed: ${e.message}, using TF-IDF fallback`);
+      this.logEmbeddingFallback(e.message);
       return this.tfidfFallback(text);
     }
   }
@@ -55,30 +55,42 @@ export class EmbeddingService {
     }
 
     try {
-      const apiUrl = provider.llmAPIUrl.replace(/\/chat\/completions\/?$/, '/embeddings');
+      const apiUrl = this.buildEmbeddingUrl(provider.llmAPIUrl);
+      const model = modelName || 'text-embedding-ada-002';
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${provider.llmAPIKey}`,
         },
-        body: JSON.stringify({
-          model: modelName || 'text-embedding-ada-002',
-          input: texts,
-        }),
+        body: JSON.stringify({ model, input: texts }),
       });
 
       if (!response.ok) {
-        throw new Error(`Embedding API error ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`${response.status} at ${apiUrl} model=${model}: ${errorText}`);
       }
 
       const result: any = await response.json();
+      this.embeddingUnavailableLogged = false;
       return (result.data || [])
         .sort((a: any, b: any) => a.index - b.index)
         .map((d: any) => d.embedding);
     } catch (e: any) {
-      this.logger.error(`Batch embedding failed: ${e.message}, using TF-IDF fallback`);
+      this.logEmbeddingFallback(e.message);
       return texts.map((t) => this.tfidfFallback(t));
+    }
+  }
+
+  private logEmbeddingFallback(errorMsg: string) {
+    if (!this.embeddingUnavailableLogged) {
+      this.logger.warn(
+        `Embedding API unavailable (${errorMsg}). Falling back to TF-IDF. ` +
+          `This warning will not repeat until the API recovers. ` +
+          `To use real embeddings, configure a provider that supports /v1/embeddings (e.g. OpenAI official).`,
+      );
+      this.embeddingUnavailableLogged = true;
     }
   }
 
@@ -100,11 +112,32 @@ export class EmbeddingService {
   }
 
   private async findEmbeddingProvider(modelName?: string): Promise<any> {
-    if (modelName) {
-      return this.llmProviderService.findProviderByModelName(modelName);
+    return this.llmProviderService.findProviderForEmbedding(modelName);
+  }
+
+  /**
+   * 从 LLM Provider 的 API URL 构造 embeddings URL。
+   * 先剥离到 base（去掉 /chat/completions 和尾斜杠），
+   * 如果已经包含版本前缀（/v1 /v2 等）则直接追加 /embeddings，
+   * 否则插入 /v1/embeddings。
+   *
+   * 示例：
+   *   https://api.deepseek.com/chat/completions  → https://api.deepseek.com/v1/embeddings
+   *   https://api.deepseek.com/v1/chat/completions → https://api.deepseek.com/v1/embeddings
+   *   https://www.dogapi.cc/v1                    → https://www.dogapi.cc/v1/embeddings
+   *   https://api.openai.com                      → https://api.openai.com/v1/embeddings
+   */
+  private buildEmbeddingUrl(baseUrl: string): string {
+    let url = baseUrl.replace(/\/+$/, '');
+
+    url = url.replace(/\/chat\/completions$/i, '');
+    url = url.replace(/\/+$/, '');
+
+    if (/\/v\d+$/i.test(url)) {
+      return `${url}/embeddings`;
     }
-    const providers = await this.llmProviderService.getAll();
-    return providers?.[0] || null;
+
+    return `${url}/v1/embeddings`;
   }
 
   /**

@@ -355,10 +355,8 @@ const closeWindow = async () => {
     return
   }
 
-  const saved = await persistence.saveFlow()
-  if (saved) {
-    router.back()
-  }
+  await persistence.saveFlow({ silent: true })
+  router.back()
 }
 
 const openChatTest = async () => {
@@ -366,8 +364,8 @@ const openChatTest = async () => {
     ElMessage.warning(t('flowDesigner.flowIdNotExist'))
     return
   }
-  const saved = await persistence.saveFlow()
-  if (!saved) {
+  const passed = await persistence.validateAndSave()
+  if (!passed) {
     return
   }
   chatTestDrawerVisible.value = true

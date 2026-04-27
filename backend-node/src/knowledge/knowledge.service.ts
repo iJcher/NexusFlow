@@ -17,12 +17,16 @@ export class KnowledgeService {
 
   // ==================== 知识库 CRUD ====================
 
-  async createKnowledgeBase(dto: { name: string; description?: string }, userName: string) {
+  async createKnowledgeBase(
+    dto: { name: string; description?: string; embeddingModel?: string },
+    userName: string,
+  ) {
     const entity = await this.prisma.knowledgeBaseEntity.create({
       data: {
         id: nextId(),
         name: dto.name,
         description: dto.description || '',
+        embeddingModel: dto.embeddingModel || '',
         createdBy: userName,
       },
     });
@@ -61,13 +65,17 @@ export class KnowledgeService {
     return { total, items: entities.map((e) => this.toKbDto(e)) };
   }
 
-  async updateKnowledgeBase(id: bigint, dto: { name?: string; description?: string }) {
+  async updateKnowledgeBase(
+    id: bigint,
+    dto: { name?: string; description?: string; embeddingModel?: string },
+  ) {
     const entity = await this.prisma.knowledgeBaseEntity.findUnique({ where: { id } });
     if (!entity) return null;
 
     const updateData: any = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.embeddingModel !== undefined) updateData.embeddingModel = dto.embeddingModel;
 
     const updated = await this.prisma.knowledgeBaseEntity.update({
       where: { id },
@@ -93,6 +101,8 @@ export class KnowledgeService {
     });
     if (!kb) throw new Error('Knowledge base not found');
 
+    const embeddingModel = options.embeddingModel || kb.embeddingModel || '';
+
     const fileName = this.fixMulterFileName(file.originalname);
     const fileType = path.extname(fileName).toLowerCase();
     const docId = nextId();
@@ -108,7 +118,10 @@ export class KnowledgeService {
       },
     });
 
-    this.processDocument(docId, knowledgeBaseId, file.buffer, fileType, options).catch((e) => {
+    this.processDocument(docId, knowledgeBaseId, file.buffer, fileType, {
+      ...options,
+      embeddingModel,
+    }).catch((e) => {
       this.logger.error(`Document processing failed: ${e.message}`);
     });
 
@@ -212,9 +225,21 @@ export class KnowledgeService {
     query: string,
     options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
   ) {
-    const { topK = 5, threshold = 0.3, embeddingModel } = options;
+    const { topK = 5, threshold = 0.3 } = options;
 
-    const queryEmbedding = await this.embeddingService.getEmbedding(query, embeddingModel);
+    let embeddingModel = options.embeddingModel;
+    if (!embeddingModel) {
+      const kb = await this.prisma.knowledgeBaseEntity.findUnique({
+        where: { id: knowledgeBaseId },
+        select: { embeddingModel: true },
+      });
+      embeddingModel = kb?.embeddingModel || undefined;
+    }
+
+    const queryEmbedding = await this.embeddingService.getEmbedding(
+      query,
+      embeddingModel || undefined,
+    );
 
     const chunks = await this.prisma.knowledgeDocChunkEntity.findMany({
       where: {
@@ -303,6 +328,7 @@ export class KnowledgeService {
       docCount: entity.docCount,
       chunkCount: entity.chunkCount,
       status: entity.status,
+      embeddingModel: entity.embeddingModel || '',
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };

@@ -341,6 +341,9 @@ export default {
     chunkSize: 'Chunk Size',
     chunkOverlap: 'Chunk Overlap',
     editKb: 'Edit Knowledge Base',
+    embeddingModel: 'Embedding Model',
+    embeddingModelPlaceholder: 'Select or enter embedding model name',
+    embeddingModelHint: 'Choose the model for document vectorization. Add it to your LLM provider first. Falls back to default if not set.',
   },
 
   // About
