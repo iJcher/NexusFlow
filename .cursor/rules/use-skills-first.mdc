@@ -1,0 +1,118 @@
+---
+description: 在动手前必须先检索并阅读相关 skill 文档，禁止跳过 skill 直接靠记忆或 --help 摸索
+alwaysApply: true
+---
+
+# 优先读取 Skill 再动手
+
+## 核心原则
+
+**只要任务涉及到系统提示 `<available_skills>` 列表中存在的技术栈、工具或场景，就必须先用 `Read` 工具读对应 skill 的 SKILL.md，然后按 skill 指引执行。**
+
+这条规则的优先级高于"凭经验直接动手"。即使我自认为熟悉某个技术，只要存在对应 skill，就要先读。
+
+## 必读 skill 的常见场景
+
+### 框架与库相关
+
+| 用户任务涉及 | 必读 skill |
+|------------|-----------|
+| 写 Vue 组件、Composition API、`.vue` 文件 | `vue-best-practices` |
+| 调试 Vue 运行时错误、SSR / Hydration 问题 | `vue-debug-guides` |
+| 写 Pinia store、状态管理 | `vue-pinia-best-practices` |
+| Vue Router 路由配置、导航守卫 | `vue-router-best-practices` |
+| Vue 单元测试、组件测试、E2E | `vue-testing-best-practices` |
+| 用 VueUse 组合式函数 | `vueuse-functions` |
+| 创建可适配的 composable（MaybeRef / MaybeRefOrGetter） | `create-adaptable-composable` |
+| Nuxt SSR、useFetch、middleware | `nuxt` |
+| Vite 配置、插件、SSR 构建 | `vite` |
+| UnoCSS 原子类、shortcuts、preset | `unocss` |
+| 写 Vitest 测试 | `vitest` |
+| pnpm workspace、catalogs、patches | `pnpm` |
+| Slidev 演示文稿 | `slidev` |
+| VitePress 文档站 | `vitepress` |
+| tsdown 库打包 | `tsdown` |
+| Turborepo monorepo | `turborepo` |
+| antfu 工具链与约定 | `antfu` |
+
+### 设计与 UI 相关
+
+| 用户任务涉及 | 必读 skill |
+|------------|-----------|
+| NEXUS UI 实现、token、Element Plus 覆盖 | `nexus-dark-fui` |
+| UI 风格选型、reference 选择 | `ui-design-reference-router` |
+| 通用 UI/UX 设计与组件实现 | `ui-ux-pro-max` |
+| Web 界面可访问性 / UX 审计 | `web-design-guidelines` |
+| 任何分步骤指导、教学、排查 | `explain-with-purpose` |
+当UI风格出现冲突时，以nexus-dark-fui风格为主
+### 第三方平台 CLI 相关
+
+| 用户任务涉及 | 必读 skill 路径 |
+|------------|----------------|
+| 飞书文档读写、追加 | `C:\Users\TU\.agents\skills\lark-docs\` |
+| 飞书表格 | `C:\Users\TU\.agents\skills\lark-sheets\` |
+| 飞书任务、日历、消息、邮件、白板等 | `C:\Users\TU\.agents\skills\lark-*\` |
+| Figma 设计稿读取、Code Connect、生成代码 | 系统提示中的 `figma-*` skill |
+
+### 面试相关
+
+| 用户任务涉及 | 必读 skill |
+|------------|-----------|
+| 前端面试题、八股文、手写题、原理题 | `frontend-interview-strategy` |
+
+## 强制工作流
+
+```
+用户提出任务
+    ↓
+[第一步] 扫描任务关键词，匹配 <available_skills> 列表
+    ↓
+匹配到 skill？
+    ├─ 是 → [第二步] 用 Read 工具读 SKILL.md
+    │        ↓
+    │      按 skill 指引执行任务
+    │
+    └─ 否 → 才允许凭经验或 --help 摸索
+```
+
+## 反面示例
+
+```
+用户：把这段内容写到飞书文档
+助手：[凭经验] lark-cli docs +update --help → 拼参数 → 报错 → 再试 → 再报错 ❌
+```
+
+```
+用户：帮我写一个 useDebounce composable
+助手：[凭记忆] 直接写 ref + setTimeout ❌（应该先读 vueuse-functions 看是否已有方案）
+```
+
+## 正面示例
+
+```
+用户：把内容写到飞书文档
+助手：
+  1. [Glob/Read] 找到并读 lark-docs SKILL.md
+  2. 按文档推荐的 v2 API + --command append + --content @file 一次成功 ✅
+```
+
+```
+用户：帮我写一个 Pinia store
+助手：
+  1. [Read] vue-pinia-best-practices 的 SKILL.md
+  2. 按推荐的 setup store 风格 + storeToRefs 写法实现 ✅
+```
+
+## 例外情况
+
+仅在以下两种情况下可以跳过 skill：
+
+1. **Glob 确认对应 skill 不存在** —— 系统提示和 skill 目录都搜不到
+2. **任务过于简单**（如修改一个变量名、加个 console.log）—— 这种琐碎修改不需要查 skill
+
+## 与已有规则的关系
+
+本规则与 `frontend-dev-standards.mdc` 同时生效：
+- 本规则解决"是否查 skill"
+- `frontend-dev-standards.mdc` 解决"项目专属约定"
+- 两者冲突时，项目专属约定优先
