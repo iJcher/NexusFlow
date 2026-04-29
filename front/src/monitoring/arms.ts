@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-export function setupArmsMonitoring(env: ArmsEnv = import.meta.env) {
+export function setupArmsMonitoring(env: ArmsEnv = import.meta.env as unknown as ArmsEnv) {
   if (env.VITE_ARMS_ENABLED !== 'true' || !env.VITE_ARMS_PID) return
   if (typeof window === 'undefined' || window.__bl) return
 
