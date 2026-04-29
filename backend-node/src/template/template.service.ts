@@ -40,13 +40,14 @@ export class TemplateService {
 
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: any, userName: string) {
+  async create(dto: any, userId: string, userName: string) {
     const flowType =
       typeof dto.flowType === 'string' ? FLOW_TYPE_MAP[dto.flowType] ?? 0 : dto.flowType ?? 0;
 
     const entity = await this.prisma.flowTemplateEntity.create({
       data: {
         id: nextId(),
+        ownerUserId: BigInt(userId),
         name: dto.name || '',
         description: dto.description || '',
         flowType,
@@ -62,8 +63,10 @@ export class TemplateService {
     return this.toDto(entity);
   }
 
-  async createFromFlow(flowId: bigint, dto: any, userName: string) {
-    const flow = await this.prisma.flowEntity.findUnique({ where: { id: flowId } });
+  async createFromFlow(flowId: bigint, dto: any, userId: string, userName: string) {
+    const flow = await this.prisma.flowEntity.findFirst({
+      where: { id: flowId, ownerUserId: BigInt(userId) },
+    });
     if (!flow) return null;
 
     return this.create(
@@ -76,12 +79,15 @@ export class TemplateService {
         configInfoForRun: flow.configInfoForRun ? JSON.parse(flow.configInfoForRun) : null,
         configInfoForWeb: flow.configInfoForWeb,
       },
+      userId,
       userName,
     );
   }
 
-  async getById(id: bigint) {
-    const entity = await this.prisma.flowTemplateEntity.findUnique({ where: { id } });
+  async getById(id: bigint, userId: string) {
+    const entity = await this.prisma.flowTemplateEntity.findFirst({
+      where: { id, OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }] },
+    });
     return entity ? this.toDto(entity) : null;
   }
 
@@ -92,11 +98,11 @@ export class TemplateService {
     keyword?: string;
     pageIndex?: number;
     pageSize?: number;
-  }) {
+  }, userId: string) {
     await this.ensureOfficialTemplates();
 
     const { flowType, category, isOfficial, keyword, pageIndex = 1, pageSize = 20 } = params;
-    const where: any = {};
+    const where: any = { OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }] };
     if (flowType !== undefined) where.flowType = flowType;
     if (category) where.category = category;
     if (isOfficial !== undefined) where.isOfficial = isOfficial;
@@ -123,8 +129,10 @@ export class TemplateService {
     };
   }
 
-  async update(id: bigint, dto: any) {
-    const entity = await this.prisma.flowTemplateEntity.findUnique({ where: { id } });
+  async update(id: bigint, dto: any, userId: string) {
+    const entity = await this.prisma.flowTemplateEntity.findFirst({
+      where: { id, ownerUserId: BigInt(userId), isOfficial: false },
+    });
     if (!entity) return null;
 
     const updateData: any = {};
@@ -143,14 +151,17 @@ export class TemplateService {
     return this.toDto(updated);
   }
 
-  async delete(id: bigint) {
-    const result = await this.prisma.flowTemplateEntity.deleteMany({ where: { id } });
+  async delete(id: bigint, userId: string) {
+    const result = await this.prisma.flowTemplateEntity.deleteMany({
+      where: { id, ownerUserId: BigInt(userId), isOfficial: false },
+    });
     return result.count > 0;
   }
 
   private toDto(entity: any) {
     return {
       id: entity.id.toString(),
+      ownerUserId: entity.ownerUserId?.toString?.() ?? null,
       name: entity.name,
       description: entity.description,
       flowType: entity.flowType,

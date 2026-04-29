@@ -5,9 +5,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 配置 npm 国内镜像加速
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm install -g pnpm
+# 配置国内源加速：Alpine apk 使用中科大源，npm/pnpm 使用 npmmirror
+RUN sed -i 's#https://dl-cdn.alpinelinux.org/alpine#https://mirrors.ustc.edu.cn/alpine#g' /etc/apk/repositories && \
+    npm config set registry https://registry.npmmirror.com && \
+    npm install -g pnpm && \
+    pnpm config set registry https://registry.npmmirror.com
 
 # 先拷贝依赖清单，利用 Docker 层缓存
 COPY package.json pnpm-lock.yaml* ./
@@ -33,8 +35,9 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# 安装 PostgreSQL 客户端工具（用于健康检查/迁移）
-RUN apk add --no-cache openssl
+# 安装运行时依赖。Alpine apk 使用中科大源，避免国内构建时下载过慢。
+RUN sed -i 's#https://dl-cdn.alpinelinux.org/alpine#https://mirrors.ustc.edu.cn/alpine#g' /etc/apk/repositories && \
+    apk add --no-cache openssl
 
 ENV NODE_ENV=production
 ENV PORT=30050

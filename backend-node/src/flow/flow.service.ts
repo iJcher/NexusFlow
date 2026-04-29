@@ -8,10 +8,11 @@ export class FlowService {
 
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: any, userName: string) {
+  async create(dto: any, userId: string, userName: string) {
     const entity = await this.prisma.flowEntity.create({
       data: {
         id: nextId(),
+        ownerUserId: BigInt(userId),
         displayName: dto.displayName || '',
         flowType: dto.flowType || 0,
         description: dto.description || '',
@@ -25,13 +26,16 @@ export class FlowService {
     return this.toDto(entity);
   }
 
-  async getById(id: bigint) {
-    const entity = await this.prisma.flowEntity.findUnique({ where: { id } });
+  async getById(id: bigint, userId: string) {
+    const entity = await this.prisma.flowEntity.findFirst({
+      where: { id, ownerUserId: BigInt(userId) },
+    });
     return entity ? this.toDto(entity) : null;
   }
 
-  async getList(flowType?: number, pageIndex = 1, pageSize = 20) {
-    const where = flowType !== undefined ? { flowType } : {};
+  async getList(userId: string, flowType?: number, pageIndex = 1, pageSize = 20) {
+    const where: any = { ownerUserId: BigInt(userId) };
+    if (flowType !== undefined) where.flowType = flowType;
     const entities = await this.prisma.flowEntity.findMany({
       where,
       orderBy: { lastModified: 'desc' },
@@ -41,8 +45,11 @@ export class FlowService {
     return entities.map((e) => this.toDto(e));
   }
 
-  async update(dto: any, userName: string) {
-    const entity = await this.prisma.flowEntity.findUnique({ where: { id: BigInt(dto.id) } });
+  async update(dto: any, userId: string, userName: string) {
+    const id = BigInt(dto.id);
+    const entity = await this.prisma.flowEntity.findFirst({
+      where: { id, ownerUserId: BigInt(userId) },
+    });
     if (!entity) return null;
 
     const updateData: any = { lastModified: new Date(), lastModifyBy: userName };
@@ -53,20 +60,23 @@ export class FlowService {
     if (dto.configInfoForWeb !== undefined) updateData.configInfoForWeb = dto.configInfoForWeb;
 
     const updated = await this.prisma.flowEntity.update({
-      where: { id: BigInt(dto.id) },
+      where: { id },
       data: updateData,
     });
     return this.toDto(updated);
   }
 
-  async delete(id: bigint) {
-    const result = await this.prisma.flowEntity.deleteMany({ where: { id } });
+  async delete(id: bigint, userId: string) {
+    const result = await this.prisma.flowEntity.deleteMany({
+      where: { id, ownerUserId: BigInt(userId) },
+    });
     return result.count > 0;
   }
 
   private toDto(entity: any) {
     return {
       id: entity.id.toString(),
+      ownerUserId: entity.ownerUserId?.toString?.() ?? null,
       displayName: entity.displayName,
       flowType: entity.flowType,
       description: entity.description,

@@ -19,6 +19,9 @@ import router from './router'
 import { useAuthStore } from '@/stores/auth'
 import i18n from '@/locales'
 import { pinia } from '@/plugins/pinia'
+import { setupArmsMonitoring } from '@/monitoring/arms'
+
+setupArmsMonitoring()
 
 const app = createApp(App)
 

@@ -1,0 +1,68 @@
+name: Deploy NEXUS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: |
+            front/pnpm-lock.yaml
+            backend-node/pnpm-lock.yaml
+
+      - name: Build frontend
+        working-directory: front
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Type check backend
+        working-directory: backend-node
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec prisma generate
+          pnpm run build
+
+      - name: Create deployment archive
+        run: |
+          tar -czf nexus-deploy.tar.gz \
+            --exclude="backend-node/node_modules" \
+            --exclude="backend-node/dist" \
+            --exclude="backend-node/prisma/dev.db*" \
+            backend-node deploy docker-compose.yml .env.example front/dist
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload archive
+        run: |
+          scp nexus-deploy.tar.gz "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/nexus-deploy.tar.gz"
+
+      - name: Deploy on ECS
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "DEPLOY_PATH='${{ secrets.DEPLOY_PATH }}' ARCHIVE_PATH='/tmp/nexus-deploy.tar.gz' bash -s" \
+            < deploy/remote-deploy.sh
