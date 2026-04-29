@@ -10,6 +10,9 @@ export interface IKnowledgeBaseDto {
   chunkCount: number
   status: string
   embeddingModel: string
+  chunkSize: number
+  chunkOverlap: number
+  chunkStrategy: string
   createdAt: string
   updatedAt: string
   documents?: IKnowledgeDocDto[]
@@ -42,6 +45,7 @@ export interface ISearchResultDto {
   content: string
   chunkIndex: number
   similarity: number
+  source: string
 }
 
 export interface IKnowledgeListResponse {
@@ -54,6 +58,9 @@ export class KnowledgeService {
     name: string
     description?: string
     embeddingModel?: string
+    chunkSize?: number
+    chunkOverlap?: number
+    chunkStrategy?: string
   }): Promise<TApiResponse<IKnowledgeBaseDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<IKnowledgeBaseDto>>(
       '/Knowledge/Create',
@@ -87,6 +94,9 @@ export class KnowledgeService {
     name?: string
     description?: string
     embeddingModel?: string
+    chunkSize?: number
+    chunkOverlap?: number
+    chunkStrategy?: string
   }): Promise<TApiResponse<IKnowledgeBaseDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<IKnowledgeBaseDto>>(
       '/Knowledge/Update',

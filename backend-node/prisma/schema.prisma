@@ -9,6 +9,7 @@ datasource db {
 
 model FlowEntity {
   id               BigInt    @id
+  ownerUserId      BigInt?
   displayName      String    @default("")
   flowType         Int       @default(0)
   description      String    @default("")
@@ -17,22 +18,26 @@ model FlowEntity {
   lastModified     DateTime? @updatedAt
   lastModifyBy     String?
 
+  @@index([ownerUserId])
   @@index([flowType])
   @@map("FlowEntity")
 }
 
 model FlowLLMProviderEntity {
-  id           BigInt @id
+  id           BigInt  @id
+  ownerUserId  BigInt?
   platformName String
   llmNames     String
   llmAPIUrl    String
   llmAPIKey    String
 
+  @@index([ownerUserId])
   @@map("FlowLLMProviderEntity")
 }
 
 model FlowChatConversationEntity {
   conversationId   String   @id
+  ownerUserId      BigInt?
   user             String
   flowId           BigInt
   title            String   @default("")
@@ -45,12 +50,14 @@ model FlowChatConversationEntity {
   totalTokens      Int?
   variables        String?
 
+  @@index([ownerUserId, flowId, updatedAt])
   @@unique([conversationId, user])
   @@map("FlowChatConversationEntity")
 }
 
 model FlowChatMessageEntity {
   id               BigInt   @id
+  ownerUserId      BigInt?
   user             String
   flowId           BigInt
   conversationId   String
@@ -63,6 +70,7 @@ model FlowChatMessageEntity {
   createdAt        DateTime @default(now())
   files            String?
 
+  @@index([ownerUserId, flowId, conversationId, createdAt])
   @@index([user, conversationId, createdAt])
   @@map("FlowChatMessageEntity")
 }
@@ -91,6 +99,7 @@ model UserEntity {
 
 model FlowTemplateEntity {
   id               BigInt   @id
+  ownerUserId      BigInt?
   name             String
   description      String   @default("")
   flowType         Int      @default(0)
@@ -103,6 +112,7 @@ model FlowTemplateEntity {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @default(now()) @updatedAt
 
+  @@index([ownerUserId])
   @@index([flowType])
   @@index([category])
   @@index([isOfficial])
@@ -113,6 +123,7 @@ model FlowTemplateEntity {
 
 model KnowledgeBaseEntity {
   id             BigInt   @id
+  ownerUserId    BigInt?
   name           String
   description    String   @default("")
   createdBy      String   @default("")
@@ -122,9 +133,13 @@ model KnowledgeBaseEntity {
   chunkCount     Int      @default(0)
   status         String   @default("active")
   embeddingModel String   @default("")
+  chunkSize      Int      @default(500)
+  chunkOverlap   Int      @default(50)
+  chunkStrategy  String   @default("paragraph")
 
   documents KnowledgeDocumentEntity[]
 
+  @@index([ownerUserId])
   @@index([createdBy])
   @@map("KnowledgeBaseEntity")
 }
@@ -161,4 +176,40 @@ model KnowledgeDocChunkEntity {
 
   @@index([documentId])
   @@map("KnowledgeDocChunkEntity")
+}
+
+model SkillEntity {
+  id               BigInt   @id
+  ownerUserId      BigInt
+  flowId           BigInt
+  name             String
+  description      String   @default("")
+  version          Int      @default(1)
+  inputSchema      String   @default("{}")
+  outputSchema     String   @default("{}")
+  workflowSnapshot String
+  status           String   @default("active")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+
+  @@index([ownerUserId])
+  @@index([flowId])
+  @@map("SkillEntity")
+}
+
+model McpServerEntity {
+  id          BigInt   @id
+  ownerUserId BigInt
+  name        String
+  transport   String   @default("sse")
+  endpoint    String   @default("")
+  command     String   @default("")
+  args        String   @default("[]")
+  env         String   @default("{}")
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([ownerUserId])
+  @@map("McpServerEntity")
 }

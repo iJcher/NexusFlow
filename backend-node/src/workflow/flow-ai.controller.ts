@@ -1,28 +1,27 @@
-import { Controller, Post, Param, Body, Res, Headers } from '@nestjs/common';
+import { Controller, Post, Param, Body, Res } from '@nestjs/common';
 import { FlowRuntimeService } from './flow-runtime.service';
-import { Public } from '../auth/public.decorator';
+import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 
 @Controller('Flow')
 export class FlowAIController {
   constructor(private flowRuntimeService: FlowRuntimeService) {}
 
   @Post('chat-messages/:flowId')
-  @Public()
   async chatStream(
     @Param('flowId') flowId: string,
     @Body() body: any,
     @Res() res: any,
-    @Headers('phoneNumber') phoneNumber: string,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     const request = {
       query: body.query || '',
-      user: phoneNumber || body.user || '',
+      user: user.phoneNumber || user.id,
       conversationId: body.conversation_id || body.conversationId,
       responseMode: body.response_mode || 'streaming',
       inputs: body.inputs || {},
       files: body.files || [],
     };
 
-    await this.flowRuntimeService.runFlowStreaming(BigInt(flowId), request, res);
+    await this.flowRuntimeService.runFlowStreaming(BigInt(flowId), user.id, request, res);
   }
 }

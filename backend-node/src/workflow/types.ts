@@ -42,6 +42,7 @@ export interface NodeExecuteResult {
 
 export interface FlowRuntimeContext {
   flowId: bigint;
+  ownerUserId: string;
   user: string;
   flowInstanceId: bigint;
   displayName: string;
@@ -87,4 +88,14 @@ export interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+}
+
+export type NodeRunStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+
+export interface NodeRunState {
+  nodeId: string;
+  status: NodeRunStatus;
+  startedAt?: Date;
+  finishedAt?: Date;
+  errorMsg?: string;
 }

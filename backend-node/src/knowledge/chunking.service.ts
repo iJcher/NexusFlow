@@ -17,7 +17,7 @@ export class ChunkingService {
     options: {
       chunkSize?: number;
       chunkOverlap?: number;
-      strategy?: 'fixed' | 'paragraph';
+      strategy?: 'fixed' | 'paragraph' | 'markdown';
     } = {},
   ): TextChunk[] {
     const { chunkSize = 500, chunkOverlap = 50, strategy = 'paragraph' } = options;
@@ -25,9 +25,11 @@ export class ChunkingService {
     if (!text || text.trim().length === 0) return [];
 
     const rawChunks =
-      strategy === 'paragraph'
-        ? this.paragraphChunk(text, chunkSize, chunkOverlap)
-        : this.fixedChunk(text, chunkSize, chunkOverlap);
+      strategy === 'markdown'
+        ? this.markdownChunk(text, chunkSize, chunkOverlap)
+        : strategy === 'paragraph'
+          ? this.paragraphChunk(text, chunkSize, chunkOverlap)
+          : this.fixedChunk(text, chunkSize, chunkOverlap);
 
     return rawChunks
       .filter((c) => c.trim().length > 0)
@@ -75,6 +77,26 @@ export class ChunkingService {
     }
 
     return chunks;
+  }
+
+  /**
+   * Markdown 结构感知分块：优先按标题切分，保留标题上下文。
+   */
+  private markdownChunk(text: string, maxSize: number, overlap: number): string[] {
+    const sections = text
+      .split(/(?=^#{1,6}\s+)/m)
+      .map((section) => section.trim())
+      .filter(Boolean);
+
+    if (sections.length <= 1) {
+      return this.paragraphChunk(text, maxSize, overlap);
+    }
+
+    return sections.flatMap((section) =>
+      section.length > maxSize
+        ? this.paragraphChunk(section, maxSize, overlap)
+        : [section],
+    );
   }
 
   /**

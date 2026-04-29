@@ -12,8 +12,8 @@ export class EmbeddingService {
    * 调用 LLM Provider 的 Embedding API 获取文本向量
    * 兼容 OpenAI 格式的 /v1/embeddings 接口
    */
-  async getEmbedding(text: string, modelName?: string): Promise<number[]> {
-    const provider = await this.findEmbeddingProvider(modelName);
+  async getEmbedding(text: string, modelName?: string, userId?: string): Promise<number[]> {
+    const provider = await this.findEmbeddingProvider(modelName, userId);
     if (!provider) {
       this.logEmbeddingFallback('No embedding provider configured');
       return this.tfidfFallback(text);
@@ -48,8 +48,8 @@ export class EmbeddingService {
   /**
    * 批量获取 embedding
    */
-  async getEmbeddings(texts: string[], modelName?: string): Promise<number[][]> {
-    const provider = await this.findEmbeddingProvider(modelName);
+  async getEmbeddings(texts: string[], modelName?: string, userId?: string): Promise<number[][]> {
+    const provider = await this.findEmbeddingProvider(modelName, userId);
     if (!provider) {
       return texts.map((t) => this.tfidfFallback(t));
     }
@@ -111,8 +111,8 @@ export class EmbeddingService {
     return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
-  private async findEmbeddingProvider(modelName?: string): Promise<any> {
-    return this.llmProviderService.findProviderForEmbedding(modelName);
+  private async findEmbeddingProvider(modelName?: string, userId?: string): Promise<any> {
+    return this.llmProviderService.findProviderForEmbedding(modelName, userId);
   }
 
   /**

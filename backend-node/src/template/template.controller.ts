@@ -1,31 +1,33 @@
-import { Controller, Post, Get, Body, Query, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query } from '@nestjs/common';
 import { TemplateService } from './template.service';
 import { JsonResponse } from '../common/response';
+import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 
 @Controller('FlowTemplate')
 export class TemplateController {
   constructor(private templateService: TemplateService) {}
 
   @Post('Create')
-  async create(@Body() dto: any, @Req() req: any) {
-    const result = await this.templateService.create(dto, req.user?.nickName || 'System');
+  async create(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.templateService.create(dto, user.id, user.nickName || 'System');
     return JsonResponse.ok(result);
   }
 
   @Post('CreateFromFlow')
-  async createFromFlow(@Body() dto: any, @Req() req: any) {
+  async createFromFlow(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
     const result = await this.templateService.createFromFlow(
       BigInt(dto.flowId),
       dto,
-      req.user?.nickName || 'System',
+      user.id,
+      user.nickName || 'System',
     );
     if (!result) return JsonResponse.error('Flow not found');
     return JsonResponse.ok(result);
   }
 
   @Get('GetById')
-  async getById(@Query('id') id: string) {
-    const result = await this.templateService.getById(BigInt(id));
+  async getById(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.templateService.getById(BigInt(id), user.id);
     if (!result) return JsonResponse.error('Template not found');
     return JsonResponse.ok(result);
   }
@@ -38,6 +40,7 @@ export class TemplateController {
     @Query('keyword') keyword?: string,
     @Query('pageIndex') pageIndex?: string,
     @Query('pageSize') pageSize?: string,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     const result = await this.templateService.getList({
       flowType: flowType !== undefined && flowType !== '' ? Number(flowType) : undefined,
@@ -46,20 +49,20 @@ export class TemplateController {
       keyword: keyword || undefined,
       pageIndex: Number(pageIndex || 1),
       pageSize: Number(pageSize || 20),
-    });
+    }, user!.id);
     return JsonResponse.ok(result);
   }
 
   @Post('Update')
-  async update(@Body() dto: any) {
-    const result = await this.templateService.update(BigInt(dto.id), dto);
+  async update(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.templateService.update(BigInt(dto.id), dto, user.id);
     if (!result) return JsonResponse.error('Template not found');
     return JsonResponse.ok(result);
   }
 
   @Post('Delete')
-  async delete(@Query('id') id: string) {
-    const result = await this.templateService.delete(BigInt(id));
+  async delete(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.templateService.delete(BigInt(id), user.id);
     if (!result) return JsonResponse.error('Template not found');
     return JsonResponse.ok(true);
   }

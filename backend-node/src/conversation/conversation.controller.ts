@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Param, Query, Body, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
+import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
 
 @Controller('FlowConversation')
 export class ConversationController {
@@ -8,13 +9,13 @@ export class ConversationController {
   @Get(':flowId/local-conversations')
   async getLocalConversations(
     @Param('flowId') flowId: string,
-    @Headers('phoneNumber') user: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('first_id') firstId?: string,
     @Query('limit') limit?: string,
   ) {
     const result = await this.conversationService.getLocalConversations(
       BigInt(flowId),
-      user,
+      user.id,
       firstId,
       Number(limit || 20),
     );
@@ -24,14 +25,14 @@ export class ConversationController {
   @Get(':flowId/local-messages')
   async getLocalMessages(
     @Param('flowId') flowId: string,
-    @Headers('phoneNumber') user: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('conversation_id') conversationId: string,
     @Query('first_id') firstId?: string,
     @Query('limit') limit?: string,
   ) {
     const result = await this.conversationService.getLocalMessages(
       BigInt(flowId),
-      user,
+      user.id,
       conversationId,
       firstId,
       Number(limit || 20),
@@ -42,10 +43,10 @@ export class ConversationController {
   @Post(':flowId/local-conversations-toggle-top')
   async toggleTop(
     @Param('flowId') flowId: string,
-    @Headers('phoneNumber') user: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('conversationId') conversationId: string,
   ) {
-    const result = await this.conversationService.toggleTop(BigInt(flowId), user, conversationId);
+    const result = await this.conversationService.toggleTop(BigInt(flowId), user.id, conversationId);
     if (!result) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: result };
   }
@@ -53,11 +54,11 @@ export class ConversationController {
   @Post(':flowId/local-conversations-update-title')
   async updateTitle(
     @Param('flowId') flowId: string,
-    @Headers('phoneNumber') user: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('conversationId') conversationId: string,
     @Body() body: { title: string },
   ) {
-    const ok = await this.conversationService.updateTitle(BigInt(flowId), user, conversationId, body.title);
+    const ok = await this.conversationService.updateTitle(BigInt(flowId), user.id, conversationId, body.title);
     if (!ok) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: { success: true } };
   }
@@ -65,10 +66,10 @@ export class ConversationController {
   @Post(':flowId/local-conversations-delete')
   async deleteConversation(
     @Param('flowId') flowId: string,
-    @Headers('phoneNumber') user: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('conversationId') conversationId: string,
   ) {
-    const result = await this.conversationService.deleteConversation(BigInt(flowId), user, conversationId);
+    const result = await this.conversationService.deleteConversation(BigInt(flowId), user.id, conversationId);
     if (!result) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: { success: true, ...result } };
   }

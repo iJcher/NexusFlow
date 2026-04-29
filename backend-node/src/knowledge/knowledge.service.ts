@@ -18,36 +18,44 @@ export class KnowledgeService {
   // ==================== 知识库 CRUD ====================
 
   async createKnowledgeBase(
-    dto: { name: string; description?: string; embeddingModel?: string },
+    dto: { name: string; description?: string; embeddingModel?: string; chunkSize?: number; chunkOverlap?: number; chunkStrategy?: string },
+    userId: string,
     userName: string,
   ) {
     const entity = await this.prisma.knowledgeBaseEntity.create({
       data: {
         id: nextId(),
+        ownerUserId: BigInt(userId),
         name: dto.name,
         description: dto.description || '',
         embeddingModel: dto.embeddingModel || '',
+        chunkSize: dto.chunkSize || 500,
+        chunkOverlap: dto.chunkOverlap || 50,
+        chunkStrategy: dto.chunkStrategy || 'paragraph',
         createdBy: userName,
       },
     });
     return this.toKbDto(entity);
   }
 
-  async getKnowledgeBaseById(id: bigint) {
+  async getKnowledgeBaseById(id: bigint, userId: string) {
     const entity = await this.prisma.knowledgeBaseEntity.findUnique({
       where: { id },
       include: { documents: { orderBy: { createdAt: 'desc' } } },
     });
-    if (!entity) return null;
+    if (!entity || entity.ownerUserId !== BigInt(userId)) return null;
     return {
       ...this.toKbDto(entity),
       documents: entity.documents.map((d) => this.toDocDto(d)),
     };
   }
 
-  async getKnowledgeBaseList(params: { keyword?: string; pageIndex?: number; pageSize?: number }) {
+  async getKnowledgeBaseList(
+    params: { keyword?: string; pageIndex?: number; pageSize?: number },
+    userId: string,
+  ) {
     const { keyword, pageIndex = 1, pageSize = 20 } = params;
-    const where: any = {};
+    const where: any = { ownerUserId: BigInt(userId) };
     if (keyword) {
       where.OR = [{ name: { contains: keyword } }, { description: { contains: keyword } }];
     }
@@ -67,15 +75,21 @@ export class KnowledgeService {
 
   async updateKnowledgeBase(
     id: bigint,
-    dto: { name?: string; description?: string; embeddingModel?: string },
+    dto: { name?: string; description?: string; embeddingModel?: string; chunkSize?: number; chunkOverlap?: number; chunkStrategy?: string },
+    userId: string,
   ) {
-    const entity = await this.prisma.knowledgeBaseEntity.findUnique({ where: { id } });
+    const entity = await this.prisma.knowledgeBaseEntity.findFirst({
+      where: { id, ownerUserId: BigInt(userId) },
+    });
     if (!entity) return null;
 
     const updateData: any = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.embeddingModel !== undefined) updateData.embeddingModel = dto.embeddingModel;
+    if (dto.chunkSize !== undefined) updateData.chunkSize = dto.chunkSize;
+    if (dto.chunkOverlap !== undefined) updateData.chunkOverlap = dto.chunkOverlap;
+    if (dto.chunkStrategy !== undefined) updateData.chunkStrategy = dto.chunkStrategy;
 
     const updated = await this.prisma.knowledgeBaseEntity.update({
       where: { id },
@@ -84,8 +98,10 @@ export class KnowledgeService {
     return this.toKbDto(updated);
   }
 
-  async deleteKnowledgeBase(id: bigint) {
-    const result = await this.prisma.knowledgeBaseEntity.deleteMany({ where: { id } });
+  async deleteKnowledgeBase(id: bigint, userId: string) {
+    const result = await this.prisma.knowledgeBaseEntity.deleteMany({
+      where: { id, ownerUserId: BigInt(userId) },
+    });
     return result.count > 0;
   }
 
@@ -94,14 +110,18 @@ export class KnowledgeService {
   async uploadDocument(
     knowledgeBaseId: bigint,
     file: Express.Multer.File,
+    userId: string,
     options: { chunkSize?: number; chunkOverlap?: number; embeddingModel?: string } = {},
   ) {
-    const kb = await this.prisma.knowledgeBaseEntity.findUnique({
-      where: { id: knowledgeBaseId },
+    const kb = await this.prisma.knowledgeBaseEntity.findFirst({
+      where: { id: knowledgeBaseId, ownerUserId: BigInt(userId) },
     });
     if (!kb) throw new Error('Knowledge base not found');
 
     const embeddingModel = options.embeddingModel || kb.embeddingModel || '';
+    const chunkSize = options.chunkSize || kb.chunkSize || 500;
+    const chunkOverlap = options.chunkOverlap || kb.chunkOverlap || 50;
+    const chunkStrategy = (kb.chunkStrategy || 'paragraph') as 'fixed' | 'paragraph' | 'markdown';
 
     const fileName = this.fixMulterFileName(file.originalname);
     const fileType = path.extname(fileName).toLowerCase();
@@ -121,6 +141,10 @@ export class KnowledgeService {
     this.processDocument(docId, knowledgeBaseId, file.buffer, fileType, {
       ...options,
       embeddingModel,
+      chunkSize,
+      chunkOverlap,
+      chunkStrategy,
+      ownerUserId: userId,
     }).catch((e) => {
       this.logger.error(`Document processing failed: ${e.message}`);
     });
@@ -133,7 +157,13 @@ export class KnowledgeService {
     knowledgeBaseId: bigint,
     buffer: Buffer,
     fileType: string,
-    options: { chunkSize?: number; chunkOverlap?: number; embeddingModel?: string },
+    options: {
+      chunkSize?: number;
+      chunkOverlap?: number;
+      chunkStrategy?: 'fixed' | 'paragraph' | 'markdown';
+      embeddingModel?: string;
+      ownerUserId?: string;
+    },
   ) {
     try {
       const text = await this.chunkingService.extractText(buffer, fileType);
@@ -153,6 +183,7 @@ export class KnowledgeService {
       const chunks = this.chunkingService.chunkText(text, {
         chunkSize: options.chunkSize || 500,
         chunkOverlap: options.chunkOverlap || 50,
+        strategy: options.chunkStrategy || 'paragraph',
       });
 
       if (chunks.length === 0) {
@@ -169,6 +200,7 @@ export class KnowledgeService {
         const embeddings = await this.embeddingService.getEmbeddings(
           batch.map((c) => c.content),
           options.embeddingModel,
+          options.ownerUserId,
         );
 
         const chunkData = batch.map((chunk, idx) => ({
@@ -199,19 +231,23 @@ export class KnowledgeService {
     }
   }
 
-  async getDocumentChunks(documentId: bigint) {
+  async getDocumentChunks(documentId: bigint, userId: string) {
     return this.prisma.knowledgeDocChunkEntity.findMany({
-      where: { documentId },
+      where: {
+        documentId,
+        document: { knowledgeBase: { ownerUserId: BigInt(userId) } },
+      },
       orderBy: { chunkIndex: 'asc' },
       select: { id: true, chunkIndex: true, content: true, tokenCount: true },
     });
   }
 
-  async deleteDocument(documentId: bigint) {
+  async deleteDocument(documentId: bigint, userId: string) {
     const doc = await this.prisma.knowledgeDocumentEntity.findUnique({
       where: { id: documentId },
+      include: { knowledgeBase: { select: { ownerUserId: true } } },
     });
-    if (!doc) return false;
+    if (!doc || doc.knowledgeBase.ownerUserId !== BigInt(userId)) return false;
 
     await this.prisma.knowledgeDocumentEntity.delete({ where: { id: documentId } });
     await this.updateKbStats(doc.knowledgeBaseId);
@@ -223,27 +259,37 @@ export class KnowledgeService {
   async searchSimilar(
     knowledgeBaseId: bigint,
     query: string,
+    userId: string,
     options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
   ) {
     const { topK = 5, threshold = 0.3 } = options;
+    const ownerId = BigInt(userId);
 
     let embeddingModel = options.embeddingModel;
     if (!embeddingModel) {
-      const kb = await this.prisma.knowledgeBaseEntity.findUnique({
-        where: { id: knowledgeBaseId },
+      const kb = await this.prisma.knowledgeBaseEntity.findFirst({
+        where: { id: knowledgeBaseId, ownerUserId: ownerId },
         select: { embeddingModel: true },
       });
+      if (!kb) return [];
       embeddingModel = kb?.embeddingModel || undefined;
+    } else {
+      const kb = await this.prisma.knowledgeBaseEntity.findFirst({
+        where: { id: knowledgeBaseId, ownerUserId: ownerId },
+        select: { id: true },
+      });
+      if (!kb) return [];
     }
 
     const queryEmbedding = await this.embeddingService.getEmbedding(
       query,
       embeddingModel || undefined,
+      userId,
     );
 
     const chunks = await this.prisma.knowledgeDocChunkEntity.findMany({
       where: {
-        document: { knowledgeBaseId },
+        document: { knowledgeBaseId, knowledgeBase: { ownerUserId: ownerId } },
       },
       include: {
         document: { select: { fileName: true } },
@@ -258,6 +304,7 @@ export class KnowledgeService {
           chunkId: chunk.id.toString(),
           documentId: chunk.documentId.toString(),
           fileName: chunk.document.fileName,
+          source: `${chunk.document.fileName}#chunk-${chunk.chunkIndex}`,
           content: chunk.content,
           chunkIndex: chunk.chunkIndex,
           similarity,
@@ -276,13 +323,16 @@ export class KnowledgeService {
   async searchMultiple(
     knowledgeBaseIds: bigint[],
     query: string,
+    userId: string,
     options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
   ) {
+    const ownerId = BigInt(userId);
     const targetKnowledgeBaseIds = knowledgeBaseIds.length
       ? knowledgeBaseIds
       : (
           await this.prisma.knowledgeBaseEntity.findMany({
             where: {
+              ownerUserId: ownerId,
               status: 'active',
               chunkCount: { gt: 0 },
             },
@@ -295,7 +345,7 @@ export class KnowledgeService {
     }
 
     const results = await Promise.all(
-      targetKnowledgeBaseIds.map((id) => this.searchSimilar(id, query, options)),
+      targetKnowledgeBaseIds.map((id) => this.searchSimilar(id, query, userId, options)),
     );
 
     return results
@@ -322,6 +372,7 @@ export class KnowledgeService {
   private toKbDto(entity: any) {
     return {
       id: entity.id.toString(),
+      ownerUserId: entity.ownerUserId?.toString?.() ?? null,
       name: entity.name,
       description: entity.description,
       createdBy: entity.createdBy,
@@ -329,6 +380,9 @@ export class KnowledgeService {
       chunkCount: entity.chunkCount,
       status: entity.status,
       embeddingModel: entity.embeddingModel || '',
+      chunkSize: entity.chunkSize ?? 500,
+      chunkOverlap: entity.chunkOverlap ?? 50,
+      chunkStrategy: entity.chunkStrategy || 'paragraph',
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };

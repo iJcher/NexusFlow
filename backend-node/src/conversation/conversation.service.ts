@@ -5,7 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ConversationService {
   constructor(private prisma: PrismaService) {}
 
-  async getLocalConversations(flowId: bigint, user: string, firstId?: string, limit = 20) {
+  async getLocalConversations(flowId: bigint, userId: string, firstId?: string, limit = 20) {
+    const ownerUserId = BigInt(userId);
     let cursor: Date | undefined;
     if (firstId) {
       const first = await this.prisma.flowChatConversationEntity.findUnique({
@@ -14,7 +15,7 @@ export class ConversationService {
       if (first) cursor = first.updatedAt;
     }
 
-    const where: any = { user, flowId };
+    const where: any = { ownerUserId, flowId };
     if (cursor) where.updatedAt = { lt: cursor };
 
     const conversations = await this.prisma.flowChatConversationEntity.findMany({
@@ -36,8 +37,9 @@ export class ConversationService {
     };
   }
 
-  async getLocalMessages(flowId: bigint, user: string, conversationId: string, firstId?: string, limit = 20) {
-    const where: any = { conversationId, user, flowId };
+  async getLocalMessages(flowId: bigint, userId: string, conversationId: string, firstId?: string, limit = 20) {
+    const ownerUserId = BigInt(userId);
+    const where: any = { conversationId, ownerUserId, flowId };
     if (firstId) where.id = { lt: BigInt(firstId) };
 
     const messages = await this.prisma.flowChatMessageEntity.findMany({
@@ -61,9 +63,10 @@ export class ConversationService {
     };
   }
 
-  async toggleTop(flowId: bigint, user: string, conversationId: string) {
+  async toggleTop(flowId: bigint, userId: string, conversationId: string) {
+    const ownerUserId = BigInt(userId);
     const conv = await this.prisma.flowChatConversationEntity.findFirst({
-      where: { conversationId, user, flowId },
+      where: { conversationId, ownerUserId, flowId },
     });
     if (!conv) return null;
 
@@ -75,20 +78,21 @@ export class ConversationService {
     return { success: true, isTop: newTop };
   }
 
-  async updateTitle(flowId: bigint, user: string, conversationId: string, title: string) {
+  async updateTitle(flowId: bigint, userId: string, conversationId: string, title: string) {
     const result = await this.prisma.flowChatConversationEntity.updateMany({
-      where: { conversationId, user, flowId },
+      where: { conversationId, ownerUserId: BigInt(userId), flowId },
       data: { title, updatedAt: new Date() },
     });
     return result.count > 0;
   }
 
-  async deleteConversation(flowId: bigint, user: string, conversationId: string) {
+  async deleteConversation(flowId: bigint, userId: string, conversationId: string) {
+    const ownerUserId = BigInt(userId);
     const deletedMessages = await this.prisma.flowChatMessageEntity.deleteMany({
-      where: { conversationId, user, flowId },
+      where: { conversationId, ownerUserId, flowId },
     });
     const deletedConv = await this.prisma.flowChatConversationEntity.deleteMany({
-      where: { conversationId, user, flowId },
+      where: { conversationId, ownerUserId, flowId },
     });
     if (deletedConv.count === 0) return null;
     return { deletedMessages: deletedMessages.count };
