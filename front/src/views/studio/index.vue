@@ -67,6 +67,9 @@
                   <el-dropdown-item command="saveTemplate">
                     <el-icon><Files /></el-icon>{{ t('studio.saveAsTemplate') }}
                   </el-dropdown-item>
+                  <el-dropdown-item command="generateSkill">
+                    <el-icon><MagicStick /></el-icon>生成 Skill
+                  </el-dropdown-item>
                   <el-dropdown-item command="delete" divided>
                     <el-icon><Delete /></el-icon>{{ t('studio.card.delete') }}
                   </el-dropdown-item>
@@ -149,6 +152,28 @@
         </div>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="skillDialogVisible" title="生成 Agent Skill" width="520px" destroy-on-close class="fui-dialog">
+      <el-form :model="skillForm" label-position="top">
+        <el-form-item label="Skill 名称" required>
+          <el-input v-model="skillForm.name" placeholder="例如 rag-customer-support" />
+        </el-form-item>
+        <el-form-item label="Skill 描述">
+          <el-input v-model="skillForm.description" type="textarea" :rows="3" placeholder="描述这个 Skill 适合处理什么任务" />
+        </el-form-item>
+        <el-form-item label="生成模型">
+          <el-input v-model="skillForm.modelName" placeholder="默认读取后端 SKILL_GENERATION_MODEL，也可填写 qwen-plus 等模型名" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="fui-dialog-footer">
+          <button class="fui-btn fui-btn--ghost" @click="skillDialogVisible = false">{{ t('common.cancel') }}</button>
+          <button class="fui-btn fui-btn--primary" :disabled="skillGenerating" @click="generateSkill">
+            {{ skillGenerating ? t('common.loading') : '生成 Skill' }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -161,6 +186,7 @@ import { Plus, Search, Edit, Delete, DocumentCopy, Files, MoreFilled, Grid, Magi
 import { FlowService } from '@/services/flow.service'
 import { FlowType, type IFlowDto } from '@/types/flow.types'
 import { TemplateService, type ITemplateDto } from '@/services/template.service'
+import { SkillService } from '@/services/skill.service'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -172,7 +198,10 @@ const templateLoading = ref(false)
 const searchQuery = ref('')
 const activeFilter = ref('all')
 const dialogVisible = ref(false)
+const skillDialogVisible = ref(false)
+const skillGenerating = ref(false)
 const editingFlow = ref<IFlowDto | null>(null)
+const skillTargetFlow = ref<IFlowDto | null>(null)
 const createMode = ref<'blank' | 'template'>('blank')
 const selectedTemplateId = ref<string | null>(null)
 
@@ -180,6 +209,12 @@ const formData = ref({
   name: '',
   description: '',
   flowType: FlowType.AIFlow
+})
+
+const skillForm = ref({
+  name: '',
+  description: '',
+  modelName: '',
 })
 
 const normalizeFlowType = (ft: any): FlowType => {
@@ -397,6 +432,8 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
     }
   } else if (cmd === 'saveTemplate') {
     saveAsTemplate(flow)
+  } else if (cmd === 'generateSkill') {
+    showGenerateSkillDialog(flow)
   } else if (cmd === 'delete') {
     ElMessageBox.confirm(
       t('flowList.deleteConfirm', { name: flow.displayName }),
@@ -414,6 +451,51 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
         ElMessage.error(t('flowList.deleteFailed', { type: '' }))
       }
     }).catch(() => {})
+  }
+}
+
+const showGenerateSkillDialog = (flow: IFlowDto) => {
+  if (!flow.id) return
+  skillTargetFlow.value = flow
+  const baseName = (flow.displayName || 'nexus-workflow')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  skillForm.value = {
+    name: baseName || 'nexus-workflow-skill',
+    description: flow.description || '',
+    modelName: '',
+  }
+  skillDialogVisible.value = true
+}
+
+const generateSkill = async () => {
+  if (!skillTargetFlow.value?.id || !skillForm.value.name.trim()) {
+    ElMessage.warning('请填写 Skill 名称')
+    return
+  }
+  skillGenerating.value = true
+  try {
+    const response = await SkillService.generateFromFlow({
+      flowId: String(skillTargetFlow.value.id),
+      name: skillForm.value.name.trim(),
+      description: skillForm.value.description.trim(),
+      modelName: skillForm.value.modelName.trim() || undefined,
+    })
+    if (response.errCode === 0) {
+      ElMessage.success('Skill 已生成，可在 工具与 Skill 页面查看')
+      skillDialogVisible.value = false
+      router.push('/tool/skill')
+      return
+    }
+    ElMessage.error(response.errMsg || 'Skill 生成失败')
+  }
+  catch (error) {
+    console.error('Generate skill failed:', error)
+    ElMessage.error('Skill 生成失败')
+  }
+  finally {
+    skillGenerating.value = false
   }
 }
 

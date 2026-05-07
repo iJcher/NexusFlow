@@ -64,7 +64,8 @@ export default {
     templates: 'Templates',
     knowledge: 'Knowledge',
     models: 'Models',
-    llmProvider: 'LLM Provider'
+    llmProvider: 'LLM Provider',
+    toolSkill: 'Tools & Skills'
   },
 
   // Fields

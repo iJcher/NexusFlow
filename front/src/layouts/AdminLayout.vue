@@ -57,7 +57,7 @@ import { computed, markRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { DataBoard, Files, Collection, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { DataBoard, Files, Collection, Setting, SwitchButton, Tools } from '@element-plus/icons-vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import defaultAvatarImage from '@/assets/images/default.png'
 
@@ -73,6 +73,7 @@ const tabs = computed(() => [
   { path: '/templates', label: t('nav.templates'), icon: markRaw(Files) },
   { path: '/knowledge', label: t('nav.knowledge'), icon: markRaw(Collection) },
   { path: '/models', label: t('nav.models'), icon: markRaw(Setting) },
+  { path: '/tool/skill', label: t('nav.toolSkill'), icon: markRaw(Tools) },
 ])
 
 const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')

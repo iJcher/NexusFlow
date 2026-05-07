@@ -64,7 +64,8 @@ export default {
     templates: '模板库',
     knowledge: '知识库',
     models: '模型配置',
-    llmProvider: '大模型提供商'
+    llmProvider: '大模型提供商',
+    toolSkill: '工具与 Skill'
   },
 
   // 字段名称

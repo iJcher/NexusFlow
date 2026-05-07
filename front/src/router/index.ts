@@ -60,6 +60,15 @@ const router = createRouter({
       ]
     },
     {
+      path: '/tool/skill',
+      name: 'toolSkill',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', component: () => import('@/views/tool/skill/index.vue') }
+      ]
+    },
+    {
       path: '/designer/:flowType/:id?',
       name: 'flowDesigner',
       component: () => import('@/views/flow/designer/index.vue'),
