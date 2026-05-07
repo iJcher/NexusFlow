@@ -17,6 +17,8 @@ export class McpService {
         command: dto.command || '',
         args: JSON.stringify(dto.args || []),
         env: JSON.stringify(dto.env || {}),
+        headers: JSON.stringify(dto.headers || {}),
+        toolsJson: JSON.stringify(dto.tools || []),
       },
     });
     return this.toDto(entity);
@@ -48,6 +50,9 @@ export class McpService {
       command: entity.command,
       args: JSON.parse(entity.args || '[]'),
       env: JSON.parse(entity.env || '{}'),
+      headers: JSON.parse(entity.headers || '{}'),
+      tools: JSON.parse(entity.toolsJson || '[]'),
+      lastSyncAt: entity.lastSyncAt,
       status: entity.status,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,

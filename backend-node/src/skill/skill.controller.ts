@@ -14,6 +14,13 @@ export class SkillController {
     return JsonResponse.ok(result);
   }
 
+  @Post('GenerateFromFlow')
+  async generateFromFlow(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+    const result = await this.skillService.generateFromFlow(BigInt(dto.flowId), user.id, dto);
+    if (!result) return JsonResponse.error('Flow not found');
+    return JsonResponse.ok(result);
+  }
+
   @Get('GetList')
   async getList(@CurrentUser() user: AuthenticatedUser) {
     return JsonResponse.ok(await this.skillService.getList(user.id));
