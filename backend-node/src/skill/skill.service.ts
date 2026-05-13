@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
+import {
+  SKILL_CREATOR_SYSTEM_PROMPT,
+  validateGeneratedSkill,
+} from './skill-creator-spec';
 
 interface GeneratedSkillPayload {
   name: string;
@@ -224,6 +228,13 @@ export class SkillService {
     };
   }
 
+  /**
+   * 构造 user prompt：把 workflow 数据+用户期望传给 LLM。
+   * skill-creator 的"指导手册"放在 system prompt 里（SKILL_CREATOR_SYSTEM_PROMPT），
+   * 模拟 Agent 在加载 meta-skill 后的两阶段上下文：
+   *   system = "你是加载了 skill-creator 的 Agent" + 完整契约
+   *   user   = "现在请把这个工作流转成 skill"
+   */
   private buildSkillPrompt(input: {
     requestedName: string;
     requestedDescription: string;
@@ -231,34 +242,31 @@ export class SkillService {
     inputSchema: unknown;
     outputSchema: unknown;
   }) {
-    return `你是 NEXUS 后端固定的 Skill 生成器，请严格依据 Codex skill-creator 规范，把一个 NEXUS 工作流炼化成可复用 Agent Skill。
+    return `请按 skill-creator 规范，把以下 NEXUS 工作流炼化成一个可复用 Skill。
 
-生成要求：
-1. 只返回 JSON，不要 Markdown 包裹，不要额外解释。
-2. JSON 结构必须是：
-{
-  "name": "lowercase-hyphen-skill-name",
-  "description": "一句话说明这个 Skill 做什么以及什么时候使用",
-  "inputSchema": {},
-  "outputSchema": {},
-  "files": {
-    "SKILL.md": "---\\nname: ...\\ndescription: ...\\n---\\n# ...",
-    "references/workflow.md": "...",
-    "references/node-map.md": "..."
-  }
-}
-3. files 必须包含 SKILL.md。
-4. SKILL.md 只放核心触发条件和最小操作流程；详细节点说明放 references/workflow.md。
-5. skill 名称只能包含小写字母、数字、连字符，长度不超过 64。
-6. 不要生成 README、INSTALLATION_GUIDE、CHANGELOG 等冗余文件。
+# 用户输入
+- 期望 skill 名称：${input.requestedName}
+- 期望 skill 描述：${input.requestedDescription || '（用户未提供，请基于工作流自行总结一句话，包含 WHEN to use）'}
 
-用户期望 Skill 名称：${input.requestedName}
-用户描述：${input.requestedDescription}
-输入 Schema：${JSON.stringify(input.inputSchema)}
-输出 Schema：${JSON.stringify(input.outputSchema)}
-工作流快照：
+# 工作流入参 Schema
+${JSON.stringify(input.inputSchema, null, 2)}
+
+# 工作流出参 Schema
+${JSON.stringify(input.outputSchema, null, 2)}
+
+# 工作流完整快照（节点链路、字段映射、配置）
 ${JSON.stringify(input.workflowSnapshot, null, 2)}
-`;
+
+# 你需要做的
+1. 阅读上述工作流，理解它是做什么的，以及"用户在什么场景下会触发它"。
+2. 选择最合适的结构模式（NEXUS 工作流通常是 Workflow-Based）。
+3. 产出 SKILL.md：
+   - frontmatter.name = lowercase hyphen-case，可适当规范化用户输入
+   - frontmatter.description = "做什么 + WHEN to use"，必须明确触发场景，不要含 < 或 >
+   - body 顺序：## Overview → ## Trigger Conditions → ## Workflow Steps → ## Inputs / Outputs → ## Notes
+   - body 内容必须基于"工作流快照"中的真实节点，不要编造不存在的节点
+4. 如果工作流复杂（>4 个节点 或 含分支/循环），把节点级别的细节拆到 references/workflow.md，SKILL.md 只放高层概览。
+5. 严格按 system 中要求的 JSON 格式返回，不要任何 Markdown 包裹。`;
   }
 
   private async callSkillModel(
@@ -275,8 +283,9 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
         model: provider.modelName,
         stream: false,
         temperature: 0.2,
+        response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: '你是严格输出 JSON 的工程化 Skill 生成器。' },
+          { role: 'system', content: SKILL_CREATOR_SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
       }),
@@ -290,17 +299,38 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
     const result: any = await response.json();
     const content = result.choices?.[0]?.message?.content || '';
     const parsed = this.parseJsonFromModel(content);
-    if (!parsed.files?.['SKILL.md']) {
-      throw new Error('Generated skill is invalid: missing SKILL.md');
+
+    const violations = validateGeneratedSkill(parsed);
+    if (violations.length > 0) {
+      const summary = violations.map((v) => `[${v.field}] ${v.message}`).join('\n  - ');
+      throw new Error(
+        `Generated skill failed skill-creator validation:\n  - ${summary}\n请重新生成（必要时换更强的模型）。`,
+      );
     }
+
     return parsed;
   }
 
+  /**
+   * 兼容某些模型即使设置了 response_format=json_object 仍会返回带 ```json``` 包裹的情况。
+   * 也容忍模型在 JSON 前后多出几行 reasoning 文本，会取最外层第一个 { 到最后一个 } 之间的内容。
+   */
   private parseJsonFromModel(content: string): GeneratedSkillPayload {
-    const trimmed = content.trim();
-    const jsonText = trimmed.startsWith('```')
-      ? trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
-      : trimmed;
-    return JSON.parse(jsonText) as GeneratedSkillPayload;
+    let trimmed = content.trim();
+    if (trimmed.startsWith('```')) {
+      trimmed = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    }
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace > 0 || (lastBrace !== -1 && lastBrace < trimmed.length - 1)) {
+      trimmed = trimmed.slice(firstBrace, lastBrace + 1);
+    }
+    try {
+      return JSON.parse(trimmed) as GeneratedSkillPayload;
+    } catch (e) {
+      throw new Error(
+        `Failed to parse skill model output as JSON. First 200 chars:\n${content.slice(0, 200)}`,
+      );
+    }
   }
 }
