@@ -16,5 +16,4 @@ test
 *.test.ts
 prisma/dev.db
 prisma/dev.db-journal
-prisma/migrations
 README.md
