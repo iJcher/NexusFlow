@@ -33,9 +33,11 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:30050',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          ...(env.VITE_PROXY_STRIP_PREFIX === 'true'
+            ? { rewrite: (path: string) => path.replace(/^\/api/, '') }
+            : {})
         }
       }
     }

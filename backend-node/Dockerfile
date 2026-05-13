@@ -50,5 +50,6 @@ COPY --from=builder /app/package.json ./
 
 EXPOSE 30050
 
-# 启动前先跑数据库迁移，再启动服务
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/main"]
+# 启动前先应用数据库迁移，再启动服务
+# migrate deploy：只应用 prisma/migrations 中尚未执行的迁移，零数据丢失风险
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]

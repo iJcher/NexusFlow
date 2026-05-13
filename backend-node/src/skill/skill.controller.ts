@@ -26,6 +26,11 @@ export class SkillController {
     return JsonResponse.ok(await this.skillService.getList(user.id));
   }
 
+  @Get('GetAvailableModels')
+  async getAvailableModels(@CurrentUser() user: AuthenticatedUser) {
+    return JsonResponse.ok(await this.skillService.getAvailableModels(user.id));
+  }
+
   @Post('Delete')
   async delete(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     const ok = await this.skillService.delete(BigInt(id), user.id);

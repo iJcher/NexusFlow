@@ -101,6 +101,29 @@ export class LlmProviderService {
   }
 
   /**
+   * 系统级默认 Skill 生成 provider（通过环境变量配置，所有用户共享）。
+   *
+   * 设计原因：
+   * 1. 不进数据库 → 不污染用户的 LLM Provider 列表，也不会被前端 Mask 处理
+   * 2. 任何已登录用户都可调用，作为零配置体验入口
+   * 3. 模型名 / Url / Key 可在 ECS 的 .env 中独立运维
+   */
+  getDefaultSkillProvider(): {
+    modelName: string;
+    displayName: string;
+    llmAPIUrl: string;
+    llmAPIKey: string;
+  } | null {
+    const modelName = process.env.SKILL_DEFAULT_MODEL_NAME || '';
+    const llmAPIUrl = process.env.SKILL_DEFAULT_API_URL || '';
+    const llmAPIKey = process.env.SKILL_DEFAULT_API_KEY || '';
+    if (!modelName || !llmAPIUrl || !llmAPIKey) return null;
+
+    const displayName = process.env.SKILL_DEFAULT_DISPLAY_NAME || `NEXUS 免费模型 (${modelName})`;
+    return { modelName, displayName, llmAPIUrl, llmAPIKey };
+  }
+
+  /**
    * 查找可用于 embedding 调用的 provider。
    *
    * 匹配策略（按优先级）：

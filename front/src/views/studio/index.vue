@@ -161,14 +161,34 @@
         <el-form-item label="Skill 描述">
           <el-input v-model="skillForm.description" type="textarea" :rows="3" placeholder="描述这个 Skill 适合处理什么任务" />
         </el-form-item>
-        <el-form-item label="生成模型">
-          <el-input v-model="skillForm.modelName" placeholder="默认读取后端 SKILL_GENERATION_MODEL，也可填写 qwen-plus 等模型名" />
+        <el-form-item label="生成模型" required>
+          <el-select
+            v-model="skillForm.modelKey"
+            placeholder="请选择生成 Skill 所用的模型"
+            class="w-full"
+            :loading="skillModelsLoading"
+            :no-data-text="skillModelsLoading ? '加载中…' : '暂无可用模型，请先到「模型」页面配置'"
+          >
+            <el-option
+              v-for="opt in skillModelOptions"
+              :key="opt.key"
+              :label="opt.label + (opt.isDefault ? '（推荐）' : '')"
+              :value="opt.key"
+            />
+          </el-select>
+          <div v-if="skillModelOptions.length === 0 && !skillModelsLoading" class="skill-model-tip">
+            没有可用模型，请到「模型」页面添加自己的 LLM Provider，或联系管理员开启系统默认免费模型。
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="fui-dialog-footer">
           <button class="fui-btn fui-btn--ghost" @click="skillDialogVisible = false">{{ t('common.cancel') }}</button>
-          <button class="fui-btn fui-btn--primary" :disabled="skillGenerating" @click="generateSkill">
+          <button
+            class="fui-btn fui-btn--primary"
+            :disabled="skillGenerating || !skillForm.modelKey"
+            @click="generateSkill"
+          >
             {{ skillGenerating ? t('common.loading') : '生成 Skill' }}
           </button>
         </div>
@@ -186,7 +206,7 @@ import { Plus, Search, Edit, Delete, DocumentCopy, Files, MoreFilled, Grid, Magi
 import { FlowService } from '@/services/flow.service'
 import { FlowType, type IFlowDto } from '@/types/flow.types'
 import { TemplateService, type ITemplateDto } from '@/services/template.service'
-import { SkillService } from '@/services/skill.service'
+import { SkillService, type ISkillModelOption } from '@/services/skill.service'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -214,8 +234,28 @@ const formData = ref({
 const skillForm = ref({
   name: '',
   description: '',
-  modelName: '',
+  modelKey: '',
 })
+
+const skillModelOptions = ref<ISkillModelOption[]>([])
+const skillModelsLoading = ref(false)
+
+const loadSkillModels = async () => {
+  try {
+    skillModelsLoading.value = true
+    const response = await SkillService.getAvailableModels()
+    if (response.errCode === 0 && response.data) {
+      skillModelOptions.value = response.data
+    } else {
+      skillModelOptions.value = []
+    }
+  } catch (error) {
+    console.error('Failed to load skill models:', error)
+    skillModelOptions.value = []
+  } finally {
+    skillModelsLoading.value = false
+  }
+}
 
 const normalizeFlowType = (ft: any): FlowType => {
   if (ft === FlowType.AIFlow || ft === 'AIFlow' || ft === 1) return FlowType.AIFlow
@@ -454,7 +494,7 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
   }
 }
 
-const showGenerateSkillDialog = (flow: IFlowDto) => {
+const showGenerateSkillDialog = async (flow: IFlowDto) => {
   if (!flow.id) return
   skillTargetFlow.value = flow
   const baseName = (flow.displayName || 'nexus-workflow')
@@ -464,9 +504,13 @@ const showGenerateSkillDialog = (flow: IFlowDto) => {
   skillForm.value = {
     name: baseName || 'nexus-workflow-skill',
     description: flow.description || '',
-    modelName: '',
+    modelKey: '',
   }
   skillDialogVisible.value = true
+  await loadSkillModels()
+  if (skillModelOptions.value.length > 0 && !skillForm.value.modelKey) {
+    skillForm.value.modelKey = skillModelOptions.value[0].key
+  }
 }
 
 const generateSkill = async () => {
@@ -474,13 +518,19 @@ const generateSkill = async () => {
     ElMessage.warning('请填写 Skill 名称')
     return
   }
+  if (!skillForm.value.modelKey) {
+    ElMessage.warning('请选择生成 Skill 所用的模型')
+    return
+  }
+  const selected = skillModelOptions.value.find(o => o.key === skillForm.value.modelKey)
   skillGenerating.value = true
   try {
     const response = await SkillService.generateFromFlow({
       flowId: String(skillTargetFlow.value.id),
       name: skillForm.value.name.trim(),
       description: skillForm.value.description.trim(),
-      modelName: skillForm.value.modelName.trim() || undefined,
+      modelKey: skillForm.value.modelKey,
+      modelName: selected?.modelName,
     })
     if (response.errCode === 0) {
       ElMessage.success('Skill 已生成，可在 工具与 Skill 页面查看')
@@ -1005,6 +1055,19 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.skill-model-tip {
+  margin-top: 6px;
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  color: #f59e0b;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+
+.w-full {
+  width: 100%;
 }
 
 /* ── Element Plus overrides ── */
