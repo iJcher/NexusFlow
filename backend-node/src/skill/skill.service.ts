@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
@@ -33,6 +33,8 @@ interface ResolvedSkillProvider {
 
 @Injectable()
 export class SkillService {
+  private readonly logger = new Logger(SkillService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly llmProviderService: LlmProviderService,
@@ -195,8 +197,12 @@ export class SkillService {
   }
 
   async getList(userId: string) {
+    // 历史 BUG：原本写的是 status: 'active'，
+    // 但 schema 里新建的 skill 默认 status='generated'，
+    // 导致刚生成的 skill 永远查不到。
+    // 这里只过滤软删除态，避免再次写死状态白名单。
     const skills = await this.prisma.skillEntity.findMany({
-      where: { ownerUserId: BigInt(userId), status: 'active' },
+      where: { ownerUserId: BigInt(userId), NOT: { status: 'deleted' } },
       orderBy: { updatedAt: 'desc' },
     });
     return skills.map((skill) => this.toDto(skill));
@@ -273,7 +279,13 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
     provider: ResolvedSkillProvider,
     prompt: string,
   ): Promise<GeneratedSkillPayload> {
-    const response = await fetch(provider.llmAPIUrl, {
+    const endpoint = this.normalizeChatCompletionsUrl(provider.llmAPIUrl);
+    const startedAt = Date.now();
+    this.logger.log(
+      `Calling skill LLM: model=${provider.modelName} endpoint=${endpoint} promptLen=${prompt.length}`,
+    );
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -293,22 +305,52 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
 
     if (!response.ok) {
       const errorText = await response.text();
+      this.logger.error(
+        `Skill LLM HTTP ${response.status} after ${Date.now() - startedAt}ms: ${errorText.slice(0, 500)}`,
+      );
       throw new Error(`Skill generation model failed ${response.status}: ${errorText}`);
     }
 
     const result: any = await response.json();
     const content = result.choices?.[0]?.message?.content || '';
+    this.logger.log(
+      `Skill LLM responded in ${Date.now() - startedAt}ms, contentLen=${content.length}`,
+    );
+    if (!content.trim()) {
+      throw new Error(
+        `LLM returned empty content. Raw response: ${JSON.stringify(result).slice(0, 500)}`,
+      );
+    }
+
     const parsed = this.parseJsonFromModel(content);
 
     const violations = validateGeneratedSkill(parsed);
     if (violations.length > 0) {
       const summary = violations.map((v) => `[${v.field}] ${v.message}`).join('\n  - ');
+      this.logger.warn(
+        `Skill validation failed: ${summary}\nFirst 300 chars of model output:\n${content.slice(0, 300)}`,
+      );
       throw new Error(
         `Generated skill failed skill-creator validation:\n  - ${summary}\n请重新生成（必要时换更强的模型）。`,
       );
     }
 
+    this.logger.log(
+      `Skill validated OK: name=${parsed.name} files=${Object.keys(parsed.files || {}).join(',')}`,
+    );
     return parsed;
+  }
+
+  /**
+   * 兼容用户在 .env 里写 base url（如 https://www.dogapi.cc）的情况，
+   * 自动补全为 OpenAI 风格的 /v1/chat/completions。
+   * 已经是完整路径就原样返回。
+   */
+  private normalizeChatCompletionsUrl(rawUrl: string): string {
+    const url = rawUrl.replace(/\/+$/, '');
+    if (url.includes('/chat/completions')) return url;
+    if (url.endsWith('/v1')) return `${url}/chat/completions`;
+    return `${url}/v1/chat/completions`;
   }
 
   /**

@@ -533,20 +533,44 @@ const generateSkill = async () => {
       modelName: selected?.modelName,
     })
     if (response.errCode === 0) {
-      ElMessage.success('Skill 已生成，可在 工具与 Skill 页面查看')
+      // 不立刻 router.push，避免用户以为跳过去就能看到却看到空列表的歧义。
+      // 改成 confirm，让用户主动选择"查看"或"留在当前页继续编辑"。
       skillDialogVisible.value = false
-      router.push('/tool/skill')
+      try {
+        await ElMessageBox.confirm(
+          `Skill「${response.data?.name || skillForm.value.name}」已生成，是否前往「工具与 Skill」查看？`,
+          '生成成功',
+          { confirmButtonText: '查看', cancelButtonText: '留在此页', type: 'success' },
+        )
+        router.push('/tool/skill')
+      }
+      catch {}
       return
     }
-    ElMessage.error(response.errMsg || 'Skill 生成失败')
+    showSkillError(response.errMsg || 'Skill 生成失败（后端未返回具体原因）')
   }
   catch (error) {
     console.error('Generate skill failed:', error)
-    ElMessage.error('Skill 生成失败')
+    const msg = error instanceof Error ? error.message : String(error)
+    showSkillError(msg || 'Skill 生成失败')
   }
   finally {
     skillGenerating.value = false
   }
+}
+
+/**
+ * Skill 失败信息往往包含模型校验细节、行号、原始片段，
+ * 用 ElMessage 几秒就消失看不清，这里用 alert 让用户必须点确认才关闭。
+ */
+const showSkillError = (rawMsg: string) => {
+  const message = rawMsg.length > 1500 ? `${rawMsg.slice(0, 1500)}…(truncated)` : rawMsg
+  ElMessageBox.alert(message, 'Skill 生成失败', {
+    confirmButtonText: '我知道了',
+    type: 'error',
+    customClass: 'skill-error-alert',
+    dangerouslyUseHTMLString: false,
+  }).catch(() => {})
 }
 
 const saveAsTemplate = async (flow: IFlowDto) => {
@@ -1068,6 +1092,21 @@ onMounted(() => {
 
 .w-full {
   width: 100%;
+}
+
+:deep(.skill-error-alert) {
+  max-width: 640px;
+  width: 90vw;
+}
+
+:deep(.skill-error-alert .el-message-box__message) {
+  max-height: 50vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--nf-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 /* ── Element Plus overrides ── */
