@@ -36,6 +36,14 @@ export class SkillController {
     return JsonResponse.ok(await this.skillService.getList(user.id));
   }
 
+  @Get('GetDetail')
+  async getDetail(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    if (!id) return JsonResponse.error('id is required');
+    const skill = await this.skillService.getById(BigInt(id), user.id);
+    if (!skill) return JsonResponse.error('Skill not found');
+    return JsonResponse.ok(skill);
+  }
+
   @Get('GetAvailableModels')
   async getAvailableModels(@CurrentUser() user: AuthenticatedUser) {
     return JsonResponse.ok(await this.skillService.getAvailableModels(user.id));

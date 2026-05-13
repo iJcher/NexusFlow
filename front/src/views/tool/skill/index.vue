@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Connection, Delete, Refresh, Tools } from '@element-plus/icons-vue'
+import { Connection, Delete, Download, Refresh, Tools } from '@element-plus/icons-vue'
 import { SkillService, type ISkillDto } from '@/services/skill.service'
 import { McpService, type IMcpServerDto } from '@/services/mcp.service'
 
+const router = useRouter()
 const activeTab = ref<'skills' | 'mcp'>('skills')
 const loading = ref<boolean>(false)
 const skills = ref<ISkillDto[]>([])
 const mcpServers = ref<IMcpServerDto[]>([])
-const selectedSkill = ref<ISkillDto | null>(null)
-const previewVisible = ref<boolean>(false)
 
 const skillCount = computed<number>(() => skills.value.length)
 const mcpCount = computed<number>(() => mcpServers.value.length)
 
-const loadData = async () => {
+const loadData = async (): Promise<void> => {
   loading.value = true
   try {
     const [skillRes, mcpRes] = await Promise.all([
@@ -34,8 +34,27 @@ const loadData = async () => {
   }
 }
 
-const deleteSkill = async (skill: ISkillDto) => {
-  await ElMessageBox.confirm(`确认删除 Skill「${skill.name}」？`, '删除 Skill', { type: 'warning' })
+const openSkillDetail = (skill: ISkillDto): void => {
+  router.push(`/tool/skill/${skill.id}`)
+}
+
+const downloadSkill = async (skill: ISkillDto): Promise<void> => {
+  try {
+    await SkillService.downloadAsZip(skill)
+    ElMessage.success('下载已开始')
+  }
+  catch (error) {
+    console.error('Download skill failed:', error)
+    ElMessage.error('打包下载失败')
+  }
+}
+
+const deleteSkill = async (skill: ISkillDto): Promise<void> => {
+  await ElMessageBox.confirm(
+    `确认删除 Skill「${skill.name}」？`,
+    '删除 Skill',
+    { type: 'warning' },
+  )
   const res = await SkillService.delete(skill.id)
   if (res.errCode === 0) {
     ElMessage.success('Skill 已删除')
@@ -43,13 +62,12 @@ const deleteSkill = async (skill: ISkillDto) => {
   }
 }
 
-const openSkillPreview = (skill: ISkillDto) => {
-  selectedSkill.value = skill
-  previewVisible.value = true
-}
-
-const deleteMcp = async (server: IMcpServerDto) => {
-  await ElMessageBox.confirm(`确认删除 MCP Server「${server.name}」？`, '删除 MCP', { type: 'warning' })
+const deleteMcp = async (server: IMcpServerDto): Promise<void> => {
+  await ElMessageBox.confirm(
+    `确认删除 MCP Server「${server.name}」？`,
+    '删除 MCP',
+    { type: 'warning' },
+  )
   const res = await McpService.delete(server.id)
   if (res.errCode === 0) {
     ElMessage.success('MCP Server 已删除')
@@ -61,10 +79,12 @@ onMounted(loadData)
 </script>
 
 <template>
-  <div class="tool-skill-page" v-loading="loading">
+  <div v-loading="loading" class="tool-skill-page">
     <section class="hero-card">
       <div>
-        <p class="eyebrow">TOOL / SKILL CENTER</p>
+        <p class="eyebrow">
+          TOOL / SKILL CENTER
+        </p>
         <h2>工具与 Skill 能力中心</h2>
         <p class="hero-desc">
           统一管理 MCP Provider、远程工具 Schema，以及由工作流炼化生成的 Agent Skill。
@@ -94,29 +114,37 @@ onMounted(loadData)
         v-for="skill in skills"
         :key="skill.id"
         class="data-card"
-        @click="openSkillPreview(skill)"
+        @click="openSkillDetail(skill)"
       >
         <div class="card-head">
           <span class="pill">v{{ skill.version }}</span>
-          <button class="icon-btn" @click.stop="deleteSkill(skill)">
-            <el-icon><Delete /></el-icon>
-          </button>
+          <div class="card-actions">
+            <button class="icon-btn" title="下载 ZIP" @click.stop="downloadSkill(skill)">
+              <el-icon><Download /></el-icon>
+            </button>
+            <button class="icon-btn danger" title="删除" @click.stop="deleteSkill(skill)">
+              <el-icon><Delete /></el-icon>
+            </button>
+          </div>
         </div>
         <h3>{{ skill.name }}</h3>
         <p>{{ skill.description || '暂无描述' }}</p>
         <div class="meta-line">
-          <span>{{ skill.status }}</span>
+          <span>{{ skill.modelName || skill.status }}</span>
           <span>{{ Object.keys(skill.files || {}).length }} files</span>
         </div>
       </article>
-      <el-empty v-if="skills.length === 0" description="暂无 Skill，请在 Studio 工作流卡片中点击生成 Skill" />
+      <el-empty
+        v-if="skills.length === 0"
+        description="暂无 Skill，请在 Studio 工作流卡片中点击生成 Skill"
+      />
     </section>
 
     <section v-else class="content-grid">
       <article v-for="server in mcpServers" :key="server.id" class="data-card">
         <div class="card-head">
           <span class="pill">{{ server.transport }}</span>
-          <button class="icon-btn" @click.stop="deleteMcp(server)">
+          <button class="icon-btn danger" title="删除" @click.stop="deleteMcp(server)">
             <el-icon><Delete /></el-icon>
           </button>
         </div>
@@ -129,17 +157,6 @@ onMounted(loadData)
       </article>
       <el-empty v-if="mcpServers.length === 0" description="暂无 MCP Server，后续将在这里添加配置入口" />
     </section>
-
-    <el-drawer v-model="previewVisible" size="520px" title="Skill 文件预览">
-      <div v-if="selectedSkill" class="skill-preview">
-        <h3>{{ selectedSkill.name }}</h3>
-        <p>{{ selectedSkill.description }}</p>
-        <div v-for="(content, path) in selectedSkill.files" :key="path" class="file-block">
-          <div class="file-path">{{ path }}</div>
-          <pre>{{ content }}</pre>
-        </div>
-      </div>
-    </el-drawer>
   </div>
 </template>
 
@@ -156,10 +173,10 @@ onMounted(loadData)
 
 .hero-card,
 .data-card {
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background: var(--nf-bg-surface-alpha);
   border-radius: 12px;
-  transition: border-color .2s ease, box-shadow .2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .hero-card {
@@ -170,7 +187,7 @@ onMounted(loadData)
   margin-bottom: 18px;
 
   &:hover {
-    border-color: rgba(0,255,159,0.3);
+    border-color: rgba(0, 255, 159, 0.3);
     box-shadow: var(--nf-glow-md);
   }
 
@@ -179,16 +196,15 @@ onMounted(loadData)
     color: var(--nf-text-primary);
     font-size: 22px;
     font-weight: 600;
-    letter-spacing: .08em;
+    letter-spacing: 0.08em;
   }
 }
 
 .eyebrow,
-.meta-line,
-.file-path {
+.meta-line {
   color: var(--nf-text-secondary);
   font-size: 12px;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
 }
 
 .hero-desc,
@@ -201,15 +217,15 @@ onMounted(loadData)
 .refresh-btn,
 .tab-btn,
 .icon-btn {
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background: transparent;
   color: var(--nf-text-body);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color .2s ease, color .2s ease, background .2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
 
   &:hover {
-    border-color: rgba(0,255,159,0.35);
+    border-color: rgba(0, 255, 159, 0.35);
     color: var(--nf-text-hover);
   }
 }
@@ -234,9 +250,9 @@ onMounted(loadData)
   padding: 9px 14px;
 
   &.active {
-    border-color: rgba(0,255,159,0.5);
+    border-color: rgba(0, 255, 159, 0.5);
     color: var(--nf-accent);
-    background: rgba(0,255,159,0.06);
+    background: rgba(0, 255, 159, 0.06);
   }
 }
 
@@ -251,7 +267,7 @@ onMounted(loadData)
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(0,255,159,0.3);
+    border-color: rgba(0, 255, 159, 0.3);
     box-shadow: var(--nf-glow-sm);
   }
 
@@ -270,8 +286,13 @@ onMounted(loadData)
   justify-content: space-between;
 }
 
+.card-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .pill {
-  border: 1px solid rgba(0,255,159,0.25);
+  border: 1px solid rgba(0, 255, 159, 0.25);
   border-radius: 999px;
   padding: 3px 10px;
   color: var(--nf-accent);
@@ -281,28 +302,14 @@ onMounted(loadData)
 .icon-btn {
   width: 30px;
   height: 30px;
-}
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-.skill-preview {
-  color: var(--nf-text-body);
-
-  h3 {
-    color: var(--nf-text-primary);
+  &.danger:hover {
+    border-color: rgba(255, 99, 99, 0.5);
+    color: #ff7878;
+    background: rgba(255, 99, 99, 0.06);
   }
-}
-
-.file-block {
-  margin-top: 16px;
-}
-
-pre {
-  max-height: 320px;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  color: var(--nf-text-body);
-  background: var(--nf-bg-base);
-  font-size: 12px;
 }
 </style>

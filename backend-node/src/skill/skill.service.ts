@@ -208,6 +208,14 @@ export class SkillService {
     return skills.map((skill) => this.toDto(skill));
   }
 
+  async getById(id: bigint, userId: string) {
+    const skill = await this.prisma.skillEntity.findFirst({
+      where: { id, ownerUserId: BigInt(userId), NOT: { status: 'deleted' } },
+    });
+    if (!skill) return null;
+    return this.toDto(skill);
+  }
+
   async delete(id: bigint, userId: string) {
     const result = await this.prisma.skillEntity.updateMany({
       where: { id, ownerUserId: BigInt(userId) },
