@@ -3,3 +3,7 @@ node_modules
 .env
 
 /generated/prisma
+
+# 历史 SQLite 残留（项目已迁移到 PostgreSQL）
+prisma/dev.db
+prisma/dev.db-journal
