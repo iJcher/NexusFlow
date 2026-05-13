@@ -16,11 +16,20 @@ export interface ISkillDto {
   updatedAt: string
 }
 
+export interface ISkillModelOption {
+  key: string
+  label: string
+  modelName: string
+  isDefault: boolean
+  source: 'system' | 'user'
+}
+
 export class SkillService {
   static async generateFromFlow(data: {
     flowId: string
     name?: string
     description?: string
+    modelKey?: string
     modelName?: string
   }): Promise<TApiResponse<ISkillDto>> {
     const res = await HttpUtil.getInstance().post<TApiResponse<ISkillDto>>(
@@ -32,6 +41,13 @@ export class SkillService {
 
   static async getList(): Promise<TApiResponse<ISkillDto[]>> {
     const res = await HttpUtil.getInstance().get<TApiResponse<ISkillDto[]>>('/Skill/GetList')
+    return res.data
+  }
+
+  static async getAvailableModels(): Promise<TApiResponse<ISkillModelOption[]>> {
+    const res = await HttpUtil.getInstance().get<TApiResponse<ISkillModelOption[]>>(
+      '/Skill/GetAvailableModels',
+    )
     return res.data
   }
 

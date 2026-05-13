@@ -11,6 +11,22 @@ interface GeneratedSkillPayload {
   outputSchema?: unknown;
 }
 
+export const SKILL_DEFAULT_MODEL_KEY = 'system:default';
+
+export interface SkillModelOption {
+  key: string;
+  label: string;
+  modelName: string;
+  isDefault: boolean;
+  source: 'system' | 'user';
+}
+
+interface ResolvedSkillProvider {
+  modelName: string;
+  llmAPIUrl: string;
+  llmAPIKey: string;
+}
+
 @Injectable()
 export class SkillService {
   constructor(
@@ -18,24 +34,62 @@ export class SkillService {
     private readonly llmProviderService: LlmProviderService,
   ) {}
 
+  /**
+   * 返回当前用户在"生成 Skill"弹窗里可选的模型列表。
+   *
+   * 顺序：
+   * 1. 系统默认免费模型（由后端 .env 中的 SKILL_DEFAULT_* 提供，所有用户共享）
+   * 2. 用户自己 LLM Provider 配置里的所有模型，按 provider 顺序展开
+   */
+  async getAvailableModels(userId: string): Promise<SkillModelOption[]> {
+    const options: SkillModelOption[] = [];
+
+    const defaultProvider = this.llmProviderService.getDefaultSkillProvider();
+    if (defaultProvider) {
+      options.push({
+        key: SKILL_DEFAULT_MODEL_KEY,
+        label: defaultProvider.displayName,
+        modelName: defaultProvider.modelName,
+        isDefault: true,
+        source: 'system',
+      });
+    }
+
+    const userProviders = await this.llmProviderService.getAll(userId);
+    for (const provider of userProviders) {
+      const names: string[] = Array.isArray(provider.llmNames) ? provider.llmNames : [];
+      for (const modelName of names) {
+        if (!modelName) continue;
+        options.push({
+          key: `user:${provider.id}:${modelName}`,
+          label: `${provider.platformName} · ${modelName}`,
+          modelName,
+          isDefault: false,
+          source: 'user',
+        });
+      }
+    }
+
+    return options;
+  }
+
   async generateFromFlow(
     flowId: bigint,
     userId: string,
-    dto: { name?: string; description?: string; modelName?: string; inputSchema?: unknown; outputSchema?: unknown },
+    dto: {
+      name?: string;
+      description?: string;
+      modelKey?: string;
+      modelName?: string;
+      inputSchema?: unknown;
+      outputSchema?: unknown;
+    },
   ) {
     const ownerUserId = BigInt(userId);
     const flow = await this.prisma.flowEntity.findFirst({ where: { id: flowId, ownerUserId } });
     if (!flow) return null;
 
-    const modelName = dto.modelName || process.env.SKILL_GENERATION_MODEL || '';
-    if (!modelName) {
-      throw new Error('Skill generation model is not configured. Set SKILL_GENERATION_MODEL or pass modelName.');
-    }
-
-    const provider = await this.llmProviderService.findProviderByModelName(modelName, userId);
-    if (!provider) {
-      throw new Error(`No provider found for skill generation model: ${modelName}`);
-    }
+    const resolved = await this.resolveProvider(dto.modelKey, dto.modelName, userId);
 
     const workflowSnapshot = {
       flowId: flow.id.toString(),
@@ -53,7 +107,7 @@ export class SkillService {
       outputSchema: dto.outputSchema || {},
     });
 
-    const generated = await this.callSkillModel(provider, modelName, generationPrompt);
+    const generated = await this.callSkillModel(resolved, generationPrompt);
 
     const skill = await this.prisma.skillEntity.create({
       data: {
@@ -67,7 +121,7 @@ export class SkillService {
         workflowSnapshot: JSON.stringify(workflowSnapshot),
         filesJson: JSON.stringify(generated.files),
         generationPrompt,
-        modelName,
+        modelName: resolved.modelName,
       },
     });
 
@@ -77,9 +131,63 @@ export class SkillService {
   async publishFromFlow(
     flowId: bigint,
     userId: string,
-    dto: { name?: string; description?: string; inputSchema?: unknown; outputSchema?: unknown; modelName?: string },
+    dto: {
+      name?: string;
+      description?: string;
+      inputSchema?: unknown;
+      outputSchema?: unknown;
+      modelKey?: string;
+      modelName?: string;
+    },
   ) {
     return this.generateFromFlow(flowId, userId, dto);
+  }
+
+  /**
+   * 把前端传入的 modelKey / modelName 解析成最终调用参数。
+   *
+   * 路由规则：
+   * - 显式传入 system:default → 用环境变量里的免费模型
+   * - 传入用户模型名 → 用 LlmProviderService 在该用户的 provider 中查找
+   * - 都没传 → 优先走系统默认，否则回退到 SKILL_GENERATION_MODEL 兼容老逻辑
+   */
+  private async resolveProvider(
+    modelKey: string | undefined,
+    modelName: string | undefined,
+    userId: string,
+  ): Promise<ResolvedSkillProvider> {
+    const useSystemDefault =
+      modelKey === SKILL_DEFAULT_MODEL_KEY || (!modelKey && !modelName);
+
+    if (useSystemDefault) {
+      const defaultProvider = this.llmProviderService.getDefaultSkillProvider();
+      if (defaultProvider) return defaultProvider;
+      if (useSystemDefault && !modelName) {
+        const fallbackModel = process.env.SKILL_GENERATION_MODEL || '';
+        if (!fallbackModel) {
+          throw new Error(
+            'Skill generation default model not configured. Set SKILL_DEFAULT_MODEL_NAME / SKILL_DEFAULT_API_URL / SKILL_DEFAULT_API_KEY in backend .env, or select a user model.',
+          );
+        }
+        modelName = fallbackModel;
+      }
+    }
+
+    const finalModelName = modelName || '';
+    if (!finalModelName) {
+      throw new Error('No model selected for skill generation.');
+    }
+
+    const provider = await this.llmProviderService.findProviderByModelName(finalModelName, userId);
+    if (!provider) {
+      throw new Error(`No provider found for skill generation model: ${finalModelName}`);
+    }
+
+    return {
+      modelName: finalModelName,
+      llmAPIUrl: provider.llmAPIUrl,
+      llmAPIKey: provider.llmAPIKey,
+    };
   }
 
   async getList(userId: string) {
@@ -153,7 +261,10 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
 `;
   }
 
-  private async callSkillModel(provider: any, modelName: string, prompt: string): Promise<GeneratedSkillPayload> {
+  private async callSkillModel(
+    provider: ResolvedSkillProvider,
+    prompt: string,
+  ): Promise<GeneratedSkillPayload> {
     const response = await fetch(provider.llmAPIUrl, {
       method: 'POST',
       headers: {
@@ -161,7 +272,7 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
         Authorization: `Bearer ${provider.llmAPIKey}`,
       },
       body: JSON.stringify({
-        model: modelName,
+        model: provider.modelName,
         stream: false,
         temperature: 0.2,
         messages: [
