@@ -1,3 +1,4 @@
+import JSZip from 'jszip'
 import type { TApiResponse } from '@/types/ApiResponse{T}'
 import { HttpUtil } from '@/utils/http.util'
 
@@ -44,6 +45,14 @@ export class SkillService {
     return res.data
   }
 
+  static async getDetail(id: string): Promise<TApiResponse<ISkillDto>> {
+    const res = await HttpUtil.getInstance().get<TApiResponse<ISkillDto>>(
+      '/Skill/GetDetail',
+      { params: { id } },
+    )
+    return res.data
+  }
+
   static async getAvailableModels(): Promise<TApiResponse<ISkillModelOption[]>> {
     const res = await HttpUtil.getInstance().get<TApiResponse<ISkillModelOption[]>>(
       '/Skill/GetAvailableModels',
@@ -58,5 +67,35 @@ export class SkillService {
       { params: { id } },
     )
     return res.data
+  }
+
+  /**
+   * 把 skill.files（path -> content）打包成 zip 触发浏览器下载。
+   * zip 内部目录结构：
+   *   {skill-name}/
+   *     SKILL.md
+   *     references/
+   *       workflow.md
+   * 这样解压后就是一个标准 Codex Skill 目录，可以直接拷到 ~/.codex/skills/ 下使用。
+   */
+  static async downloadAsZip(skill: ISkillDto): Promise<void> {
+    const zip = new JSZip()
+    const rootFolderName = (skill.name || 'skill').replace(/[^\w\-.]+/g, '-')
+    const root = zip.folder(rootFolderName)
+    if (!root) throw new Error('Failed to create root folder in zip')
+
+    Object.entries(skill.files || {}).forEach(([path, content]) => {
+      root.file(path, content ?? '')
+    })
+
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${rootFolderName}-v${skill.version || 1}.zip`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 }
