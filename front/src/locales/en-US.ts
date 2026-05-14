@@ -589,6 +589,7 @@ export default {
     fitCanvas: 'Fit Canvas',
     
     // Variable Manager
+    variableManagement: 'Variable Management',
     inputParameterManagement: 'Input Parameter Management',
     sessionVariableManagement: 'Session Variable Management',
     inputParameterDesc: 'Configure input parameters for the flow, these parameters need to be provided when the flow starts',

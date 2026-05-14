@@ -1,91 +1,86 @@
 <template>
   <div class="variable-manager">
-    <!-- 顶部按钮区域 -->
-    <div class="variable-header">
-      <div class="header-info">
-        <div class="header-title">
-          <el-icon :size="18" class="header-icon" :style="{ color: config.iconColor }">
-            <component :is="config.icon" />
-          </el-icon>
-          <span class="title-text">{{ config.title }}</span>
-          <el-tag :type="config.tagType" size="small" class="ml-2">{{ t('flowComponents.variableCount', { count: variables.length }) }}</el-tag>
-        </div>
-        <p class="header-description">{{ config.description }}</p>
+    <!-- Header (single line) -->
+    <div class="flex items-center justify-between gap-3 mb-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <el-tag :type="config.tagType" size="small">
+          {{ t('flowComponents.variableCount', { count: variables.length }) }}
+        </el-tag>
       </div>
-      <el-button 
-        type="primary" 
-        :icon="Plus" 
-        @click="showAddDialog"
+      <el-button
+        type="primary"
+        :icon="Plus"
         size="small"
-        :class="config.buttonClass"
+        @click="showAddDialog"
       >
         {{ t('flowComponents.add' + (type === 'input' ? 'InputParameter' : 'SessionVariable')) }}
       </el-button>
     </div>
 
-    <!-- 变量列表 -->
+    <!-- Variable list -->
     <div class="variable-list">
-      <el-empty v-if="variables.length === 0" :description="t('flowComponents.noVariables')" :image-size="80" />
-      
-      <div v-else class="variable-list-container">
-        <div 
-          v-for="variable in variables" 
+      <el-empty
+        v-if="variables.length === 0"
+        :description="t('flowComponents.noVariables')"
+        :image-size="80"
+      />
+
+      <div v-else class="flex flex-col gap-1.5">
+        <div
+          v-for="variable in variables"
           :key="variable.id || variable.name"
-          class="variable-row"
+          class="variable-row flex items-center min-h-11 px-4 py-2.5 bg-nf-card border border-nf-border rounded-2"
           :class="config.cardClass"
         >
-          <div class="row-left">
-            <el-icon :size="16" class="variable-type-icon">
+          <div class="flex items-center flex-1 min-w-0 gap-2">
+            <el-icon :size="14" class="text-nf-text-secondary shrink-0">
               <component :is="getVariableIcon(variable.typeName)" />
             </el-icon>
-            <span class="variable-name">{{ variable.name }}</span>
-            <el-tag 
-              :type="getVariableTagType(variable.typeName)" 
-              size="small"
-              class="type-tag"
-            >
+            <span class="text-3.5 font-500 text-nf-text-primary shrink-0 truncate max-w-30">
+              {{ variable.name }}
+            </span>
+            <el-tag :type="getVariableTagType(variable.typeName)" size="small">
               {{ getVariableTypeLabel(variable.typeName) }}
             </el-tag>
-            <el-tag 
+            <el-tag
               v-if="type === 'input'"
-              :type="variable.required ? 'danger' : 'info'" 
+              :type="variable.required ? 'danger' : 'info'"
               size="small"
-              class="required-tag"
             >
               {{ variable.required ? t('flowComponents.required') : t('flowComponents.optional') }}
             </el-tag>
           </div>
-          
-          <div class="row-center">
-            <div 
-              v-if="variable.defaultValue !== undefined && variable.defaultValue !== null" 
-              class="default-value"
+
+          <div class="flex-1 px-3 min-w-0">
+            <div
+              v-if="variable.defaultValue !== undefined && variable.defaultValue !== null"
+              class="text-3 text-nf-text-secondary truncate max-w-37.5"
               :title="formatDefaultValue(variable.defaultValue)"
             >
               {{ formatDefaultValue(variable.defaultValue) }}
             </div>
-            <div v-else-if="hasChildren(variable)" class="children-info">
+            <div v-else-if="hasChildren(variable)" class="text-3 text-nf-text-secondary">
               {{ t('flowComponents.childCount', { count: getChildrenCount(variable) }) }}
             </div>
-            <div v-else class="no-default">{{ t('flowComponents.noDefault') }}</div>
+            <div v-else class="text-3 text-nf-text-muted">{{ t('flowComponents.noDefault') }}</div>
           </div>
-          
-          <div class="row-right">
+
+          <div class="flex items-center gap-1 shrink-0">
             <el-tooltip :content="t('common.edit')">
-              <el-button 
-                type="primary" 
-                :icon="Edit" 
-                size="small" 
-                text 
+              <el-button
+                type="primary"
+                :icon="Edit"
+                size="small"
+                text
                 @click="editVariable(variable)"
               />
             </el-tooltip>
             <el-tooltip :content="t('common.delete')">
-              <el-button 
-                type="danger" 
-                :icon="Delete" 
-                size="small" 
-                text 
+              <el-button
+                type="danger"
+                :icon="Delete"
+                size="small"
+                text
                 @click="deleteVariable(variable)"
               />
             </el-tooltip>
@@ -94,130 +89,160 @@
       </div>
     </div>
 
-    <!-- 添加/编辑对话框 -->
-    <el-dialog 
-      v-model="dialogVisible" 
+    <!-- Add/Edit dialog -->
+    <el-dialog
+      v-model="dialogVisible"
       :title="isEditing ? t('flowComponents.edit' + (type === 'input' ? 'InputParameter' : 'SessionVariable')) : t('flowComponents.add' + (type === 'input' ? 'InputParameter' : 'SessionVariable'))"
-      width="600px"
-      :class="config.dialogClass"
+      width="560px"
       append-to-body
-      :z-index="2000"
     >
-      <el-form 
-        ref="formRef" 
-        :model="formData" 
-        :rules="formRules" 
-        label-width="80px"
-        class="variable-form"
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        label-width="84px"
       >
         <el-form-item :label="t('flowComponents.variableName')" prop="name">
-          <el-input 
-            v-model="formData.name" 
+          <el-input
+            v-model="formData.name"
             :placeholder="t('flowComponents.enterVariableName')"
             :prefix-icon="Edit"
           />
         </el-form-item>
-        
+
         <el-form-item :label="t('flowComponents.variableType')" prop="typeName">
-          <el-select 
-            v-model="formData.typeName" 
+          <el-select
+            v-model="formData.typeName"
             :placeholder="t('flowComponents.selectVariableType')"
+            class="w-full"
             @change="onTypeChange"
-            style="width: 100%"
           >
-            <el-option 
-              v-for="type in variableTypes" 
-              :key="type.value" 
-              :label="type.label" 
+            <el-option
+              v-for="type in variableTypes"
+              :key="type.value"
+              :label="type.label"
               :value="type.value"
             >
-              <div class="option-item">
+              <div class="flex items-center gap-2">
                 <el-icon :size="14">
                   <component :is="type.icon" />
                 </el-icon>
-                <span class="ml-2">{{ type.label }}</span>
+                <span>{{ type.label }}</span>
               </div>
             </el-option>
           </el-select>
         </el-form-item>
-        
-        <el-form-item :label="t('flowComponents.isRequired')" v-if="type === 'input'">
+
+        <el-form-item v-if="type === 'input'" :label="t('flowComponents.isRequired')">
           <el-switch v-model="formData.required" />
         </el-form-item>
-        
-        <el-form-item :label="t('flowComponents.defaultValue')" v-if="showDefaultValue">
-          <component 
-            :is="getDefaultValueComponent()" 
+
+        <el-form-item v-if="showDefaultValue" :label="t('flowComponents.defaultValue')">
+          <el-input
+            v-if="formData.typeName === 'StringVariable'"
             v-model="formData.defaultValue"
             :placeholder="getDefaultValuePlaceholder()"
-            style="width: 100%"
+            clearable
+            class="w-full"
+          />
+          <el-input-number
+            v-else-if="formData.typeName === 'LongVariable'"
+            v-model="formData.defaultValue"
+            :placeholder="getDefaultValuePlaceholder()"
+            :precision="0"
+            controls-position="right"
+            class="w-full"
+          />
+          <el-input-number
+            v-else-if="formData.typeName === 'DecimalVariable'"
+            v-model="formData.defaultValue"
+            :placeholder="getDefaultValuePlaceholder()"
+            :precision="2"
+            :step="0.1"
+            controls-position="right"
+            class="w-full"
+          />
+          <el-switch
+            v-else-if="formData.typeName === 'BooleanVariable'"
+            v-model="formData.defaultValue"
+          />
+          <el-date-picker
+            v-else-if="formData.typeName === 'DateTimeVariable'"
+            v-model="formData.defaultValue"
+            type="datetime"
+            :placeholder="getDefaultValuePlaceholder()"
+            class="w-full"
           />
         </el-form-item>
-        
-        <!-- 对象变量的子属性配置 -->
-        <el-form-item :label="t('flowComponents.childProperties')" v-if="formData.typeName === 'ObjectVariable'">
-          <div class="children-manager">
-            <el-button 
-              type="primary" 
-              :icon="Plus" 
-              size="small" 
-              @click="addChildProperty"
+
+        <!-- Object variable children -->
+        <el-form-item v-if="formData.typeName === 'ObjectVariable'" :label="t('flowComponents.childProperties')">
+          <div class="children-manager w-full p-3 bg-nf-elevated border border-nf-border rounded-2">
+            <el-button
+              type="primary"
+              :icon="Plus"
+              size="small"
               text
+              @click="addChildProperty"
             >
               {{ t('flowComponents.addProperty') }}
             </el-button>
-            <div v-for="(child, index) in formData.children" :key="index" class="child-item">
-              <el-input 
-                v-model="child.name" 
+            <div
+              v-for="(child, index) in formData.children"
+              :key="index"
+              class="flex items-center gap-2 mt-2"
+            >
+              <el-input
+                v-model="child.name"
                 :placeholder="t('flowComponents.propertyName')"
                 size="small"
-                style="width: 120px; margin-right: 8px"
+                class="w-30"
               />
-              <el-select 
-                v-model="child.typeName" 
+              <el-select
+                v-model="child.typeName"
                 :placeholder="t('flowComponents.variableType')"
                 size="small"
-                style="width: 120px; margin-right: 8px"
+                class="w-30"
               >
-                <el-option 
-                  v-for="type in simpleVariableTypes" 
-                  :key="type.value" 
-                  :label="type.label" 
+                <el-option
+                  v-for="type in simpleVariableTypes"
+                  :key="type.value"
+                  :label="type.label"
                   :value="type.value"
                 />
               </el-select>
-              <el-switch v-if="props.type === 'input'" v-model="child.required" size="small" style="margin-right: 8px" />
-              <el-button 
-                type="danger" 
-                :icon="Delete" 
-                size="small" 
-                text 
+              <el-switch v-if="props.type === 'input'" v-model="child.required" size="small" />
+              <el-button
+                type="danger"
+                :icon="Delete"
+                size="small"
+                text
                 @click="removeChildProperty(index)"
               />
             </div>
           </div>
         </el-form-item>
-        
-        <!-- 数组变量的元素类型配置 -->
-        <el-form-item :label="t('flowComponents.elementType')" v-if="formData.typeName === 'ArrayVariable'">
-          <el-select 
-            v-model="formData.itemType" 
+
+        <!-- Array element type -->
+        <el-form-item v-if="formData.typeName === 'ArrayVariable'" :label="t('flowComponents.elementType')">
+          <el-select
+            v-model="formData.itemType"
             :placeholder="t('flowComponents.selectElementType')"
-            style="width: 100%"
+            class="w-full"
           >
-            <el-option 
-              v-for="type in variableTypes" 
-              :key="type.value" 
-              :label="type.label" 
+            <el-option
+              v-for="type in variableTypes"
+              :key="type.value"
+              :label="type.label"
               :value="type.value"
             />
           </el-select>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitForm" :class="config.buttonClass">
+        <el-button type="primary" @click="submitForm">
           {{ isEditing ? t('flowComponents.update') : t('flowComponents.add') }}
         </el-button>
       </template>
@@ -274,18 +299,11 @@ const emit = defineEmits<{
   'delete': [variable: AnyVariable];
 }>();
 
-// 根据类型计算样式和配置
 const config = computed(() => {
   const isInput = props.type === 'input';
   return {
-    title: isInput ? t('flowComponents.inputParameterManagement') : t('flowComponents.sessionVariableManagement'),
-    description: isInput ? t('flowComponents.inputParameterDesc') : t('flowComponents.sessionVariableDesc'),
-    icon: isInput ? Document : Collection,
-    iconColor: 'var(--nf-text-secondary)',
     tagType: (isInput ? 'primary' : 'success') as ElementTagType,
-    buttonClass: '',
     cardClass: isInput ? 'input-card' : 'session-card',
-    dialogClass: isInput ? 'input-dialog' : 'session-dialog'
   };
 });
 
@@ -441,23 +459,6 @@ const getChildrenCount = (variable: AnyVariable) => {
     return (variable as ObjectVariable | ArrayVariable).children?.length || 0;
   }
   return 0;
-};
-
-// 获取默认值输入组件
-const getDefaultValueComponent = () => {
-  switch (formData.typeName) {
-    case 'StringVariable':
-      return 'el-input';
-    case 'LongVariable':
-    case 'DecimalVariable':
-      return 'el-input-number';
-    case 'BooleanVariable':
-      return 'el-switch';
-    case 'DateTimeVariable':
-      return 'el-date-picker';
-    default:
-      return 'el-input';
-  }
 };
 
 // 获取默认值占位符
@@ -691,145 +692,21 @@ const submitForm = async () => {
 </script>
 
 <style scoped lang="scss">
-.variable-manager {
-  .variable-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 14px 16px;
-    background: var(--nf-bg-elevated);
-    border: 1px solid var(--nf-border);
-    border-radius: 8px;
-    margin-bottom: 12px;
+/* hover/border-left 走 SCSS：这些复杂状态原子类不好表达 */
+.variable-row {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
-    .header-info {
-      flex: 1;
-
-      .header-title {
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--nf-text-primary);
-        margin-bottom: 4px;
-
-        .header-icon { margin-right: 8px; }
-        .title-text { margin-right: 8px; }
-      }
-
-      .header-description {
-        font-size: 12px;
-        color: var(--nf-text-muted);
-        margin: 0;
-        line-height: 1.4;
-      }
-    }
+  &:hover {
+    border-color: rgba(0, 255, 159, 0.35);
+    box-shadow: var(--nf-glow-sm);
   }
 
-  .variable-list {
-    .variable-list-container {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+  &.input-card {
+    border-left: 3px solid var(--nf-accent);
+  }
 
-    .variable-row {
-      display: flex;
-      align-items: center;
-      padding: 10px 14px;
-      border: 1px solid var(--nf-border);
-      border-radius: 8px;
-      background: var(--nf-bg-card);
-      transition: border-color 0.15s, box-shadow 0.15s;
-      min-height: 44px;
-
-      &:hover {
-        border-color: var(--nf-accent);
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-      }
-
-      &.input-card {
-        border-left: 3px solid var(--nf-accent);
-      }
-
-      &.session-card {
-        border-left: 3px solid var(--nf-accent2);
-      }
-
-      .row-left {
-        display: flex;
-        align-items: center;
-        flex: 1;
-        min-width: 0;
-
-        .variable-type-icon {
-          margin-right: 8px;
-          color: var(--nf-text-muted);
-          flex-shrink: 0;
-        }
-
-        .variable-name {
-          color: var(--nf-text-primary);
-          margin-right: 8px;
-          font-size: 13px;
-          font-weight: 500;
-          flex-shrink: 0;
-        }
-
-        .type-tag { margin-right: 6px; flex-shrink: 0; }
-        .required-tag { flex-shrink: 0; }
-      }
-
-      .row-center {
-        flex: 1;
-        padding: 0 12px;
-        min-width: 0;
-
-        .default-value {
-          color: var(--nf-text-muted);
-          font-size: 12px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 150px;
-        }
-
-        .children-info,
-        .no-default {
-          color: var(--nf-text-muted);
-          font-size: 12px;
-        }
-      }
-
-      .row-right {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        flex-shrink: 0;
-      }
-    }
+  &.session-card {
+    border-left: 3px solid var(--nf-accent2);
   }
 }
-
-.variable-form {
-  .option-item {
-    display: flex;
-    align-items: center;
-  }
-
-  .children-manager {
-    border: 1px solid var(--nf-border);
-    border-radius: 8px;
-    padding: 12px;
-    background: var(--nf-bg-elevated);
-
-    .child-item {
-      display: flex;
-      align-items: center;
-      margin-top: 8px;
-    }
-  }
-}
-
-.ml-2 { margin-left: 8px; }
 </style>
