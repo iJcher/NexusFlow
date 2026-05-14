@@ -294,3 +294,6 @@ __pycache__/
 
 
 myfront/
+
+# RAG seed data (cloned repos, not part of source)
+rag-seeds/

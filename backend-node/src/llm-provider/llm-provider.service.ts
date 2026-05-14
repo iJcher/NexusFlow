@@ -148,6 +148,33 @@ export class LlmProviderService {
   }
 
   /**
+   * 系统级默认 Rerank（重排）provider
+   *
+   * 为什么独立而不复用 embedding：
+   * - 协议不同：embedding 是 OpenAI 兼容 /v1/embeddings；rerank 是阿里 DashScope 原生 API
+   * - 模型不同：embedding 用 text-embedding-v4；rerank 用 gte-rerank-v2
+   * - 但 key 通常和 embedding 共用同一个 DashScope key
+   *
+   * 推荐配置：阿里云百炼 gte-rerank-v2
+   *   RAG_DEFAULT_RERANK_API_URL=https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
+   *   RAG_DEFAULT_RERANK_MODEL_NAME=gte-rerank-v2
+   *   RAG_DEFAULT_RERANK_API_KEY=sk-xxx (和 embedding 同一个 DashScope key 即可)
+   */
+  getDefaultRerankProvider(): {
+    modelName: string;
+    llmAPIUrl: string;
+    llmAPIKey: string;
+  } | null {
+    const modelName = process.env.RAG_DEFAULT_RERANK_MODEL_NAME || '';
+    const llmAPIUrl = process.env.RAG_DEFAULT_RERANK_API_URL || '';
+    // key 兜底：rerank 没单独配就复用 embedding 的 key
+    const llmAPIKey =
+      process.env.RAG_DEFAULT_RERANK_API_KEY || process.env.RAG_DEFAULT_EMBEDDING_API_KEY || '';
+    if (!modelName || !llmAPIUrl || !llmAPIKey) return null;
+    return { modelName, llmAPIUrl, llmAPIKey };
+  }
+
+  /**
    * 查找可用于 embedding 调用的 provider。
    *
    * 匹配策略（按优先级）：

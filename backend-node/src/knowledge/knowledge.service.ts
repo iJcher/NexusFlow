@@ -2,9 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { ChunkingService } from './chunking.service';
+import { RerankService } from './rerank.service';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
 import { nextId } from '../common/snowflake';
 import * as path from 'path';
+
+/** RAG 二阶段检索：召回阶段一次取这么多倍 topK 当候选喂给 rerank */
+const RERANK_CANDIDATE_MULTIPLIER = 6;
+/** 召回候选硬上限，避免极端情况下把 rerank API 打爆 */
+const RERANK_CANDIDATE_MAX = 60;
 
 export const EMBEDDING_SYSTEM_DEFAULT_KEY = 'system-default';
 
@@ -28,6 +34,7 @@ export class KnowledgeService {
     private embeddingService: EmbeddingService,
     private chunkingService: ChunkingService,
     private llmProviderService: LlmProviderService,
+    private rerankService: RerankService,
   ) {}
 
   // ==================== 模型选项 ====================
@@ -320,9 +327,15 @@ export class KnowledgeService {
     knowledgeBaseId: bigint,
     query: string,
     userId: string,
-    options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
+    options: {
+      topK?: number;
+      threshold?: number;
+      embeddingModel?: string;
+      /** 是否启用重排，默认 true（系统未配置 rerank provider 时自动降级为单阶段） */
+      rerankEnabled?: boolean;
+    } = {},
   ) {
-    const { topK = 5, threshold = 0.3 } = options;
+    const { topK = 5, threshold = 0.3, rerankEnabled = true } = options;
     const ownerId = BigInt(userId);
 
     let embeddingModel = options.embeddingModel;
@@ -341,6 +354,13 @@ export class KnowledgeService {
       if (!kb) return [];
     }
 
+    // ===== 第一阶段：召回 =====
+    // 用 embedding + 余弦快速从全库捞 Top-(K * MULTIPLIER) 候选喂给 rerank
+    // 不走 rerank 时直接取 topK
+    const candidateK = rerankEnabled
+      ? Math.min(topK * RERANK_CANDIDATE_MULTIPLIER, RERANK_CANDIDATE_MAX)
+      : topK;
+
     const queryEmbedding = await this.embeddingService.getEmbedding(
       query,
       embeddingModel || undefined,
@@ -356,7 +376,7 @@ export class KnowledgeService {
       },
     });
 
-    const scored = chunks
+    const recall = chunks
       .map((chunk) => {
         const embedding: number[] = chunk.embedding ? JSON.parse(chunk.embedding) : [];
         const similarity = this.embeddingService.cosineSimilarity(queryEmbedding, embedding);
@@ -372,9 +392,23 @@ export class KnowledgeService {
       })
       .filter((item) => item.similarity >= threshold)
       .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topK);
+      .slice(0, candidateK);
 
-    return scored;
+    if (!rerankEnabled || recall.length <= 1) return recall.slice(0, topK);
+
+    // ===== 第二阶段：重排 =====
+    // 把候选 chunk 的 content 喂给 cross-encoder 重排模型，得到更精准的 Top-K
+    const rerankItems = await this.rerankService.rerank(
+      query,
+      recall.map((r) => r.content),
+      topK,
+    );
+
+    return rerankItems.map((item) => ({
+      ...recall[item.index],
+      // similarity 字段被替换成 rerank 分数；语义都是"越大越相关"，对外接口保持一致
+      similarity: item.score,
+    }));
   }
 
   /**
