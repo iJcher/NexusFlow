@@ -280,6 +280,21 @@ export class KnowledgeService {
         }));
 
         await this.prisma.knowledgeDocChunkEntity.createMany({ data: chunkData });
+
+        // 双写 pgvector：createMany 不能直接写 Unsupported("vector(1024)") 字段
+        // 走 PG 自身的 text → vector cast，0 网络传输、0 应用层解析
+        // 失败不影响主流程（旧 String embedding 已经写好，可走兜底路径）
+        const ids = chunkData.map((c) => c.id);
+        try {
+          await this.prisma.$executeRawUnsafe(
+            `UPDATE "KnowledgeDocChunkEntity"
+             SET "embeddingVec" = embedding::vector(1024)
+             WHERE id = ANY($1::bigint[]) AND "embeddingVec" IS NULL`,
+            ids,
+          );
+        } catch (e: any) {
+          this.logger.warn(`embeddingVec backfill failed for batch (will fallback at search time): ${e.message}`);
+        }
       }
 
       await this.prisma.knowledgeDocumentEntity.update({
@@ -354,8 +369,9 @@ export class KnowledgeService {
       if (!kb) return [];
     }
 
-    // ===== 第一阶段：召回 =====
-    // 用 embedding + 余弦快速从全库捞 Top-(K * MULTIPLIER) 候选喂给 rerank
+    // ===== 第一阶段：召回（pgvector SQL 算 cosine） =====
+    // 旧方案：findMany 全表 → JSON.parse → JS 循环算 cosine（7912 chunk × 1024 维 ≈ 200MB Node heap）
+    // 新方案：SQL 走 pgvector HNSW 索引，1 - (a <=> b) 是 cosine 相似度，毫秒级 + Node 内存 ≈ 0
     // 不走 rerank 时直接取 topK
     const candidateK = rerankEnabled
       ? Math.min(topK * RERANK_CANDIDATE_MULTIPLIER, RERANK_CANDIDATE_MAX)
@@ -367,32 +383,51 @@ export class KnowledgeService {
       userId,
     );
 
-    const chunks = await this.prisma.knowledgeDocChunkEntity.findMany({
-      where: {
-        document: { knowledgeBaseId, knowledgeBase: { ownerUserId: ownerId } },
-      },
-      include: {
-        document: { select: { fileName: true } },
-      },
-    });
+    // pgvector 接受字面量字符串作为输入，PG 内部会 cast 成 vector
+    const queryVecLiteral = `[${queryEmbedding.join(',')}]`;
 
-    const recall = chunks
-      .map((chunk) => {
-        const embedding: number[] = chunk.embedding ? JSON.parse(chunk.embedding) : [];
-        const similarity = this.embeddingService.cosineSimilarity(queryEmbedding, embedding);
-        return {
-          chunkId: chunk.id.toString(),
-          documentId: chunk.documentId.toString(),
-          fileName: chunk.document.fileName,
-          source: `${chunk.document.fileName}#chunk-${chunk.chunkIndex}`,
-          content: chunk.content,
-          chunkIndex: chunk.chunkIndex,
-          similarity,
-        };
-      })
-      .filter((item) => item.similarity >= threshold)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, candidateK);
+    const recallRaw = await this.prisma.$queryRawUnsafe<
+      Array<{
+        id: bigint;
+        documentId: bigint;
+        chunkIndex: number;
+        content: string;
+        fileName: string;
+        similarity: number;
+      }>
+    >(
+      `SELECT
+         c.id,
+         c."documentId",
+         c."chunkIndex",
+         c.content,
+         d."fileName",
+         1 - (c."embeddingVec" <=> $1::vector) AS similarity
+       FROM "KnowledgeDocChunkEntity" c
+       INNER JOIN "KnowledgeDocumentEntity" d ON c."documentId" = d.id
+       INNER JOIN "KnowledgeBaseEntity" kb ON d."knowledgeBaseId" = kb.id
+       WHERE d."knowledgeBaseId" = $2::bigint
+         AND kb."ownerUserId" = $3::bigint
+         AND c."embeddingVec" IS NOT NULL
+         AND 1 - (c."embeddingVec" <=> $1::vector) >= $4::float
+       ORDER BY c."embeddingVec" <=> $1::vector ASC
+       LIMIT $5::int`,
+      queryVecLiteral,
+      knowledgeBaseId,
+      ownerId,
+      threshold,
+      candidateK,
+    );
+
+    const recall = recallRaw.map((r) => ({
+      chunkId: r.id.toString(),
+      documentId: r.documentId.toString(),
+      fileName: r.fileName,
+      source: `${r.fileName}#chunk-${r.chunkIndex}`,
+      content: r.content,
+      chunkIndex: r.chunkIndex,
+      similarity: Number(r.similarity),
+    }));
 
     if (!rerankEnabled || recall.length <= 1) return recall.slice(0, topK);
 
