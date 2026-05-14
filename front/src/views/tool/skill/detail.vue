@@ -2,11 +2,12 @@
 /**
  * Skill Detail Page —— GitHub-style file viewer.
  *
- * 设计目的：
- * - 替代之前 tool/skill 列表里的 el-drawer，给 skill 一个独立的"仓库浏览页"
- * - 左侧目录树（path 字符串扁平列表 → 树形结构）
- * - 右侧选中文件的内容渲染（.md 走 marked，其他文件走 <pre>）
- * - 顶部操作栏：返回 / 复制当前文件 / 下载整个 skill / 删除
+ * 设计协议：nexus-dark-fui §1（Border-Driven）+ §3（Typography）+ §5（Components）。
+ * - Page bg：micro-dot grid（§5 Page）
+ * - Header：surface-alpha card，主标题 H1 20-24px / 0.08em
+ * - Meta strip：mono 字体的 metric chips（§5 Tag 透明底）
+ * - Repo body：左 file tree（§5 Table Row 模式）+ 右 file viewer
+ * - 所有可交互元素遵循 §4：hover 必须有边框颜色变化
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -52,6 +53,12 @@ const renderedHtml = computed<string>(() => {
   if (!isMarkdown.value || !selectedContent.value) return ''
   const html = marked(selectedContent.value, { breaks: true }) as string
   return DOMPurify.sanitize(html)
+})
+
+const formattedUpdated = computed<string>(() => {
+  if (!skill.value?.updatedAt) return '-'
+  const d = new Date(skill.value.updatedAt)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
 
 /**
@@ -124,7 +131,6 @@ const loadSkill = async (): Promise<void> => {
   }
 }
 
-/** skill 通常文件少，全部目录默认展开比折叠更直观 */
 const autoExpandAll = (): void => {
   const collect = (nodes: IFileTreeNode[]): void => {
     for (const n of nodes) {
@@ -137,7 +143,6 @@ const autoExpandAll = (): void => {
   collect(tree.value)
 }
 
-/** 默认选中 SKILL.md，否则第一个文件 */
 const autoSelectFirstFile = (): void => {
   if (!skill.value?.files) return
   if (skill.value.files['SKILL.md']) {
@@ -195,50 +200,59 @@ onMounted(loadSkill)
 <template>
   <div v-loading="loading" class="skill-detail-page">
     <header class="detail-header">
-      <div class="left-meta">
-        <button class="ghost-btn" @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>返回</span>
+      <div class="header-left">
+        <button class="back-btn" @click="goBack">
+          <el-icon :size="14"><ArrowLeft /></el-icon>
+          <span>BACK</span>
         </button>
         <div v-if="skill" class="title-block">
           <p class="breadcrumb">
-            TOOL · SKILL · <span>{{ skill.name }}</span>
+            TOOL <span class="bc-sep">/</span> SKILL <span class="bc-sep">/</span>
+            <span class="bc-current">{{ skill.name }}</span>
           </p>
-          <h2>{{ skill.name }}</h2>
-          <p class="desc">{{ skill.description || '暂无描述' }}</p>
+          <h1 class="skill-title">{{ skill.name }}</h1>
+          <p class="skill-desc">{{ skill.description || '暂无描述' }}</p>
         </div>
       </div>
-      <div v-if="skill" class="right-actions">
-        <button class="ghost-btn" :disabled="!selectedContent" @click="copyCurrentFile">
-          <el-icon><DocumentCopy /></el-icon>
+      <div v-if="skill" class="header-actions">
+        <button class="fui-btn fui-btn--ghost" :disabled="!selectedContent" @click="copyCurrentFile">
+          <el-icon :size="14"><DocumentCopy /></el-icon>
           复制当前文件
         </button>
-        <button class="ghost-btn primary" @click="downloadSkill">
-          <el-icon><Download /></el-icon>
+        <button class="fui-btn fui-btn--primary" @click="downloadSkill">
+          <el-icon :size="14"><Download /></el-icon>
           下载 ZIP
         </button>
-        <button class="ghost-btn danger" @click="deleteSkill">
-          <el-icon><Delete /></el-icon>
+        <button class="fui-btn fui-btn--danger" @click="deleteSkill">
+          <el-icon :size="14"><Delete /></el-icon>
           删除
         </button>
       </div>
     </header>
 
     <section v-if="skill" class="meta-strip">
-      <span>v{{ skill.version }}</span>
-      <span class="dot" />
-      <span>{{ skill.modelName || '未知模型' }}</span>
-      <span class="dot" />
-      <span>{{ fileEntries.length }} files · {{ totalChars }} chars</span>
-      <span class="dot" />
-      <span>更新于 {{ new Date(skill.updatedAt).toLocaleString() }}</span>
+      <span class="fui-tag fui-tag--accent">v{{ skill.version }}</span>
+      <span class="fui-tag fui-tag--neutral">{{ skill.modelName || 'unknown-model' }}</span>
+      <span class="meta-chip">
+        <span class="meta-chip__label">FILES</span>
+        <span class="meta-chip__value">{{ fileEntries.length }}</span>
+      </span>
+      <span class="meta-chip">
+        <span class="meta-chip__label">CHARS</span>
+        <span class="meta-chip__value">{{ totalChars }}</span>
+      </span>
+      <span class="meta-chip">
+        <span class="meta-chip__label">UPDATED</span>
+        <span class="meta-chip__value">{{ formattedUpdated }}</span>
+      </span>
     </section>
 
     <section v-if="skill" class="repo-body">
       <aside class="file-tree">
         <div class="tree-header">
-          <el-icon><Folder /></el-icon>
-          <span>{{ skill.name }}</span>
+          <el-icon :size="14"><Folder /></el-icon>
+          <span class="tree-title">{{ skill.name }}</span>
+          <span class="tree-count">{{ fileEntries.length }}</span>
         </div>
         <ul class="tree-root">
           <FileTreeNode
@@ -255,9 +269,9 @@ onMounted(loadSkill)
 
       <main class="file-viewer">
         <div v-if="selectedPath" class="file-tab">
-          <el-icon><DocIcon /></el-icon>
-          <span>{{ selectedPath }}</span>
-          <span class="size">{{ selectedContent.length }} chars</span>
+          <el-icon :size="13"><DocIcon /></el-icon>
+          <span class="file-tab__path">{{ selectedPath }}</span>
+          <span class="file-tab__size">{{ selectedContent.length }} chars</span>
         </div>
         <div v-if="!selectedPath" class="empty-hint">
           请在左侧选择一个文件
@@ -270,138 +284,251 @@ onMounted(loadSkill)
 </template>
 
 <style scoped lang="scss">
+/* ─────────────────────────────────────────────
+ * §5 Page bg：base + micro-dot grid overlay
+ * ───────────────────────────────────────────── */
 .skill-detail-page {
   min-height: 100%;
-  padding: 24px 32px;
+  padding: 28px 32px;
   background:
-    radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px),
+    radial-gradient(circle, var(--nf-grid-color) 0.5px, transparent 0.5px),
     var(--nf-bg-base);
-  background-size: 20px 20px;
+  background-size: var(--nf-grid-size) var(--nf-grid-size);
   font-family: var(--nf-font-display);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
+/* ─────────────────────────────────────────────
+ * Header card —— surface-alpha + 0.06 边
+ * ───────────────────────────────────────────── */
 .detail-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding: 20px 24px;
+  padding: 22px 26px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  background: var(--nf-bg-surface-alpha);
-
-  .left-meta {
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
-  }
-
-  .title-block {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .breadcrumb {
-    margin: 0;
-    color: var(--nf-text-secondary);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-
-    span {
-      color: var(--nf-accent);
-    }
-  }
-
-  h2 {
-    margin: 0;
-    color: var(--nf-text-primary);
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-  }
-
-  .desc {
-    margin: 0;
-    color: var(--nf-text-body);
-    font-size: 13px;
-    line-height: 1.6;
-    max-width: 640px;
-  }
-
-  .right-actions {
-    display: flex;
-    gap: 10px;
-    flex-shrink: 0;
-  }
+  border-radius: 10px;
+  background: var(--nf-bg-card-alpha);
 }
 
-.ghost-btn {
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  min-width: 0;
+}
+
+.back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 7px 12px;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
   background: transparent;
-  color: var(--nf-text-body);
+  color: var(--nf-text-secondary);
   font-family: var(--nf-font-display);
   font-size: 12px;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  transition: border-color 0.2s ease, color 0.2s ease;
 
-  &:hover:not(:disabled) {
-    border-color: rgba(0, 255, 159, 0.4);
+  &:hover {
+    border-color: rgba(0, 255, 159, 0.35);
     color: var(--nf-accent);
   }
+}
+
+.title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* §3 Label：12px / 600 / 0.08em / muted */
+.breadcrumb {
+  margin: 0;
+  color: var(--nf-text-muted);
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+
+  .bc-sep {
+    margin: 0 6px;
+    color: rgba(255, 255, 255, 0.15);
+  }
+
+  .bc-current {
+    color: var(--nf-accent);
+  }
+}
+
+/* §3 H1：20-24px / 600 / 0.08em / primary */
+.skill-title {
+  margin: 0;
+  color: var(--nf-text-primary);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+}
+
+/* §3 Body：14px / 400 / 0.02em / secondary / lh 1.75 */
+.skill-desc {
+  margin: 0;
+  color: var(--nf-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  max-width: 720px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────
+ * §5 Buttons —— outline-only，hover 边框色变化
+ * ───────────────────────────────────────────── */
+.fui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
+}
 
-  &.primary {
-    border-color: rgba(0, 255, 159, 0.4);
-    color: var(--nf-accent);
+.fui-btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--nf-text-secondary);
 
-    &:hover {
-      background: rgba(0, 255, 159, 0.08);
-      box-shadow: 0 0 12px rgba(0, 255, 159, 0.2);
-    }
-  }
-
-  &.danger:hover {
-    border-color: rgba(255, 99, 99, 0.5);
-    color: #ff7878;
-    background: rgba(255, 99, 99, 0.06);
+  &:hover:not(:disabled) {
+    border-color: rgba(0, 255, 159, 0.35);
+    color: #B0BEC5;
   }
 }
 
+.fui-btn--primary {
+  border: 1px solid var(--nf-accent);
+  color: var(--nf-accent);
+  box-shadow: var(--nf-glow-sm);
+
+  &:hover:not(:disabled) {
+    border-color: var(--nf-accent-hover);
+    color: var(--nf-accent-hover);
+    background: rgba(0, 255, 159, 0.06);
+    box-shadow: var(--nf-glow-md);
+  }
+}
+
+.fui-btn--danger {
+  border: 1px solid var(--nf-danger);
+  color: var(--nf-danger);
+
+  &:hover:not(:disabled) {
+    border-color: #fca5a5;
+    background: rgba(248, 113, 113, 0.06);
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.2);
+  }
+}
+
+/* ─────────────────────────────────────────────
+ * Meta strip —— tags + metric chips（mono）
+ * ───────────────────────────────────────────── */
 .meta-strip {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
-  padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.015);
-  color: var(--nf-text-secondary);
-  font-family: var(--nf-font-mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  background: var(--nf-bg-card-alpha);
+}
 
-  .dot {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+.fui-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: transparent;
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: border-color 0.2s ease;
+}
+
+.fui-tag--accent {
+  border: 1px solid rgba(0, 255, 159, 0.25);
+  color: var(--nf-accent);
+
+  &:hover {
+    border-color: rgba(0, 255, 159, 0.45);
   }
 }
 
+.fui-tag--neutral {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--nf-text-secondary);
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #B0BEC5;
+  }
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--nf-font-mono);
+
+  &__label {
+    color: var(--nf-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+
+  &__value {
+    color: var(--nf-text-primary);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+}
+
+/* ─────────────────────────────────────────────
+ * Repo body —— left tree + right viewer
+ * ───────────────────────────────────────────── */
 .repo-body {
   flex: 1;
   display: grid;
@@ -410,120 +537,186 @@ onMounted(loadSkill)
   min-height: 0;
 }
 
+/* ── File tree ── */
 .file-tree {
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
-  background: var(--nf-bg-surface-alpha);
+  background: var(--nf-bg-card-alpha);
   overflow: hidden;
+  transition: border-color 0.2s ease;
 
-  .tree-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: var(--nf-text-primary);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-  }
-
-  .tree-root {
-    list-style: none;
-    margin: 0;
-    padding: 8px 0;
-    overflow-y: auto;
-    flex: 1;
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 
+.tree-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015);
+  color: var(--nf-text-secondary);
+  font-family: var(--nf-font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  .tree-title {
+    flex: 1;
+    color: var(--nf-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tree-count {
+    padding: 1px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    color: var(--nf-text-muted);
+    font-family: var(--nf-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+}
+
+.tree-root {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── File viewer ── */
 .file-viewer {
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
-  background: var(--nf-bg-surface-alpha);
+  background: var(--nf-bg-card-alpha);
   overflow: hidden;
   min-height: 0;
+  transition: border-color 0.2s ease;
 
-  .file-tab {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(255, 255, 255, 0.02);
-    color: var(--nf-text-body);
-    font-family: var(--nf-font-mono);
-    font-size: 12px;
-    letter-spacing: 0.04em;
-
-    .size {
-      margin-left: auto;
-      color: var(--nf-text-secondary);
-      font-size: 11px;
-    }
-  }
-
-  .empty-hint {
-    padding: 60px 0;
-    text-align: center;
-    color: var(--nf-text-secondary);
-    font-size: 13px;
-  }
-
-  .raw-content,
-  .md-content {
-    flex: 1;
-    margin: 0;
-    padding: 24px 32px;
-    overflow: auto;
-    color: var(--nf-text-body);
-    font-size: 13px;
-    line-height: 1.75;
-  }
-
-  .raw-content {
-    font-family: var(--nf-font-mono);
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: var(--nf-text-primary);
-    font-size: 12.5px;
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 
+.file-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--nf-text-secondary);
+  font-family: var(--nf-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+
+  &__path {
+    color: var(--nf-text-primary);
+  }
+
+  &__size {
+    margin-left: auto;
+    color: var(--nf-text-muted);
+    font-size: 11px;
+  }
+}
+
+.empty-hint {
+  padding: 80px 0;
+  text-align: center;
+  color: var(--nf-text-muted);
+  font-family: var(--nf-font-display);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.raw-content,
+.md-content {
+  flex: 1;
+  margin: 0;
+  padding: 28px 36px;
+  overflow: auto;
+  color: var(--nf-text-secondary);
+  font-size: 14px;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+}
+
+.raw-content {
+  font-family: var(--nf-font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--nf-text-primary);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+/* ─────────────────────────────────────────────
+ * Markdown rendered styles
+ *  - 标题 primary、间距对齐
+ *  - 代码块 base 底 + 0.06 边
+ *  - 引用块用 accent-muted
+ * ───────────────────────────────────────────── */
 .md-content {
   :deep(h1),
   :deep(h2),
   :deep(h3),
   :deep(h4) {
     color: var(--nf-text-primary);
-    margin: 1.4em 0 0.6em;
-    line-height: 1.3;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.06em;
   }
 
   :deep(h1) {
-    font-size: 22px;
+    margin: 0 0 0.6em;
+    padding-bottom: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding-bottom: 8px;
+    font-size: 22px;
+    letter-spacing: 0.08em;
   }
 
   :deep(h2) {
-    font-size: 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 1.5em 0 0.6em;
     padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 18px;
   }
 
   :deep(h3) {
+    margin: 1.4em 0 0.5em;
     font-size: 15px;
+  }
+
+  :deep(h4) {
+    margin: 1.2em 0 0.4em;
+    font-size: 13px;
+    color: var(--nf-text-secondary);
   }
 
   :deep(p) {
     margin: 0.8em 0;
-    color: var(--nf-text-body);
+    color: var(--nf-text-secondary);
+  }
+
+  :deep(strong) {
+    color: var(--nf-text-primary);
+    font-weight: 600;
+  }
+
+  :deep(em) {
+    color: var(--nf-text-secondary);
   }
 
   :deep(ul),
@@ -532,19 +725,23 @@ onMounted(loadSkill)
     margin: 0.6em 0;
 
     li {
-      margin: 0.25em 0;
+      margin: 0.3em 0;
+      color: var(--nf-text-secondary);
     }
   }
 
+  /* §6 inline code：accent-muted bg + accent text */
   :deep(code) {
     padding: 2px 6px;
     border-radius: 4px;
-    background: rgba(0, 255, 159, 0.08);
+    background: var(--nf-accent-muted);
     color: var(--nf-accent);
     font-family: var(--nf-font-mono);
-    font-size: 12px;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
   }
 
+  /* §5 pre code block：base bg + subtle border */
   :deep(pre) {
     margin: 1em 0;
     padding: 14px 16px;
@@ -557,16 +754,21 @@ onMounted(loadSkill)
       padding: 0;
       background: transparent;
       color: var(--nf-text-primary);
-      font-size: 12px;
+      font-size: 12.5px;
+      line-height: 1.65;
     }
   }
 
   :deep(blockquote) {
-    border-left: 3px solid rgba(0, 255, 159, 0.4);
     margin: 1em 0;
-    padding: 6px 14px;
-    color: var(--nf-text-secondary);
+    padding: 8px 16px;
+    border-left: 3px solid rgba(0, 255, 159, 0.4);
     background: rgba(0, 255, 159, 0.03);
+    color: var(--nf-text-secondary);
+
+    p {
+      margin: 0.4em 0;
+    }
   }
 
   :deep(hr) {
@@ -578,8 +780,10 @@ onMounted(loadSkill)
   :deep(a) {
     color: var(--nf-accent);
     text-decoration: none;
+    transition: color 0.2s ease;
 
     &:hover {
+      color: var(--nf-accent-hover);
       text-decoration: underline;
     }
   }
@@ -588,36 +792,67 @@ onMounted(loadSkill)
     width: 100%;
     border-collapse: collapse;
     margin: 1em 0;
+    font-size: 13px;
 
     th,
     td {
       padding: 8px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       text-align: left;
     }
 
+    /* §5 Table header */
     th {
       background: rgba(255, 255, 255, 0.03);
-      color: var(--nf-text-primary);
+      color: var(--nf-text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: var(--nf-text-secondary);
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.015);
     }
   }
 }
 
+/* ─────────────────────────────────────────────
+ * §5 Scrollbar：4px / track transparent / 0.08 thumb
+ * ───────────────────────────────────────────── */
+:deep(::-webkit-scrollbar),
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
+:deep(::-webkit-scrollbar-track),
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
+:deep(::-webkit-scrollbar-thumb),
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
 }
 
+:deep(::-webkit-scrollbar-thumb:hover),
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 159, 0.3);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* §7 reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 </style>
