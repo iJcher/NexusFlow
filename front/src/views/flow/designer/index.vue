@@ -13,6 +13,10 @@
       </div>
 
       <div class="header-right">
+        <button class="fui-btn fui-btn--primary" @click="openVariablesDrawer">
+          <el-icon :size="13"><Coin /></el-icon>
+          <span>{{ t('flowDesigner.variables') }}</span>
+        </button>
         <button class="fui-btn fui-btn--primary" @click="openChatTest">
           <el-icon :size="13"><VideoPlay /></el-icon>
           <span>{{ t('flowDesigner.run') }}</span>
@@ -118,6 +122,39 @@
         embedded
       />
     </el-drawer>
+
+    <el-drawer
+      v-model="variablesDrawerVisible"
+      :title="t('flowComponents.variableManagement')"
+      direction="rtl"
+      size="480px"
+      :append-to-body="true"
+      :destroy-on-close="false"
+      class="variables-drawer"
+    >
+      <el-tabs v-model="variablesActiveTab" class="px-4">
+        <el-tab-pane :label="t('flowComponents.sessionVariables')" name="session">
+          <VariableManager
+            type="session"
+            :variables="sessionVariables"
+            :all-variables="allVariables"
+            @add="handleAddSessionVariable"
+            @update="handleUpdateSessionVariable"
+            @delete="handleDeleteSessionVariable"
+          />
+        </el-tab-pane>
+        <el-tab-pane :label="t('flowComponents.inputParameters')" name="input">
+          <VariableManager
+            type="input"
+            :variables="inputParameters"
+            :all-variables="allVariables"
+            @add="handleAddInputParameter"
+            @update="handleUpdateInputParameter"
+            @delete="handleDeleteInputParameter"
+          />
+        </el-tab-pane>
+      </el-tabs>
+    </el-drawer>
   </div>
 </template>
 
@@ -125,8 +162,9 @@
 import { ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { VideoPlay } from '@element-plus/icons-vue'
+import { VideoPlay, Coin } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { storeToRefs } from 'pinia'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import '@vue-flow/core/dist/style.css'
@@ -134,11 +172,13 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/minimap/dist/style.css'
 
 import { useFlowDesignerStore } from '@/stores/flowDesigner'
+import type { AnyVariable } from '@/types/flow-designer/Parameters/Variable'
 
 import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
 import CanvasControlBar from './components/CanvasControlBar.vue'
 import NodeContextMenu from './components/NodeContextMenu.vue'
 import NodePalette from './components/NodePalette.vue'
+import VariableManager from './components/VariableManager.vue'
 
 import StartVFNode from './vf-nodes/StartVFNode.vue'
 import LLMVFNode from './vf-nodes/LLMVFNode.vue'
@@ -178,6 +218,31 @@ const chatTestDrawerSize = computed<string>(() => {
   }
   return '40%'
 })
+
+// 变量管理 drawer
+const variablesDrawerVisible = ref(false)
+const variablesActiveTab = ref<'session' | 'input'>('session')
+
+const { currentSessionVariables, currentInputParameters } = storeToRefs(flowStore)
+const sessionVariables = computed<AnyVariable[]>(() => currentSessionVariables.value)
+const inputParameters = computed<AnyVariable[]>(() => currentInputParameters.value)
+// 变量名唯一性校验跨两个集合，传给 VariableManager 用
+const allVariables = computed<AnyVariable[]>(() => [
+  ...sessionVariables.value,
+  ...inputParameters.value,
+])
+
+const openVariablesDrawer = () => {
+  variablesDrawerVisible.value = true
+}
+
+const handleAddSessionVariable = (v: AnyVariable) => flowStore.addSessionVariable(v)
+const handleUpdateSessionVariable = (v: AnyVariable) => flowStore.updateSessionVariable(v)
+const handleDeleteSessionVariable = (v: AnyVariable) => flowStore.removeSessionVariable(v)
+
+const handleAddInputParameter = (v: AnyVariable) => flowStore.addInputParameter(v)
+const handleUpdateInputParameter = (v: AnyVariable) => flowStore.updateInputParameter(v)
+const handleDeleteInputParameter = (v: AnyVariable) => flowStore.removeInputParameter(v)
 
 const flowType = computed(() => route.params.flowType as string)
 const flowId = computed(() => route.params.id ? Number(route.params.id) : null)
@@ -639,6 +704,26 @@ onBeforeUnmount(() => {
 .chat-test-drawer-overlay {
   margin: 0 !important;
   padding: 0 !important;
+}
+
+/* Variables drawer：右侧浮卡，70vh 高度，垂直居中 */
+.variables-drawer.el-drawer.rtl {
+  height: 70vh !important;
+  top: 15vh !important;
+  border-radius: 12px 0 0 12px !important;
+  box-shadow: -12px 0 40px -4px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden;
+}
+
+.variables-drawer .el-drawer__header {
+  margin-bottom: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--nf-border, rgba(255, 255, 255, 0.08));
+}
+
+.variables-drawer .el-drawer__body {
+  padding: 12px 0;
+  overflow-y: auto;
 }
 </style>
 

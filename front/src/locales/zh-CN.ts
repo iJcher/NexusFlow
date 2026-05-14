@@ -589,6 +589,7 @@ export default {
     fitCanvas: '适应画布',
     
     // 变量管理器
+    variableManagement: '变量管理',
     inputParameterManagement: '输入参数管理',
     sessionVariableManagement: '会话变量管理',
     inputParameterDesc: '配置流程的输入参数，这些参数在流程启动时需要提供',
