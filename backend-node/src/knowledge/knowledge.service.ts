@@ -9,13 +9,13 @@ import * as path from 'path';
 export const EMBEDDING_SYSTEM_DEFAULT_KEY = 'system-default';
 
 export interface AvailableEmbeddingModelOption {
-  /** 唯一 key，前端下拉用；空字符串代表"留空 → 走系统默认" */
+  /** 唯一 key，前端下拉用 */
   key: string;
-  /** 实际提交给 createKnowledgeBase 的 model name；空字符串 = 让后端兜底 */
+  /** 实际提交给 createKnowledgeBase 的 model name */
   modelName: string;
   /** UI 显示名 */
   displayLabel: string;
-  /** 是否系统级默认 */
+  /** 是否系统级默认（仅做视觉标识用） */
   isSystemDefault: boolean;
 }
 
@@ -48,8 +48,8 @@ export class KnowledgeService {
     if (systemDefault) {
       options.push({
         key: EMBEDDING_SYSTEM_DEFAULT_KEY,
-        modelName: '',
-        displayLabel: `${systemDefault.modelName} (系统默认)`,
+        modelName: systemDefault.modelName,
+        displayLabel: systemDefault.modelName,
         isSystemDefault: true,
       });
     }
