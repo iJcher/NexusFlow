@@ -106,6 +106,9 @@ const formatTime = (iso?: string | null): string => {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+// 页面挂载即拉取数据；上一版重写时漏写这行，导致进入页面时列表为空必须手动点刷新
+onMounted(loadData)
 </script>
 
 <template>
@@ -542,6 +545,7 @@ const formatTime = (iso?: string | null): string => {
     letter-spacing: 0.02em;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
