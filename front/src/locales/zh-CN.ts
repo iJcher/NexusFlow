@@ -676,6 +676,8 @@ export default {
     knowledgeThresholdDesc: '仅返回相似度高于此阈值的结果，0-1 之间，默认 0.3',
     knowledgeOutputVar: '输出变量名',
     knowledgeOutputVarDesc: '检索结果将写入此变量，可在后续 LLM 节点中通过 {{变量名}} 引用',
+    knowledgeRerank: '启用重排',
+    knowledgeRerankDesc: '关闭后仅走 embedding 召回；开启时召回 Top-K×6 候选再用 cross-encoder 精排（系统未配置时自动降级）',
 
     // 节点输出面板
     noOutputDefined: '暂无输出定义',
