@@ -87,7 +87,6 @@
           <el-select
             v-model="formData.embeddingModel"
             :placeholder="t('knowledge.embeddingModelPlaceholder')"
-            clearable
             filterable
             allow-create
           >
@@ -103,7 +102,6 @@
               </el-tag>
             </el-option>
           </el-select>
-          <div class="form-hint">{{ t('knowledge.embeddingModelHint') }}</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -147,10 +145,6 @@ const loadList = async () => {
   }
 }
 
-/**
- * 拉取可用 embedding 选项。
- * 第一项为系统默认（modelName 为空字符串），允许新用户零配置直接用。
- */
 const loadEmbeddingModels = async () => {
   try {
     const res = await KnowledgeService.getAvailableEmbeddingModels()
@@ -164,16 +158,24 @@ const loadEmbeddingModels = async () => {
 
 const showCreateDialog = async () => {
   editingKb.value = null
-  formData.value = { name: '', description: '', embeddingModel: '' }
   await loadEmbeddingModels()
+  formData.value = {
+    name: '',
+    description: '',
+    embeddingModel: allEmbeddingModels.value[0]?.modelName || '',
+  }
   dialogVisible.value = true
 }
 
-const handleCommand = (command: string, kb: IKnowledgeBaseDto) => {
+const handleCommand = async (command: string, kb: IKnowledgeBaseDto) => {
   if (command === 'edit') {
     editingKb.value = kb
-    formData.value = { name: kb.name, description: kb.description, embeddingModel: kb.embeddingModel || '' }
-    loadEmbeddingModels()
+    await loadEmbeddingModels()
+    formData.value = {
+      name: kb.name,
+      description: kb.description,
+      embeddingModel: kb.embeddingModel || allEmbeddingModels.value[0]?.modelName || '',
+    }
     dialogVisible.value = true
   } else if (command === 'delete') {
     ElMessageBox.confirm(

@@ -54,12 +54,13 @@ export interface IKnowledgeListResponse {
 }
 
 export interface IEmbeddingModelOption {
-  /** 唯一 key；'system-default' = 留空提交走系统兜底 */
+  /** 唯一 key */
   key: string
-  /** 实际 model name，提交给后端 createKnowledgeBase；空字符串 = 让后端兜底 */
+  /** 实际 model name，提交给后端 createKnowledgeBase */
   modelName: string
   /** UI 下拉显示文本 */
   displayLabel: string
+  /** 是否系统级默认（仅做视觉标识用） */
   isSystemDefault: boolean
 }
 
@@ -178,7 +179,7 @@ export class KnowledgeService {
 
   /**
    * 获取可用的 embedding 模型选项（供创建/编辑知识库下拉用）。
-   * 第一项为系统默认（modelName 为空字符串，提交即让后端走 .env 兜底）。
+   * 第一项为系统默认（带 isSystemDefault 标识）。
    */
   static async getAvailableEmbeddingModels(): Promise<TApiResponse<IEmbeddingModelOption[]>> {
     const res = await HttpUtil.getInstance().get<TApiResponse<IEmbeddingModelOption[]>>(

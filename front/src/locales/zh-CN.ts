@@ -343,8 +343,7 @@ export default {
     chunkOverlap: '分块重叠',
     editKb: '编辑知识库',
     embeddingModel: 'Embedding 模型',
-    embeddingModelPlaceholder: '默认使用系统兜底模型，如需自定义可选择已配置的模型',
-    embeddingModelHint: '留空时自动走系统默认（运维在 .env 配置的 RAG_DEFAULT_EMBEDDING_*）；自定义请先在「模型」页面添加',
+    embeddingModelPlaceholder: '选择 Embedding 模型',
     systemDefault: '系统默认',
   },
 

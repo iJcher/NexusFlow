@@ -343,8 +343,7 @@ export default {
     chunkOverlap: 'Chunk Overlap',
     editKb: 'Edit Knowledge Base',
     embeddingModel: 'Embedding Model',
-    embeddingModelPlaceholder: 'Leave empty to use system default, or pick a configured one',
-    embeddingModelHint: 'Empty value falls back to the system default (RAG_DEFAULT_EMBEDDING_* in .env). Custom models must be added under «Models».',
+    embeddingModelPlaceholder: 'Select an embedding model',
     systemDefault: 'System Default',
   },
 
