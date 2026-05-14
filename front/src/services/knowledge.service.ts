@@ -53,6 +53,16 @@ export interface IKnowledgeListResponse {
   items: IKnowledgeBaseDto[]
 }
 
+export interface IEmbeddingModelOption {
+  /** 唯一 key；'system-default' = 留空提交走系统兜底 */
+  key: string
+  /** 实际 model name，提交给后端 createKnowledgeBase；空字符串 = 让后端兜底 */
+  modelName: string
+  /** UI 下拉显示文本 */
+  displayLabel: string
+  isSystemDefault: boolean
+}
+
 export class KnowledgeService {
   static async create(data: {
     name: string
@@ -162,6 +172,17 @@ export class KnowledgeService {
     const res = await HttpUtil.getInstance().post<TApiResponse<ISearchResultDto[]>>(
       '/Knowledge/Search',
       data,
+    )
+    return res.data
+  }
+
+  /**
+   * 获取可用的 embedding 模型选项（供创建/编辑知识库下拉用）。
+   * 第一项为系统默认（modelName 为空字符串，提交即让后端走 .env 兜底）。
+   */
+  static async getAvailableEmbeddingModels(): Promise<TApiResponse<IEmbeddingModelOption[]>> {
+    const res = await HttpUtil.getInstance().get<TApiResponse<IEmbeddingModelOption[]>>(
+      '/Knowledge/GetAvailableEmbeddingModels',
     )
     return res.data
   }

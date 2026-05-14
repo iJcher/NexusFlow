@@ -2,8 +2,22 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmbeddingService } from './embedding.service';
 import { ChunkingService } from './chunking.service';
+import { LlmProviderService } from '../llm-provider/llm-provider.service';
 import { nextId } from '../common/snowflake';
 import * as path from 'path';
+
+export const EMBEDDING_SYSTEM_DEFAULT_KEY = 'system-default';
+
+export interface AvailableEmbeddingModelOption {
+  /** 唯一 key，前端下拉用；空字符串代表"留空 → 走系统默认" */
+  key: string;
+  /** 实际提交给 createKnowledgeBase 的 model name；空字符串 = 让后端兜底 */
+  modelName: string;
+  /** UI 显示名 */
+  displayLabel: string;
+  /** 是否系统级默认 */
+  isSystemDefault: boolean;
+}
 
 @Injectable()
 export class KnowledgeService {
@@ -13,7 +27,53 @@ export class KnowledgeService {
     private prisma: PrismaService,
     private embeddingService: EmbeddingService,
     private chunkingService: ChunkingService,
+    private llmProviderService: LlmProviderService,
   ) {}
+
+  // ==================== 模型选项 ====================
+
+  /**
+   * 给知识库创建/编辑表单的 embedding 下拉用。
+   *
+   * 顺序：
+   *   1. 系统级默认（运维在 .env 配的 RAG_DEFAULT_EMBEDDING_*）
+   *   2. 用户在「模型」页配过的 LLM Provider 里，llmNames 包含 'embedding' 关键字的模型
+   *
+   * 与 SkillService.getAvailableModels 同样的设计模式，保持架构一致。
+   */
+  async getAvailableEmbeddingModels(userId: string): Promise<AvailableEmbeddingModelOption[]> {
+    const options: AvailableEmbeddingModelOption[] = [];
+
+    const systemDefault = this.llmProviderService.getDefaultEmbeddingProvider();
+    if (systemDefault) {
+      options.push({
+        key: EMBEDDING_SYSTEM_DEFAULT_KEY,
+        modelName: '',
+        displayLabel: `${systemDefault.modelName} (系统默认)`,
+        isSystemDefault: true,
+      });
+    }
+
+    const userProviders = await this.llmProviderService.getList(undefined, userId);
+    const seen = new Set<string>();
+    for (const provider of userProviders) {
+      const llmNames: string[] = (provider as any).llmNames || [];
+      for (const name of llmNames) {
+        if (!name.toLowerCase().includes('embedding')) continue;
+        const key = `user:${provider.id}:${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        options.push({
+          key,
+          modelName: name,
+          displayLabel: `${provider.platformName} - ${name}`,
+          isSystemDefault: false,
+        });
+      }
+    }
+
+    return options;
+  }
 
   // ==================== 知识库 CRUD ====================
 
