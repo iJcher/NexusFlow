@@ -13,23 +13,21 @@ export class EmbeddingService {
    * 兼容 OpenAI 格式的 /v1/embeddings 接口
    */
   async getEmbedding(text: string, modelName?: string, userId?: string): Promise<number[]> {
-    const provider = await this.findEmbeddingProvider(modelName, userId);
-    if (!provider) {
+    const resolved = await this.resolveProviderAndModel(modelName, userId);
+    if (!resolved) {
       this.logEmbeddingFallback('No embedding provider configured');
       return this.tfidfFallback(text);
     }
 
     try {
-      const apiUrl = this.buildEmbeddingUrl(provider.llmAPIUrl);
-      const model = modelName || 'text-embedding-ada-002';
-
+      const apiUrl = this.buildEmbeddingUrl(resolved.provider.llmAPIUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${provider.llmAPIKey}`,
+          Authorization: `Bearer ${resolved.provider.llmAPIKey}`,
         },
-        body: JSON.stringify({ model, input: text }),
+        body: JSON.stringify({ model: resolved.model, input: text }),
       });
 
       if (!response.ok) {
@@ -38,6 +36,7 @@ export class EmbeddingService {
       }
 
       const result: any = await response.json();
+      this.embeddingUnavailableLogged = false;
       return result.data?.[0]?.embedding || [];
     } catch (e: any) {
       this.logEmbeddingFallback(e.message);
@@ -49,27 +48,25 @@ export class EmbeddingService {
    * 批量获取 embedding
    */
   async getEmbeddings(texts: string[], modelName?: string, userId?: string): Promise<number[][]> {
-    const provider = await this.findEmbeddingProvider(modelName, userId);
-    if (!provider) {
+    const resolved = await this.resolveProviderAndModel(modelName, userId);
+    if (!resolved) {
       return texts.map((t) => this.tfidfFallback(t));
     }
 
     try {
-      const apiUrl = this.buildEmbeddingUrl(provider.llmAPIUrl);
-      const model = modelName || 'text-embedding-ada-002';
-
+      const apiUrl = this.buildEmbeddingUrl(resolved.provider.llmAPIUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${provider.llmAPIKey}`,
+          Authorization: `Bearer ${resolved.provider.llmAPIKey}`,
         },
-        body: JSON.stringify({ model, input: texts }),
+        body: JSON.stringify({ model: resolved.model, input: texts }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`${response.status} at ${apiUrl} model=${model}: ${errorText}`);
+        throw new Error(`${response.status} at ${apiUrl} model=${resolved.model}: ${errorText}`);
       }
 
       const result: any = await response.json();
@@ -111,8 +108,36 @@ export class EmbeddingService {
     return denominator === 0 ? 0 : dotProduct / denominator;
   }
 
-  private async findEmbeddingProvider(modelName?: string, userId?: string): Promise<any> {
-    return this.llmProviderService.findProviderForEmbedding(modelName, userId);
+  /**
+   * 解析"用哪个 provider + 哪个 model"。
+   *
+   * 优先级（高 → 低）：
+   * 1. 用户在「模型」页面配过的 provider，且 llmNames 里包含 modelName 或含 'embedding' 关键字
+   * 2. 系统级默认 embedding provider（运维在 .env 里配的 RAG_DEFAULT_EMBEDDING_*，所有用户共享）
+   * 3. 都没有 → 返回 null，外层退到 TF-IDF
+   */
+  private async resolveProviderAndModel(
+    modelName: string | undefined,
+    userId: string | undefined,
+  ): Promise<{ provider: { llmAPIUrl: string; llmAPIKey: string }; model: string } | null> {
+    const userProvider = await this.llmProviderService.findProviderForEmbedding(modelName, userId);
+    if (userProvider) {
+      return {
+        provider: { llmAPIUrl: userProvider.llmAPIUrl, llmAPIKey: userProvider.llmAPIKey },
+        model: modelName || 'text-embedding-ada-002',
+      };
+    }
+
+    const systemDefault = this.llmProviderService.getDefaultEmbeddingProvider();
+    if (systemDefault) {
+      return {
+        provider: { llmAPIUrl: systemDefault.llmAPIUrl, llmAPIKey: systemDefault.llmAPIKey },
+        // 调用方传了 modelName 就尊重它（覆盖系统默认），方便单条 RAG 节点指定特定 embedding
+        model: modelName || systemDefault.modelName,
+      };
+    }
+
+    return null;
   }
 
   /**

@@ -124,6 +124,30 @@ export class LlmProviderService {
   }
 
   /**
+   * 系统级默认 RAG embedding provider（通过环境变量配置，所有用户共享）。
+   *
+   * 与 getDefaultSkillProvider 同样的模式 ——
+   * 让新用户即使没在「模型」页面配过任何 LLM Provider，
+   * 也能开箱即用 RAG 能力（向量化 + 召回），而不是退到 TF-IDF 这种垃圾召回。
+   *
+   * 推荐配置：阿里云百炼 text-embedding-v4
+   *   RAG_DEFAULT_EMBEDDING_API_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+   *   RAG_DEFAULT_EMBEDDING_MODEL_NAME=text-embedding-v4
+   *   RAG_DEFAULT_EMBEDDING_API_KEY=sk-xxx (DashScope key)
+   */
+  getDefaultEmbeddingProvider(): {
+    modelName: string;
+    llmAPIUrl: string;
+    llmAPIKey: string;
+  } | null {
+    const modelName = process.env.RAG_DEFAULT_EMBEDDING_MODEL_NAME || '';
+    const llmAPIUrl = process.env.RAG_DEFAULT_EMBEDDING_API_URL || '';
+    const llmAPIKey = process.env.RAG_DEFAULT_EMBEDDING_API_KEY || '';
+    if (!modelName || !llmAPIUrl || !llmAPIKey) return null;
+    return { modelName, llmAPIUrl, llmAPIKey };
+  }
+
+  /**
    * 查找可用于 embedding 调用的 provider。
    *
    * 匹配策略（按优先级）：
