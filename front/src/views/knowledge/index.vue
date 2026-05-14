@@ -92,11 +92,16 @@
             allow-create
           >
             <el-option
-              v-for="model in allEmbeddingModels"
-              :key="model"
-              :label="model"
-              :value="model"
-            />
+              v-for="opt in allEmbeddingModels"
+              :key="opt.key"
+              :label="opt.displayLabel"
+              :value="opt.modelName"
+            >
+              <span class="emb-opt-label">{{ opt.displayLabel }}</span>
+              <el-tag v-if="opt.isSystemDefault" size="small" type="success" effect="plain" class="emb-opt-tag">
+                {{ t('knowledge.systemDefault') }}
+              </el-tag>
+            </el-option>
           </el-select>
           <div class="form-hint">{{ t('knowledge.embeddingModelHint') }}</div>
         </el-form-item>
@@ -115,8 +120,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Collection, Document, Grid, MoreFilled, Edit, Delete } from '@element-plus/icons-vue'
-import { KnowledgeService, type IKnowledgeBaseDto } from '@/services/knowledge.service'
-import { LLMProviderService } from '@/services/llmProvider.service'
+import { KnowledgeService, type IKnowledgeBaseDto, type IEmbeddingModelOption } from '@/services/knowledge.service'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -127,7 +131,7 @@ const knowledgeBases = ref<IKnowledgeBaseDto[]>([])
 const dialogVisible = ref(false)
 const editingKb = ref<IKnowledgeBaseDto | null>(null)
 const formData = ref({ name: '', description: '', embeddingModel: '' })
-const allEmbeddingModels = ref<string[]>([])
+const allEmbeddingModels = ref<IEmbeddingModelOption[]>([])
 
 const loadList = async () => {
   loading.value = true
@@ -143,31 +147,25 @@ const loadList = async () => {
   }
 }
 
+/**
+ * 拉取可用 embedding 选项。
+ * 第一项为系统默认（modelName 为空字符串），允许新用户零配置直接用。
+ */
 const loadEmbeddingModels = async () => {
   try {
-    const res = await LLMProviderService.getProviderList()
+    const res = await KnowledgeService.getAvailableEmbeddingModels()
     if (res.errCode === 0 && res.data) {
-      const models: string[] = []
-      for (const provider of res.data) {
-        if (provider.llmNames) {
-          for (const name of provider.llmNames) {
-            if (name.toLowerCase().includes('embedding')) {
-              models.push(name)
-            }
-          }
-        }
-      }
-      allEmbeddingModels.value = models
+      allEmbeddingModels.value = res.data
     }
   } catch {
     /* ignore */
   }
 }
 
-const showCreateDialog = () => {
+const showCreateDialog = async () => {
   editingKb.value = null
   formData.value = { name: '', description: '', embeddingModel: '' }
-  loadEmbeddingModels()
+  await loadEmbeddingModels()
   dialogVisible.value = true
 }
 
@@ -369,6 +367,14 @@ onMounted(() => {
   color: #4A5C6E;
   margin-top: 4px;
   line-height: 1.5;
+}
+
+.emb-opt-label {
+  margin-right: 8px;
+}
+
+.emb-opt-tag {
+  vertical-align: middle;
 }
 
 .kb-status {

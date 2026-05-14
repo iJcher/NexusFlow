@@ -16,6 +16,14 @@ import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decora
 export class KnowledgeController {
   constructor(private knowledgeService: KnowledgeService) {}
 
+  // ==================== 模型选项 ====================
+
+  @Get('GetAvailableEmbeddingModels')
+  async getAvailableEmbeddingModels(@CurrentUser() user: AuthenticatedUser) {
+    const options = await this.knowledgeService.getAvailableEmbeddingModels(user.id);
+    return JsonResponse.ok(options);
+  }
+
   // ==================== 知识库 ====================
 
   @Post('Create')
