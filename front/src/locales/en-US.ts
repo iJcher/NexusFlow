@@ -676,6 +676,8 @@ export default {
     knowledgeThresholdDesc: 'Only return results above this similarity threshold, 0-1, default 0.3',
     knowledgeOutputVar: 'Output Variable',
     knowledgeOutputVarDesc: 'Results will be stored in this variable, reference with {{variable_name}} in LLM nodes',
+    knowledgeRerank: 'Enable Rerank',
+    knowledgeRerankDesc: 'Off: embedding-only recall. On: recall Top-K×6 candidates then re-rank with cross-encoder (auto-fallback if rerank provider not configured).',
 
     // Node Output Panel
     noOutputDefined: 'No output defined',

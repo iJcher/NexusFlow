@@ -1,10 +1,15 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // 启用 Postgres 扩展支持，用于声明 pgvector
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // pgvector 扩展：用于知识库 chunk 的向量检索（直接在 PG 内算 cosine，
+  // 替代「全表 findMany 进 Node 算」的方案，从根本上解决 RAG 内存爆炸问题）
+  extensions = [vector]
 }
 
 model FlowEntity {
@@ -169,7 +174,12 @@ model KnowledgeDocChunkEntity {
   documentId BigInt
   chunkIndex Int    @default(0)
   content    String @default("")
+  // 旧字段：JSON 字符串形式的 embedding，保留作为兜底/回滚通道
   embedding  String @default("[]")
+  // 新字段：pgvector 原生向量类型，1024 维（text-embedding-v4 默认维度）
+  // Prisma 不支持 vector 原生 DSL，用 Unsupported 声明
+  // 实际相似度查询走 $queryRawUnsafe + SQL operator <=> （cosine distance）
+  embeddingVec Unsupported("vector(1024)")?
   tokenCount Int    @default(0)
 
   document KnowledgeDocumentEntity @relation(fields: [documentId], references: [id], onDelete: Cascade)

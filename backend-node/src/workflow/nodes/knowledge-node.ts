@@ -11,6 +11,7 @@ import { replacePlaceholders } from '../expression/expression-helper';
  * - topK: number — 返回 top K 个结果（默认 5）
  * - threshold: number — 相似度阈值（默认 0.3）
  * - embeddingModel: string — 可选的 embedding 模型名
+ * - rerankEnabled: boolean — 是否启用 cross-encoder 重排（默认 true，系统未配 rerank provider 时自动降级）
  * - outputVariable: string — 将检索结果写入的变量名（默认 "knowledge_context"）
  */
 export async function executeKnowledgeNode(
@@ -20,7 +21,7 @@ export async function executeKnowledgeNode(
   searchFn: (
     knowledgeBaseIds: bigint[],
     query: string,
-    options: { topK?: number; threshold?: number; embeddingModel?: string },
+    options: { topK?: number; threshold?: number; embeddingModel?: string; rerankEnabled?: boolean },
   ) => Promise<any[]>,
 ): Promise<NodeExecuteResult> {
   try {
@@ -36,11 +37,12 @@ export async function executeKnowledgeNode(
     const topK = node.topK ?? 5;
     const threshold = node.threshold ?? 0.3;
     const embeddingModel = node.embeddingModel || undefined;
+    const rerankEnabled = node.rerankEnabled ?? true;
 
     const results = await searchFn(
       knowledgeBaseIds.map((id: string) => BigInt(id)),
       resolvedQuery,
-      { topK, threshold, embeddingModel },
+      { topK, threshold, embeddingModel, rerankEnabled },
     );
 
     const contextText = results.length

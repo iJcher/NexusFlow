@@ -72,6 +72,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nexus}:${POSTGRES_PASSWORD:-nexus_password_change_me}@postgres:5432/${POSTGRES_DB:-nexus}
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
+      # 显式调高 V8 老生代堆上限（默认约为 cgroup limit 的 75%，会过早触发 heap OOM）
+      # 容器 limit 是 800M，给 V8 留 650M heap，剩下 150M 给 Native (Prisma engine、HTTP buffer 等)
+      NODE_OPTIONS: "--max-old-space-size=650"
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,7 +85,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 500M
+          memory: 800M
 
   # ============================================
   # Nginx 反向代理 + 前端静态资源

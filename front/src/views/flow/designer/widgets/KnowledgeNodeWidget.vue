@@ -63,6 +63,13 @@
           <el-input-number v-model="threshold" :min="0" :max="1" :step="0.05" :precision="2" size="small" @change="update('threshold', threshold)" />
         </div>
       </div>
+      <div class="widget-field rerank-field">
+        <div class="rerank-row">
+          <label class="field-label">{{ t('flowComponents.knowledgeRerank') }}</label>
+          <el-switch v-model="rerankEnabled" size="small" @change="update('rerankEnabled', rerankEnabled)" />
+        </div>
+        <p class="field-hint">{{ t('flowComponents.knowledgeRerankDesc') }}</p>
+      </div>
     </div>
     <VariableSelector
       v-model:visible="variableSelectorVisible"
@@ -91,6 +98,7 @@ const selectedKnowledgeBaseIds = ref<string[]>((nodeData.value.knowledgeBaseIds 
 const queryText = ref(nodeData.value.queryExpression?.text || nodeData.value.queryExpression?.Text || '{{sys.query}}')
 const topK = ref(nodeData.value.topK ?? 5)
 const threshold = ref(nodeData.value.threshold ?? 0.1)
+const rerankEnabled = ref<boolean>(nodeData.value.rerankEnabled ?? true)
 const variableSelectorVisible = ref(false)
 
 const update = (key: string, value: any) => onUpdate({ [key]: value })
@@ -203,6 +211,14 @@ onMounted(loadKnowledgeBases)
 
 .knowledge-select {
   width: 100%;
+}
+
+.rerank-field { gap: 4px; }
+.rerank-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 :deep(.el-textarea__inner) { font-size: 12px; min-height: 36px !important; padding: 4px 7px; }

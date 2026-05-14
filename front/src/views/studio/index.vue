@@ -55,7 +55,7 @@
               {{ getFlowTypeLabel(flow.flowType) }}
             </span>
             <el-dropdown trigger="click" @command="(cmd: string) => handleCardAction(cmd, flow)">
-              <el-icon class="card-more" :size="16" @click.stop><MoreFilled /></el-icon>
+              <el-icon class="card-more" :size="25" @click.stop><MoreFilled /></el-icon>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="edit">
@@ -899,15 +899,17 @@ onMounted(() => {
 }
 
 .card-more {
-  color: #3A4E5E;
+  /* §3 secondary text，明显可见但不喧宾夺主 */
+  color: #fff;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.15s;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
 .card-more:hover {
   color: var(--nf-accent);
+  background: rgba(0, 255, 159, 0.08);
 }
 
 .card-name {
