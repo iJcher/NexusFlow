@@ -17,7 +17,10 @@ import {
 import { FlowRuntime } from './nodes/node-base';
 import { executeStartNode } from './nodes/start-node';
 import { executeEndNode } from './nodes/end-node';
-import { executeConditionNode, getConditionExecuteLine } from './nodes/condition-node';
+import {
+  executeConditionNode,
+  getConditionExecuteLine,
+} from './nodes/condition-node';
 import { executeAssignVariableNode } from './nodes/assign-variable-node';
 import { executeJSCodeNode } from './nodes/js-code-node';
 import { executeHttpNode } from './nodes/http-node';
@@ -26,6 +29,9 @@ import { executeReplyNode } from './nodes/reply-node';
 import { executeKnowledgeNode } from './nodes/knowledge-node';
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { parseLegacyFlowConfig } from './legacy-config';
+import { parseJson } from '../common/json.util';
+import { extractByJsonPath } from './expression/expression-helper';
 
 @Injectable()
 export class FlowRuntimeService {
@@ -37,7 +43,12 @@ export class FlowRuntimeService {
     private knowledgeService: KnowledgeService,
   ) {}
 
-  async runFlowStreaming(flowId: bigint, ownerUserId: string, request: AIChatRequest, res: Response) {
+  async runFlowStreaming(
+    flowId: bigint,
+    ownerUserId: string,
+    request: AIChatRequest,
+    res: Response,
+  ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -54,26 +65,47 @@ export class FlowRuntimeService {
       return;
     }
 
-    const flowConfig: FlowConfigInfo = JSON.parse(flowEntity.configInfoForRun);
+    let flowConfig: FlowConfigInfo;
+    try {
+      flowConfig = parseLegacyFlowConfig(flowEntity.configInfoForRun);
+    } catch {
+      this.sendSSE(res, 'error', { message: 'INVALID_FLOW_CONFIG' });
+      res.end();
+      return;
+    }
     const flowInstanceId = nextId();
     let conversationId = request.conversationId || uuidv4();
     let dialogueCount = 0;
 
-    let conversationEntity = request.conversationId
+    const conversationEntity = request.conversationId
       ? await this.prisma.flowChatConversationEntity.findFirst({
-          where: { conversationId: request.conversationId, ownerUserId: ownerId, flowId },
+          where: {
+            conversationId: request.conversationId,
+            ownerUserId: ownerId,
+            flowId,
+          },
         })
       : null;
     let chatHistory: ChatHistoryMessage[] = [];
 
     if (conversationEntity) {
       dialogueCount = conversationEntity.messageCount;
-      chatHistory = await this.getRecentChatHistory(flowId, ownerId, conversationId);
-      const savedVars: Record<string, any> = conversationEntity.variables
-        ? JSON.parse(conversationEntity.variables)
+      chatHistory = await this.getRecentChatHistory(
+        flowId,
+        ownerId,
+        conversationId,
+      );
+      const savedVars = conversationEntity.variables
+        ? parseJson(conversationEntity.variables)
         : {};
+      if (
+        !savedVars ||
+        typeof savedVars !== 'object' ||
+        Array.isArray(savedVars)
+      )
+        throw new Error('INVALID_CONVERSATION_VARIABLES');
       for (const v of flowConfig.variables || []) {
-        if (savedVars[v.name] !== undefined) {
+        if (Object.hasOwn(savedVars, v.name)) {
           v.value = savedVars[v.name];
           v.hasValue = true;
         }
@@ -111,11 +143,16 @@ export class FlowRuntimeService {
 
     const nodeResults = new Map<string, NodeExecuteResult>();
     let fullResponseText = '';
-    const totalTokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const totalTokenUsage: TokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
 
     const runtime: FlowRuntime = {
       currentNode: null,
-      getNodeExecuteResult: async (_ctx, nodeId) => nodeResults.get(nodeId) || null,
+      getNodeExecuteResult: (_ctx, nodeId) =>
+        Promise.resolve(nodeResults.get(nodeId) || null),
     };
 
     this.sendSSE(res, 'workflow_started', {
@@ -126,7 +163,9 @@ export class FlowRuntimeService {
     });
 
     try {
-      const startNode = flowConfig.nodes.find((n) => n.typeName === 'StartNode');
+      const startNode = flowConfig.nodes.find(
+        (n) => n.typeName === 'StartNode',
+      );
       if (!startNode) {
         this.sendSSE(res, 'error', { message: 'No start node found' });
         res.end();
@@ -137,23 +176,34 @@ export class FlowRuntimeService {
       const startResult = executeStartNode(startNode);
       nodeResults.set(startNode.id, startResult);
 
-      await this.runGraph(startNode, context, runtime, nodeResults, res, fullResponseText, totalTokenUsage, (text) => {
-        fullResponseText = text;
-      });
-    } catch (e: any) {
-      this.logger.error(`Flow execution error: ${e.message}`, e.stack);
-      this.sendSSE(res, 'error', { message: e.message });
+      await this.runGraph(
+        startNode,
+        context,
+        runtime,
+        nodeResults,
+        res,
+        fullResponseText,
+        totalTokenUsage,
+        (text) => {
+          fullResponseText = text;
+        },
+      );
+    } catch {
+      this.logger.error('FLOW_EXECUTION_FAILED');
+      this.sendSSE(res, 'error', { message: 'FLOW_EXECUTION_FAILED' });
     }
 
-    const varsToSave: Record<string, any> = {};
+    const varsToSave: Record<string, unknown> = {};
     for (const v of context.variables) {
-      varsToSave[v.name] = v.hasValue ? v.value : v.defaultValue ?? null;
+      varsToSave[v.name] = v.hasValue ? v.value : (v.defaultValue ?? null);
     }
 
     try {
       if (!conversationEntity) {
         const title =
-          request.query.length > 10 ? request.query.substring(0, 10) + '...' : request.query;
+          request.query.length > 10
+            ? request.query.substring(0, 10) + '...'
+            : request.query;
         await this.prisma.flowChatConversationEntity.create({
           data: {
             conversationId,
@@ -198,8 +248,8 @@ export class FlowRuntimeService {
           files: request.files ? JSON.stringify(request.files) : null,
         },
       });
-    } catch (e: any) {
-      this.logger.error(`Failed to save conversation: ${e.message}`);
+    } catch {
+      this.logger.error('CONVERSATION_SAVE_FAILED');
     }
 
     this.sendSSE(res, 'workflow_finished', {
@@ -258,14 +308,25 @@ export class FlowRuntimeService {
       await Promise.all(
         batch.map(async (node) => {
           if (node.typeName === 'EndNode') {
-            nodeStates.set(node.id, { nodeId: node.id, status: 'skipped', finishedAt: new Date() });
+            nodeStates.set(node.id, {
+              nodeId: node.id,
+              status: 'skipped',
+              finishedAt: new Date(),
+            });
             return;
           }
 
           if (!nodeResults.has(node.id)) {
             runtime.currentNode = node;
-            nodeStates.set(node.id, { nodeId: node.id, status: 'running', startedAt: new Date() });
-            this.sendSSE(res, 'node_started', { node_id: node.id, node_type: node.typeName });
+            nodeStates.set(node.id, {
+              nodeId: node.id,
+              status: 'running',
+              startedAt: new Date(),
+            });
+            this.sendSSE(res, 'node_started', {
+              node_id: node.id,
+              node_type: node.typeName,
+            });
 
             const result = await this.executeNode(node, context, runtime);
             nodeResults.set(node.id, result);
@@ -277,7 +338,10 @@ export class FlowRuntimeService {
                 finishedAt: new Date(),
                 errorMsg: result.errorMsg,
               });
-              this.sendSSE(res, 'error', { node_id: node.id, message: result.errorMsg });
+              this.sendSSE(res, 'error', {
+                node_id: node.id,
+                message: result.errorMsg,
+              });
               return;
             }
 
@@ -289,23 +353,52 @@ export class FlowRuntimeService {
               setFullResponse(fullResponseText);
             }
 
-            if (node.typeName === 'LLMNode' && result.result?.tokenUsage) {
-              const tu = result.result.tokenUsage as TokenUsage;
+            const tokenUsage = extractByJsonPath(result.result, 'tokenUsage');
+            if (node.typeName === 'LLMNode' && tokenUsage) {
+              const tu = {
+                promptTokens: extractByJsonPath(tokenUsage, 'promptTokens'),
+                completionTokens: extractByJsonPath(
+                  tokenUsage,
+                  'completionTokens',
+                ),
+                totalTokens: extractByJsonPath(tokenUsage, 'totalTokens'),
+              };
+              if (
+                typeof tu.promptTokens !== 'number' ||
+                typeof tu.completionTokens !== 'number' ||
+                typeof tu.totalTokens !== 'number'
+              )
+                throw new Error('INVALID_TOKEN_USAGE');
               totalTokenUsage.promptTokens += tu.promptTokens;
               totalTokenUsage.completionTokens += tu.completionTokens;
               totalTokenUsage.totalTokens += tu.totalTokens;
             }
 
-            nodeStates.set(node.id, { nodeId: node.id, status: 'success', finishedAt: new Date() });
-            this.sendSSE(res, 'node_finished', { node_id: node.id, node_type: node.typeName });
+            nodeStates.set(node.id, {
+              nodeId: node.id,
+              status: 'success',
+              finishedAt: new Date(),
+            });
+            this.sendSSE(res, 'node_finished', {
+              node_id: node.id,
+              node_type: node.typeName,
+            });
           }
 
-          const outgoing = await this.resolveOutgoingLines(node, context, runtime);
+          const outgoing = await this.resolveOutgoingLines(
+            node,
+            context,
+            runtime,
+          );
           for (const line of outgoing) {
             activatedEdges.add(line.id);
-            const target = context.flowConfigInfoForRun.nodes.find((n) => n.id === line.toNodeId);
+            const target = context.flowConfigInfoForRun.nodes.find(
+              (n) => n.id === line.toNodeId,
+            );
             if (!target || enqueued.has(target.id)) continue;
-            if (this.isNodeReady(target, context, activatedEdges, nodeResults)) {
+            if (
+              this.isNodeReady(target, context, activatedEdges, nodeResults)
+            ) {
               enqueued.add(target.id);
               nextBatch.push(target);
             }
@@ -326,7 +419,9 @@ export class FlowRuntimeService {
       const selected = await getConditionExecuteLine(node, context, runtime);
       return selected ? [selected] : [];
     }
-    return context.flowConfigInfoForRun.lines.filter((line) => line.fromNodeId === node.id);
+    return context.flowConfigInfoForRun.lines.filter(
+      (line) => line.fromNodeId === node.id,
+    );
   }
 
   private isNodeReady(
@@ -339,7 +434,9 @@ export class FlowRuntimeService {
       (line) => line.toNodeId === node.id && activatedEdges.has(line.id),
     );
     if (activeIncoming.length === 0) return false;
-    return activeIncoming.every((line) => nodeResults.get(line.fromNodeId)?.isSuccess);
+    return activeIncoming.every(
+      (line) => nodeResults.get(line.fromNodeId)?.isSuccess,
+    );
   }
 
   private async executeNode(
@@ -362,20 +459,37 @@ export class FlowRuntimeService {
         return executeHttpNode(node, context, runtime);
       case 'LLMNode':
         return executeLLMNode(node, context, runtime, (model) =>
-          this.llmProviderService.findProviderByModelName(model, context.ownerUserId),
+          this.llmProviderService.findProviderByModelName(
+            model,
+            context.ownerUserId,
+          ),
         );
       case 'ReplyNode':
         return executeReplyNode(node, context, runtime);
       case 'KnowledgeNode':
-        return executeKnowledgeNode(node, context, runtime, (ids, query, opts) =>
-          this.knowledgeService.searchMultiple(ids, query, context.ownerUserId, opts),
+        return executeKnowledgeNode(
+          node,
+          context,
+          runtime,
+          (ids, query, opts) =>
+            this.knowledgeService.searchMultiple(
+              ids,
+              query,
+              context.ownerUserId,
+              opts,
+            ),
         );
       default:
-        return { nodeId: node.id, isSuccess: false, errorMsg: `Unknown node type: ${node.typeName}`, errorCode: 61002 };
+        return {
+          nodeId: node.id,
+          isSuccess: false,
+          errorMsg: `Unknown node type: ${node.typeName}`,
+          errorCode: 61002,
+        };
     }
   }
 
-  private sendSSE(res: Response, event: string, data: any) {
+  private sendSSE(res: Response, event: string, data: Record<string, unknown>) {
     const payload = { event, ...data };
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
   }

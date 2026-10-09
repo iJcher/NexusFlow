@@ -1,7 +1,274 @@
+<script setup lang="ts">
+import type { FullTextMiniExpressionUnit as FullTextMiniExpressionUnitType, JSExpressionUnit as JSExpressionUnitType } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { AssignmentItem } from '@/types/flow-designer/nodes/AssignVariableNode'
+import type { ConditionRule } from '@/types/flow-designer/nodes/ConditionNode'
+import type { AnyVariable, VariableItemType } from '@/types/flow-designer/Parameters/Variable'
+import type { IFlowLLMProviderDto } from '@/types/llmProvider.types'
+import { Delete, Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { LLMProviderService } from '@/services/llmProvider.service'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import { parseCurlCommand } from '@/utils/curlParser'
+import FullTextMiniExpressionUnit from '../ExpressionUnits/FullTextMiniExpressionUnit.vue'
+import JSExpressionUnit from '../ExpressionUnits/JSExpressionUnit.vue'
+
+import TextInputUnit from '../ExpressionUnits/TextInputUnit.vue'
+
+const props = withDefaults(defineProps<Props>(), {
+  type: 'text',
+  placeholder: '',
+  description: '',
+  options: () => [],
+  readonly: false,
+  variables: () => [],
+})
+
+const emit = defineEmits<Emits>()
+
+const { t } = useI18n()
+
+// 选项接口
+interface SelectOption {
+  label: string
+  value: any
+}
+
+// 组件属性
+interface Props {
+  label: string // 字段标签
+  type?: string // 字段类型：text, textarea, number, boolean, select, conditions
+  value?: any // 字段值
+  placeholder?: string // 占位符
+  description?: string // 字段描述
+  options?: SelectOption[] // 选择器选项（仅select类型使用）
+  readonly?: boolean // 是否只读
+  variables?: AnyVariable[] // 可用变量列表（条件编辑器使用）
+}
+
+// 组件事件
+interface Emits {
+  (e: 'update:value', value: any): void
+  (e: 'change', value: any): void
+  (e: 'importCurl', value: any): void
+}
+
+// 本地值，用于双向绑定
+const localValue = ref(props.value)
+
+// cURL 导入对话框
+const curlDialogVisible = ref(false)
+const curlText = ref('')
+const curlPlaceholder = `请粘贴 curl 命令，例如：
+curl -X POST "https://api.example.com?name=abc" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"abc"}'`
+
+// 迷你富文本单元值（确保有默认对象）
+const fullTextMiniExpressionValue = computed<FullTextMiniExpressionUnitType>({
+  get: () => {
+    if (props.type === 'fullTextMiniExpression') {
+      return localValue.value as FullTextMiniExpressionUnitType
+    }
+    return (localValue.value as FullTextMiniExpressionUnitType) || ExpressionUnitFactory.createFullTextMiniExpression('')
+  },
+  set: (value) => {
+    localValue.value = value
+  },
+})
+
+// 监听外部值变化
+watch(() => [props.value, props.type] as const, ([newValue, type]) => {
+  if (type === 'fullTextMiniExpression' && !newValue) {
+    const defaultUnit = ExpressionUnitFactory.createFullTextMiniExpression('')
+    localValue.value = defaultUnit
+    emit('update:value', defaultUnit)
+  }
+  else {
+    localValue.value = newValue
+  }
+}, { immediate: true })
+
+// 处理值变化
+function handleChange(value: any) {
+  emit('update:value', value)
+  emit('change', value)
+}
+
+function openCurlDialog() {
+  curlText.value = ''
+  curlDialogVisible.value = true
+}
+
+function handleCurlConfirm() {
+  const parsed = parseCurlCommand(curlText.value)
+  if (parsed.method) {
+    localValue.value = parsed.method
+    handleChange(parsed.method)
+  }
+  emit('importCurl', parsed)
+  curlDialogVisible.value = false
+}
+
+// 条件列表管理（仅当类型为 conditions 时使用）
+const conditionsList = computed({
+  get: () => {
+    return props.type === 'conditions' && Array.isArray(localValue.value)
+      ? localValue.value as ConditionRule[]
+      : []
+  },
+  set: (newValue: ConditionRule[]) => {
+    if (props.type === 'conditions') {
+      localValue.value = newValue
+      emit('update:value', newValue)
+      emit('change', newValue)
+    }
+  },
+})
+
+// 添加新条件
+function addCondition() {
+  const newCondition: ConditionRule = {
+    id: `condition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    expressionUnit: ExpressionUnitFactory.createJSExpression(''),
+    description: `${t('flowComponents.condition')} ${conditionsList.value.length + 1}`,
+  }
+
+  conditionsList.value = [...conditionsList.value, newCondition]
+}
+
+// 删除条件
+function removeCondition(index: number) {
+  // 检查是否只剩一个条件，不允许删除最后一个条件
+  if (conditionsList.value.length <= 1) {
+    ElMessage.warning(t('flowComponents.atLeastOneCondition'))
+    return
+  }
+
+  const newList = [...conditionsList.value]
+  newList.splice(index, 1)
+  conditionsList.value = newList
+}
+
+// 更新条件（当子组件值变化时触发）
+function updateCondition() {
+  // 触发变更事件，让父组件知道条件列表已更新
+  emit('update:value', conditionsList.value)
+  emit('change', conditionsList.value)
+}
+
+// 赋值列表管理（仅当类型为 assignments 时使用）
+const assignmentsList = computed({
+  get: () => {
+    return props.type === 'assignments' && Array.isArray(localValue.value)
+      ? localValue.value as AssignmentItem[]
+      : []
+  },
+  set: (newValue: AssignmentItem[]) => {
+    if (props.type === 'assignments') {
+      localValue.value = newValue
+      emit('update:value', newValue)
+      emit('change', newValue)
+    }
+  },
+})
+
+// 添加新赋值项
+function addAssignment() {
+  const newAssignment: AssignmentItem = {
+    id: `assign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    targetVariableName: '',
+    expressionUnit: ExpressionUnitFactory.createJSExpression(''),
+  }
+
+  assignmentsList.value = [...assignmentsList.value, newAssignment]
+}
+
+// 删除赋值项
+function removeAssignment(index: number) {
+  // 检查是否只剩一个赋值项，不允许删除最后一个
+  if (assignmentsList.value.length <= 1) {
+    ElMessage.warning(t('flowComponents.atLeastOneAssignment'))
+    return
+  }
+
+  const newList = [...assignmentsList.value]
+  newList.splice(index, 1)
+  assignmentsList.value = newList
+}
+
+// 更新赋值项（当子组件值变化时触发）
+function updateAssignment() {
+  // 触发变更事件，让父组件知道赋值列表已更新
+  emit('update:value', assignmentsList.value)
+  emit('change', assignmentsList.value)
+}
+
+// 获取变量类型标签
+// 获取变量类型标签
+function getVariableTypeLabel(typeName: VariableItemType): string {
+  const typeMap: Record<VariableItemType, string> = {
+    LongVariable: 'Number',
+    DecimalVariable: 'Number',
+    StringVariable: 'String',
+    ObjectVariable: 'Object',
+    DateTimeVariable: 'DateTime',
+    BooleanVariable: 'Boolean',
+    ArrayVariable: 'Array',
+  }
+  return typeMap[typeName] || typeName
+}
+
+// 模型提供者列表（用于模型选择器）
+const modelProviders = ref<IFlowLLMProviderDto[]>([])
+
+// 加载模型提供者列表
+async function loadModelProviders() {
+  try {
+    const response = await LLMProviderService.getProviderList()
+    if (response.errCode === 0 && response.data) {
+      modelProviders.value = response.data
+    }
+  }
+  catch (error) {
+    console.error('加载模型提供者失败:', error)
+  }
+}
+
+// 记忆配置值（用于memoryConfig类型）
+const memoryConfigValue = computed({
+  get: () => {
+    if (props.type === 'memoryConfig' && typeof localValue.value === 'object') {
+      return localValue.value as { enabled: boolean, rounds: number }
+    }
+    return { enabled: false, rounds: 5 }
+  },
+  set: (newValue) => {
+    if (props.type === 'memoryConfig') {
+      localValue.value = newValue
+    }
+  },
+})
+
+// 更新记忆配置
+function updateMemoryConfig() {
+  emit('update:value', memoryConfigValue.value)
+  emit('change', memoryConfigValue.value)
+}
+
+// 组件挂载时加载模型提供者
+onMounted(() => {
+  if (props.type === 'modelSelector') {
+    loadModelProviders()
+  }
+})
+</script>
+
 <template>
   <div class="property-field">
     <label class="field-label">{{ label }}</label>
-    
+
     <div class="field-content">
       <!-- 文本输入框 -->
       <el-input
@@ -9,10 +276,10 @@
         v-model="localValue"
         :placeholder="placeholder"
         :readonly="readonly"
-        @input="handleChange"
         clearable
+        @input="handleChange"
       />
-      
+
       <!-- 多行文本输入框 -->
       <el-input
         v-else-if="type === 'textarea'"
@@ -21,33 +288,33 @@
         :placeholder="placeholder"
         :readonly="readonly"
         :rows="2"
-        @input="handleChange"
         resize="vertical"
+        @input="handleChange"
       />
-      
+
       <!-- 数字输入框 -->
       <el-input-number
         v-else-if="type === 'number'"
         v-model="localValue"
         :placeholder="placeholder"
-        @change="handleChange"
         style="width: 100%"
+        @change="handleChange"
       />
-      
+
       <!-- 开关 -->
       <el-switch
         v-else-if="type === 'boolean'"
         v-model="localValue"
         @change="handleChange"
       />
-      
+
       <!-- 普通选择器 -->
       <el-select
         v-else-if="type === 'select'"
         v-model="localValue"
         :placeholder="placeholder"
-        @change="handleChange"
         style="width: 100%"
+        @change="handleChange"
       >
         <el-option
           v-for="option in options"
@@ -56,15 +323,15 @@
           :value="option.value"
         />
       </el-select>
-      
+
       <!-- HTTP Method + 导入 cURL -->
       <div v-else-if="type === 'httpMethod'" class="http-method-row">
         <el-select
           v-model="localValue"
           placeholder="HTTP Method"
-          @change="handleChange"
           class="http-method-select"
           size="small"
+          @change="handleChange"
         >
           <el-option
             v-for="option in options"
@@ -81,7 +348,7 @@
         >
           导入 cURL
         </el-button>
-        
+
         <el-dialog
           v-model="curlDialogVisible"
           title="导入 cURL"
@@ -101,14 +368,14 @@
           </template>
         </el-dialog>
       </div>
-      
+
       <!-- 条件列表编辑器 -->
       <div
         v-else-if="type === 'conditions'"
         class="conditions-editor"
       >
         <div class="conditions-list">
-          <div 
+          <div
             v-for="(condition, index) in conditionsList"
             :key="condition.id"
             class="condition-item"
@@ -127,11 +394,11 @@
                 size="small"
                 text
                 :icon="Delete"
-                @click="removeCondition(index)"
                 :title="t('flowComponents.deleteCondition')"
+                @click="removeCondition(index)"
               />
             </div>
-            
+
             <JSExpressionUnit
               v-model="(condition.expressionUnit as JSExpressionUnitType)"
               :placeholder="t('flowComponents.conditionExpression', { index: index + 1 })"
@@ -140,13 +407,13 @@
             />
           </div>
         </div>
-        
+
         <el-button
           type="primary"
           size="small"
           :icon="Plus"
-          @click="addCondition"
           class="add-condition-btn"
+          @click="addCondition"
         >
           {{ t('flowComponents.addCondition') }}
         </el-button>
@@ -161,15 +428,15 @@
         :rows="2"
         @change="handleChange"
       />
-      
+
       <!-- 模型选择器 -->
       <el-select
         v-else-if="type === 'modelSelector'"
         v-model="localValue"
         :placeholder="placeholder || t('flowComponents.selectModel')"
-        @change="handleChange"
         style="width: 100%"
         filterable
+        @change="handleChange"
       >
         <el-option-group
           v-for="provider in modelProviders"
@@ -187,7 +454,7 @@
           </el-option>
         </el-option-group>
       </el-select>
-      
+
       <!-- 滑块（用于温度等参数） -->
       <div v-else-if="type === 'slider'" class="slider-container">
         <el-slider
@@ -200,7 +467,7 @@
         />
         <span class="slider-value">{{ localValue }}</span>
       </div>
-      
+
       <!-- 记忆配置 -->
       <div v-else-if="type === 'memoryConfig'" class="memory-config">
         <div class="memory-switch">
@@ -216,8 +483,8 @@
             v-model="memoryConfigValue.rounds"
             :min="1"
             :max="20"
-            @change="updateMemoryConfig"
             style="width: 120px"
+            @change="updateMemoryConfig"
           />
         </div>
       </div>
@@ -246,7 +513,7 @@
         class="assignments-editor"
       >
         <div class="assignments-list">
-          <div 
+          <div
             v-for="(assignment, index) in assignmentsList"
             :key="assignment.id"
             class="assignment-item"
@@ -276,11 +543,11 @@
                 size="small"
                 text
                 :icon="Delete"
-                @click="removeAssignment(index)"
                 :title="t('flowComponents.deleteAssignment')"
+                @click="removeAssignment(index)"
               />
             </div>
-            
+
             <JSExpressionUnit
               v-model="(assignment.expressionUnit as JSExpressionUnitType)"
               :placeholder="t('flowComponents.setExpressionOrFunction')"
@@ -289,13 +556,13 @@
             />
           </div>
         </div>
-        
+
         <el-button
           type="primary"
           size="small"
           :icon="Plus"
-          @click="addAssignment"
           class="add-assignment-btn"
+          @click="addAssignment"
         >
           {{ t('flowComponents.addAssignment') }}
         </el-button>
@@ -306,279 +573,16 @@
         v-else
         v-model="localValue"
         :placeholder="placeholder"
-        @input="handleChange"
         clearable
+        @input="handleChange"
       />
-      
-      <p v-if="description" class="field-desc">{{ description }}</p>
+
+      <p v-if="description" class="field-desc">
+        {{ description }}
+      </p>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { Delete, Plus } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
-import JSExpressionUnit from '../ExpressionUnits/JSExpressionUnit.vue';
-import FullTextMiniExpressionUnit from '../ExpressionUnits/FullTextMiniExpressionUnit.vue';
-import TextInputUnit from '../ExpressionUnits/TextInputUnit.vue';
-import type { AnyVariable, VariableItemType } from '@/types/flow-designer/Parameters/Variable';
-import type { ConditionRule } from '@/types/flow-designer/nodes/ConditionNode';
-import type { AssignmentItem } from '@/types/flow-designer/nodes/AssignVariableNode';
-import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-import type { JSExpressionUnit as JSExpressionUnitType, FullTextMiniExpressionUnit as FullTextMiniExpressionUnitType } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-import { LLMProviderService } from '@/services/llmProvider.service';
-import type { IFlowLLMProviderDto } from '@/types/llmProvider.types';
-
-const { t } = useI18n();
-
-// 选项接口
-interface SelectOption {
-  label: string;
-  value: any;
-}
-
-// 组件属性
-interface Props {
-  label: string;           // 字段标签
-  type?: string;          // 字段类型：text, textarea, number, boolean, select, conditions
-  value?: any;            // 字段值
-  placeholder?: string;   // 占位符
-  description?: string;   // 字段描述
-  options?: SelectOption[]; // 选择器选项（仅select类型使用）
-  readonly?: boolean;     // 是否只读
-  variables?: AnyVariable[]; // 可用变量列表（条件编辑器使用）
-}
-
-// 组件事件
-interface Emits {
-  (e: 'update:value', value: any): void;
-  (e: 'change', value: any): void;
-  (e: 'importCurl', value: any): void;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  type: 'text',
-  placeholder: '',
-  description: '',
-  options: () => [],
-  readonly: false,
-  variables: () => []
-});
-
-const emit = defineEmits<Emits>();
-
-// 本地值，用于双向绑定
-const localValue = ref(props.value);
-
-// cURL 导入对话框
-const curlDialogVisible = ref(false);
-const curlText = ref('');
-const curlPlaceholder = `请粘贴 curl 命令，例如：
-curl -X POST "https://api.example.com?name=abc" \\
-  -H "Content-Type: application/json" \\
-  -d '{"name":"abc"}'`;
-
-// 迷你富文本单元值（确保有默认对象）
-const fullTextMiniExpressionValue = computed<FullTextMiniExpressionUnitType>({
-  get: () => {
-    if (props.type === 'fullTextMiniExpression') {
-      if (!localValue.value) {
-        const defaultUnit = ExpressionUnitFactory.createFullTextMiniExpression('');
-        localValue.value = defaultUnit;
-        emit('update:value', defaultUnit);
-        return defaultUnit;
-      }
-      return localValue.value as FullTextMiniExpressionUnitType;
-    }
-    return (localValue.value as FullTextMiniExpressionUnitType) || ExpressionUnitFactory.createFullTextMiniExpression('');
-  },
-  set: (value) => {
-    localValue.value = value;
-  }
-});
-
-// 监听外部值变化
-watch(() => props.value, (newValue) => {
-  localValue.value = newValue;
-}, { immediate: true });
-
-import { parseCurlCommand } from '@/utils/curlParser';
-
-// 处理值变化
-const handleChange = (value: any) => {
-  emit('update:value', value);
-  emit('change', value);
-};
-
-const openCurlDialog = () => {
-  curlText.value = '';
-  curlDialogVisible.value = true;
-};
-
-const handleCurlConfirm = () => {
-  const parsed = parseCurlCommand(curlText.value);
-  if (parsed.method) {
-    localValue.value = parsed.method;
-    handleChange(parsed.method);
-  }
-  emit('importCurl', parsed);
-  curlDialogVisible.value = false;
-};
-
-// 条件列表管理（仅当类型为 conditions 时使用）
-const conditionsList = computed({
-  get: () => {
-    return props.type === 'conditions' && Array.isArray(localValue.value) 
-      ? localValue.value as ConditionRule[]
-      : [];
-  },
-  set: (newValue: ConditionRule[]) => {
-    if (props.type === 'conditions') {
-      localValue.value = newValue;
-      emit('update:value', newValue);
-      emit('change', newValue);
-    }
-  }
-});
-
-// 添加新条件
-const addCondition = () => {
-  const newCondition: ConditionRule = {
-    id: `condition_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    expressionUnit: ExpressionUnitFactory.createJSExpression(''),
-    description: t('flowComponents.condition') + ' ' + (conditionsList.value.length + 1)
-  };
-  
-  conditionsList.value = [...conditionsList.value, newCondition];
-};
-
-// 删除条件
-const removeCondition = (index: number) => {
-  // 检查是否只剩一个条件，不允许删除最后一个条件
-  if (conditionsList.value.length <= 1) {
-    ElMessage.warning(t('flowComponents.atLeastOneCondition'));
-    return;
-  }
-  
-  const newList = [...conditionsList.value];
-  newList.splice(index, 1);
-  conditionsList.value = newList;
-};
-
-// 更新条件（当子组件值变化时触发）
-const updateCondition = () => {
-  // 触发变更事件，让父组件知道条件列表已更新
-  emit('update:value', conditionsList.value);
-  emit('change', conditionsList.value);
-};
-
-// 赋值列表管理（仅当类型为 assignments 时使用）
-const assignmentsList = computed({
-  get: () => {
-    return props.type === 'assignments' && Array.isArray(localValue.value) 
-      ? localValue.value as AssignmentItem[]
-      : [];
-  },
-  set: (newValue: AssignmentItem[]) => {
-    if (props.type === 'assignments') {
-      localValue.value = newValue;
-      emit('update:value', newValue);
-      emit('change', newValue);
-    }
-  }
-});
-
-// 添加新赋值项
-const addAssignment = () => {
-  const newAssignment: AssignmentItem = {
-    id: `assign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    targetVariableName: '',
-    expressionUnit: ExpressionUnitFactory.createJSExpression('')
-  };
-  
-  assignmentsList.value = [...assignmentsList.value, newAssignment];
-};
-
-// 删除赋值项
-const removeAssignment = (index: number) => {
-  // 检查是否只剩一个赋值项，不允许删除最后一个
-  if (assignmentsList.value.length <= 1) {
-    ElMessage.warning(t('flowComponents.atLeastOneAssignment'));
-    return;
-  }
-  
-  const newList = [...assignmentsList.value];
-  newList.splice(index, 1);
-  assignmentsList.value = newList;
-};
-
-// 更新赋值项（当子组件值变化时触发）
-const updateAssignment = () => {
-  // 触发变更事件，让父组件知道赋值列表已更新
-  emit('update:value', assignmentsList.value);
-  emit('change', assignmentsList.value);
-};
-
-// 获取变量类型标签
-// 获取变量类型标签
-const getVariableTypeLabel = (typeName: VariableItemType): string => {
-  const typeMap: Record<VariableItemType, string> = {
-    'LongVariable': 'Number',
-    'DecimalVariable': 'Number',
-    'StringVariable': 'String',
-    'ObjectVariable': 'Object',
-    'DateTimeVariable': 'DateTime',
-    'BooleanVariable': 'Boolean',
-    'ArrayVariable': 'Array'
-  };
-  return typeMap[typeName] || typeName;
-};
-
-// 模型提供者列表（用于模型选择器）
-const modelProviders = ref<IFlowLLMProviderDto[]>([]);
-
-// 加载模型提供者列表
-const loadModelProviders = async () => {
-  try {
-    const response = await LLMProviderService.getProviderList();
-    if (response.errCode === 0 && response.data) {
-      modelProviders.value = response.data;
-    }
-  } catch (error) {
-    console.error('加载模型提供者失败:', error);
-  }
-};
-
-// 记忆配置值（用于memoryConfig类型）
-const memoryConfigValue = computed({
-  get: () => {
-    if (props.type === 'memoryConfig' && typeof localValue.value === 'object') {
-      return localValue.value as { enabled: boolean; rounds: number };
-    }
-    return { enabled: false, rounds: 5 };
-  },
-  set: (newValue) => {
-    if (props.type === 'memoryConfig') {
-      localValue.value = newValue;
-    }
-  }
-});
-
-// 更新记忆配置
-const updateMemoryConfig = () => {
-  emit('update:value', memoryConfigValue.value);
-  emit('change', memoryConfigValue.value);
-};
-
-// 组件挂载时加载模型提供者
-onMounted(() => {
-  if (props.type === 'modelSelector') {
-    loadModelProviders();
-  }
-});
-</script>
 
 <style scoped>
 /* ── Field layout ── */
@@ -683,7 +687,9 @@ onMounted(() => {
     border-color: var(--nf-border-light);
     color: var(--nf-accent);
     background: transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
 
     &:hover {
       background: var(--nf-accent-muted);
@@ -712,7 +718,9 @@ onMounted(() => {
         gap: 8px;
         margin-bottom: 8px;
 
-        .variable-select { flex: 1; }
+        .variable-select {
+          flex: 1;
+        }
       }
     }
   }
@@ -723,7 +731,9 @@ onMounted(() => {
     border-color: var(--nf-border-light);
     color: var(--nf-accent2);
     background: transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
 
     &:hover {
       background: rgba(8, 145, 178, 0.08);
@@ -759,7 +769,9 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
 
-  .el-slider { flex: 1; }
+  .el-slider {
+    flex: 1;
+  }
 
   .slider-value {
     min-width: 36px;
@@ -807,7 +819,11 @@ onMounted(() => {
   gap: 8px;
   align-items: center;
 
-  .http-method-select { width: 120px; }
-  .http-curl-btn { flex-shrink: 0; }
+  .http-method-select {
+    width: 120px;
+  }
+  .http-curl-btn {
+    flex-shrink: 0;
+  }
 }
 </style>

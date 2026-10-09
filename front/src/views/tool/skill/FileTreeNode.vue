@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Document, Folder, FolderOpened } from '@element-plus/icons-vue'
 /**
  * Skill 文件目录树的递归节点。
  *
@@ -11,7 +12,6 @@
  * 在模板里直接 <FileTreeNode /> 自递归，比 defineComponent + h() 写法更直观。
  */
 import { computed } from 'vue'
-import { Document, Folder, FolderOpened } from '@element-plus/icons-vue'
 
 export interface IFileTreeNode {
   name: string
@@ -28,25 +28,25 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'click-node', node: IFileTreeNode): void
+  (e: 'clickNode', node: IFileTreeNode): void
 }>()
 
 const isExpanded = computed<boolean>(() => props.expandedDirs.has(props.node.path))
 const isSelected = computed<boolean>(() => !props.node.isDir && props.selectedPath === props.node.path)
 
-const handleClick = (): void => {
-  emit('click-node', props.node)
+function handleClick(): void {
+  emit('clickNode', props.node)
 }
 
-const onChildClick = (n: IFileTreeNode): void => {
-  emit('click-node', n)
+function onChildClick(n: IFileTreeNode): void {
+  emit('clickNode', n)
 }
 </script>
 
 <template>
   <li class="tree-item">
     <button
-      :class="['tree-node', { 'is-dir': node.isDir, 'is-selected': isSelected }]"
+      class="tree-node" :class="[{ 'is-dir': node.isDir, 'is-selected': isSelected }]"
       :style="{ paddingLeft: `${10 + depth * 14}px` }"
       @click="handleClick"
     >
@@ -100,12 +100,15 @@ const onChildClick = (n: IFileTreeNode): void => {
   line-height: 1.4;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 
   &:hover {
     background: rgba(255, 255, 255, 0.02);
     border-left-color: rgba(0, 255, 159, 0.4);
-    color: #B0BEC5;
+    color: #b0bec5;
   }
 
   /* §3 Label 风格：目录名稍弱化，文件名走 body 默认 */

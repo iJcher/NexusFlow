@@ -7,11 +7,11 @@
  * @returns 返回格式化的UUID字符串
  */
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
 }
 
 /**
@@ -20,9 +20,9 @@ export function generateUUID(): string {
  * @returns 返回唯一ID字符串
  */
 export function generateTimestampId(prefix?: string): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  return prefix ? `${prefix}_${timestamp}_${random}` : `${timestamp}_${random}`;
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 8)
+  return prefix ? `${prefix}_${timestamp}_${random}` : `${timestamp}_${random}`
 }
 
 /**
@@ -31,5 +31,5 @@ export function generateTimestampId(prefix?: string): string {
  * @returns 返回节点ID
  */
 export function generateNodeId(nodeType: string): string {
-  return generateTimestampId(nodeType.toLowerCase());
+  return generateTimestampId(nodeType.toLowerCase())
 }

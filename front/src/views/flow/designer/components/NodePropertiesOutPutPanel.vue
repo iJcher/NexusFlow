@@ -1,15 +1,150 @@
+<script setup lang="ts">
+import type { NodeOutputItem } from '@/types/flow-designer/NodeBase'
+import type { VariableItemType as VariableItemTypeEnum } from '@/types/flow-designer/Parameters/Variable'
+import { Delete, Plus } from '@element-plus/icons-vue'
+import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { VariableItemType } from '@/types/flow-designer/Parameters/Variable'
+
+const props = withDefaults(defineProps<Props>(), {
+  isEditable: false,
+  outputs: () => [],
+})
+
+// 事件定义
+const emit = defineEmits<{
+  change: [outputs: NodeOutputItem[]]
+}>()
+
+const { t } = useI18n()
+
+// 组件属性
+interface Props {
+  /** 是否有输出 */
+  hasOutput: boolean
+  /** 输出列表 */
+  outputs: NodeOutputItem[]
+  /** 是否可编辑（LLM节点不可编辑，JSCode节点可编辑） */
+  isEditable?: boolean
+}
+
+// 输出错误信息（每个输出对应一个错误信息）
+const outputErrors = ref<string[]>([])
+
+// 监听outputs变化，初始化errors数组
+watch(() => props.outputs, (newOutputs) => {
+  outputErrors.value = Array.from<string>({ length: newOutputs.length }).fill('')
+}, { immediate: true })
+
+// 获取类型标签
+function getTypeLabel(typeName: VariableItemTypeEnum): string {
+  const typeMap: Record<string, string> = {
+    StringVariable: 'String',
+    LongVariable: 'Number',
+    DecimalVariable: 'Decimal',
+    BooleanVariable: 'Boolean',
+    DateTimeVariable: 'DateTime',
+    ObjectVariable: 'Object',
+    ArrayVariable: 'Array',
+  }
+  return typeMap[typeName] || typeName
+}
+
+// 添加输出
+function handleAddOutput() {
+  const newOutput: NodeOutputItem = {
+    name: '',
+    variableType: VariableItemType.StringVariable,
+  }
+  // 同步添加错误信息槽位
+  outputErrors.value.push('')
+  emit('change', [...props.outputs, newOutput])
+}
+
+// 删除输出
+function handleDeleteOutput(index: number) {
+  const newOutputs = [...props.outputs]
+  newOutputs.splice(index, 1)
+  // 同步删除错误信息
+  outputErrors.value.splice(index, 1)
+  emit('change', newOutputs)
+}
+
+// 输出变化
+function handleOutputChange() {
+  emit('change', [...props.outputs])
+}
+
+// 校验变量名是否符合规范
+function isValidVariableName(name: string): boolean {
+  if (!name)
+    return false
+  // 变量名规则：只能包含字母、数字、下划线，且不能以数字开头
+  const regex = /^[a-z_]\w*$/i
+  return regex.test(name)
+}
+
+// 检查是否有重名
+function hasDuplicateName(name: string, currentIndex: number): boolean {
+  return props.outputs.some((output, index) =>
+    index !== currentIndex && output.name === name,
+  )
+}
+
+// 处理属性名输入
+function handleOutputNameChange(value: string, index: number) {
+  // 清除之前的错误
+  outputErrors.value[index] = ''
+
+  // 实时校验
+  if (value && !isValidVariableName(value)) {
+    outputErrors.value[index] = t('flowComponents.variableNameInvalid')
+  }
+  else if (value && hasDuplicateName(value, index)) {
+    outputErrors.value[index] = t('flowComponents.outputPropertyNameDuplicate')
+  }
+
+  handleOutputChange()
+}
+
+// 失焦时校验
+function validateOutputName(index: number) {
+  const name = props.outputs[index]?.name
+
+  if (!name) {
+    outputErrors.value[index] = t('flowComponents.outputPropertyNameRequired')
+    return false
+  }
+
+  if (!isValidVariableName(name)) {
+    outputErrors.value[index] = t('flowComponents.variableNameInvalid')
+    return false
+  }
+
+  if (hasDuplicateName(name, index)) {
+    outputErrors.value[index] = t('flowComponents.outputPropertyNameDuplicate')
+    return false
+  }
+
+  outputErrors.value[index] = ''
+  return true
+}
+</script>
+
 <template>
   <!-- 使用与property-group相同的结构 -->
   <div v-if="hasOutput" class="mb-4">
-    <div class="flex-between mb-2.5">
-      <h4 class="m-0 text-11px font-600 uppercase tracking-0.6px text-nf-text-muted leading-4 flex-1">{{ t('flowComponents.nodeOutput') }}</h4>
+    <div class="mb-2.5 flex-between">
+      <h4 class="m-0 flex-1 text-11px text-nf-text-muted font-600 leading-4 tracking-0.6px uppercase">
+        {{ t('flowComponents.nodeOutput') }}
+      </h4>
       <el-button
         v-if="isEditable"
         type="primary"
         size="small"
         :icon="Plus"
-        @click="handleAddOutput"
         style="height: 24px; padding: 0 10px; font-size: 12px;"
+        @click="handleAddOutput"
       >
         {{ t('flowComponents.addOutput') }}
       </el-button>
@@ -30,13 +165,13 @@
             size="small"
             maxlength="15"
             show-word-limit
+            :class="{ 'is-error': outputErrors[index] }"
             @input="handleOutputNameChange($event, index)"
             @blur="validateOutputName(index)"
-            :class="{ 'is-error': outputErrors[index] }"
           />
           <span v-else>{{ output.name }}</span>
         </div>
-        
+
         <!-- 类型显示 -->
         <div class="output-type">
           <el-select
@@ -64,11 +199,11 @@
           size="small"
           :icon="Delete"
           circle
-          @click="handleDeleteOutput(index)"
           style="width: 24px; height: 24px;"
+          @click="handleDeleteOutput(index)"
         />
       </div>
-      
+
       <!-- 错误提示 -->
       <div v-if="isEditable && outputErrors.some((e: string) => e)" class="error-tips">
         <div v-for="(error, index) in outputErrors" :key="index">
@@ -76,143 +211,12 @@
         </div>
       </div>
 
-      <div v-if="outputs.length === 0" class="p-3 text-center bg-nf-card rounded-1">
+      <div v-if="outputs.length === 0" class="rounded-1 bg-nf-card p-3 text-center">
         <span class="text-3 text-nf-text-muted">{{ t('flowComponents.noOutputDefined') }}</span>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { Plus, Delete } from '@element-plus/icons-vue';
-import type { NodeOutputItem } from '@/types/flow-designer/NodeBase';
-import { VariableItemType } from '@/types/flow-designer/Parameters/Variable';
-import type { VariableItemType as VariableItemTypeEnum } from '@/types/flow-designer/Parameters/Variable';
-
-const { t } = useI18n();
-
-// 组件属性
-interface Props {
-  /** 是否有输出 */
-  hasOutput: boolean;
-  /** 输出列表 */
-  outputs: NodeOutputItem[];
-  /** 是否可编辑（LLM节点不可编辑，JSCode节点可编辑） */
-  isEditable?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  isEditable: false,
-  outputs: () => []
-});
-
-// 事件定义
-const emit = defineEmits<{
-  change: [outputs: NodeOutputItem[]];
-}>();
-
-// 输出错误信息（每个输出对应一个错误信息）
-const outputErrors = ref<string[]>([]);
-
-// 监听outputs变化，初始化errors数组
-watch(() => props.outputs, (newOutputs) => {
-  outputErrors.value = new Array(newOutputs.length).fill('');
-}, { immediate: true });
-
-// 获取类型标签
-const getTypeLabel = (typeName: VariableItemTypeEnum): string => {
-  const typeMap: Record<string, string> = {
-    'StringVariable': 'String',
-    'LongVariable': 'Number',
-    'DecimalVariable': 'Decimal',
-    'BooleanVariable': 'Boolean',
-    'DateTimeVariable': 'DateTime',
-    'ObjectVariable': 'Object',
-    'ArrayVariable': 'Array'
-  };
-  return typeMap[typeName] || typeName;
-};
-
-// 添加输出
-const handleAddOutput = () => {
-  const newOutput: NodeOutputItem = {
-    name: '',
-    variableType: VariableItemType.StringVariable
-  };
-  // 同步添加错误信息槽位
-  outputErrors.value.push('');
-  emit('change', [...props.outputs, newOutput]);
-};
-
-// 删除输出
-const handleDeleteOutput = (index: number) => {
-  const newOutputs = [...props.outputs];
-  newOutputs.splice(index, 1);
-  // 同步删除错误信息
-  outputErrors.value.splice(index, 1);
-  emit('change', newOutputs);
-};
-
-// 输出变化
-const handleOutputChange = () => {
-  emit('change', [...props.outputs]);
-};
-
-// 校验变量名是否符合规范
-const isValidVariableName = (name: string): boolean => {
-  if (!name) return false;
-  // 变量名规则：只能包含字母、数字、下划线，且不能以数字开头
-  const regex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-  return regex.test(name);
-};
-
-// 检查是否有重名
-const hasDuplicateName = (name: string, currentIndex: number): boolean => {
-  return props.outputs.some((output, index) => 
-    index !== currentIndex && output.name === name
-  );
-};
-
-// 处理属性名输入
-const handleOutputNameChange = (value: string, index: number) => {
-  // 清除之前的错误
-  outputErrors.value[index] = '';
-  
-  // 实时校验
-  if (value && !isValidVariableName(value)) {
-    outputErrors.value[index] = t('flowComponents.variableNameInvalid');
-  } else if (value && hasDuplicateName(value, index)) {
-    outputErrors.value[index] = t('flowComponents.outputPropertyNameDuplicate');
-  }
-  
-  handleOutputChange();
-};
-
-// 失焦时校验
-const validateOutputName = (index: number) => {
-  const name = props.outputs[index]?.name;
-  
-  if (!name) {
-    outputErrors.value[index] = t('flowComponents.outputPropertyNameRequired');
-    return false;
-  }
-  
-  if (!isValidVariableName(name)) {
-    outputErrors.value[index] = t('flowComponents.variableNameInvalid');
-    return false;
-  }
-  
-  if (hasDuplicateName(name, index)) {
-    outputErrors.value[index] = t('flowComponents.outputPropertyNameDuplicate');
-    return false;
-  }
-  
-  outputErrors.value[index] = '';
-  return true;
-};
-</script>
 
 <style scoped>
 .property-group {

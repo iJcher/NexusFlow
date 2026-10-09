@@ -297,3 +297,16 @@ myfront/
 
 # RAG seed data (cloned repos, not part of source)
 rag-seeds/
+# Verification artifacts and local credentials
+/artifacts/
+/test-results/
+/playwright-report/
+*.local.env
+.env.test
+.env.live
+# Local credentials at any package level. Keep only sanitized examples tracked.
+.env
+.env.*
+!.env.example
+!.env.test.example
+backend-node/*-junit.xml

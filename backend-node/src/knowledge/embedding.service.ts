@@ -1,5 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
+import { safeFetch } from '../security/safe-fetch';
+import { extractByJsonPath } from '../workflow/expression/expression-helper';
+
+function decodeEmbeddings(value: unknown, count: number): number[][] {
+  const data = extractByJsonPath(value, 'data');
+  if (!Array.isArray(data) || data.length !== count)
+    throw new Error('INVALID_EMBEDDING_RESPONSE');
+  const indexed = data
+    .map((entry: unknown) => {
+      const index = extractByJsonPath(entry, 'index');
+      const vector = extractByJsonPath(entry, 'embedding');
+      if (
+        typeof index !== 'number' ||
+        !Number.isInteger(index) ||
+        !Array.isArray(vector) ||
+        vector.length === 0 ||
+        !vector.every(
+          (item: unknown) => typeof item === 'number' && Number.isFinite(item),
+        )
+      )
+        throw new Error('INVALID_EMBEDDING_RESPONSE');
+      return { index, vector: vector as number[] };
+    })
+    .sort((a, b) => a.index - b.index);
+  if (indexed.some((entry, index) => entry.index !== index))
+    throw new Error('INVALID_EMBEDDING_RESPONSE');
+  return indexed.map((entry) => entry.vector);
+}
 
 @Injectable()
 export class EmbeddingService {
@@ -12,7 +40,11 @@ export class EmbeddingService {
    * 调用 LLM Provider 的 Embedding API 获取文本向量
    * 兼容 OpenAI 格式的 /v1/embeddings 接口
    */
-  async getEmbedding(text: string, modelName?: string, userId?: string): Promise<number[]> {
+  async getEmbedding(
+    text: string,
+    modelName?: string,
+    userId?: string,
+  ): Promise<number[]> {
     const resolved = await this.resolveProviderAndModel(modelName, userId);
     if (!resolved) {
       this.logEmbeddingFallback('No embedding provider configured');
@@ -21,7 +53,7 @@ export class EmbeddingService {
 
     try {
       const apiUrl = this.buildEmbeddingUrl(resolved.provider.llmAPIUrl);
-      const response = await fetch(apiUrl, {
+      const response = await safeFetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,11 +67,12 @@ export class EmbeddingService {
         throw new Error(`Embedding API error ${response.status}: ${errorText}`);
       }
 
-      const result: any = await response.json();
+      const result: unknown = await response.json();
+      const vectors = decodeEmbeddings(result, 1);
       this.embeddingUnavailableLogged = false;
-      return result.data?.[0]?.embedding || [];
-    } catch (e: any) {
-      this.logEmbeddingFallback(e.message);
+      return vectors[0];
+    } catch {
+      this.logEmbeddingFallback('EMBEDDING_REQUEST_FAILED');
       return this.tfidfFallback(text);
     }
   }
@@ -47,7 +80,11 @@ export class EmbeddingService {
   /**
    * 批量获取 embedding
    */
-  async getEmbeddings(texts: string[], modelName?: string, userId?: string): Promise<number[][]> {
+  async getEmbeddings(
+    texts: string[],
+    modelName?: string,
+    userId?: string,
+  ): Promise<number[][]> {
     const resolved = await this.resolveProviderAndModel(modelName, userId);
     if (!resolved) {
       return texts.map((t) => this.tfidfFallback(t));
@@ -55,7 +92,7 @@ export class EmbeddingService {
 
     try {
       const apiUrl = this.buildEmbeddingUrl(resolved.provider.llmAPIUrl);
-      const response = await fetch(apiUrl, {
+      const response = await safeFetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,16 +103,17 @@ export class EmbeddingService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`${response.status} at ${apiUrl} model=${resolved.model}: ${errorText}`);
+        throw new Error(
+          `${response.status} at ${apiUrl} model=${resolved.model}: ${errorText}`,
+        );
       }
 
-      const result: any = await response.json();
+      const result: unknown = await response.json();
+      const vectors = decodeEmbeddings(result, texts.length);
       this.embeddingUnavailableLogged = false;
-      return (result.data || [])
-        .sort((a: any, b: any) => a.index - b.index)
-        .map((d: any) => d.embedding);
-    } catch (e: any) {
-      this.logEmbeddingFallback(e.message);
+      return vectors;
+    } catch {
+      this.logEmbeddingFallback('EMBEDDING_REQUEST_FAILED');
       return texts.map((t) => this.tfidfFallback(t));
     }
   }
@@ -119,11 +157,20 @@ export class EmbeddingService {
   private async resolveProviderAndModel(
     modelName: string | undefined,
     userId: string | undefined,
-  ): Promise<{ provider: { llmAPIUrl: string; llmAPIKey: string }; model: string } | null> {
-    const userProvider = await this.llmProviderService.findProviderForEmbedding(modelName, userId);
+  ): Promise<{
+    provider: { llmAPIUrl: string; llmAPIKey: string };
+    model: string;
+  } | null> {
+    const userProvider = await this.llmProviderService.findProviderForEmbedding(
+      modelName,
+      userId,
+    );
     if (userProvider) {
       return {
-        provider: { llmAPIUrl: userProvider.llmAPIUrl, llmAPIKey: userProvider.llmAPIKey },
+        provider: {
+          llmAPIUrl: userProvider.llmAPIUrl,
+          llmAPIKey: userProvider.llmAPIKey,
+        },
         model: modelName || 'text-embedding-ada-002',
       };
     }
@@ -131,7 +178,10 @@ export class EmbeddingService {
     const systemDefault = this.llmProviderService.getDefaultEmbeddingProvider();
     if (systemDefault) {
       return {
-        provider: { llmAPIUrl: systemDefault.llmAPIUrl, llmAPIKey: systemDefault.llmAPIKey },
+        provider: {
+          llmAPIUrl: systemDefault.llmAPIUrl,
+          llmAPIKey: systemDefault.llmAPIKey,
+        },
         // 调用方传了 modelName 就尊重它（覆盖系统默认），方便单条 RAG 节点指定特定 embedding
         model: modelName || systemDefault.modelName,
       };
@@ -171,7 +221,7 @@ export class EmbeddingService {
    */
   private tfidfFallback(text: string): number[] {
     const dim = 256;
-    const vector = new Array(dim).fill(0);
+    const vector = new Array<number>(dim).fill(0);
     const tokens = this.tokenize(text);
     for (const token of tokens) {
       const hash = this.hashString(token);

@@ -6,13 +6,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/studio'
+      redirect: '/studio',
     },
     {
       path: '/login',
       name: 'login',
       component: () => import('@/views/login/index.vue'),
-      meta: { layout: 'simple', requiresAuth: false }
+      meta: { layout: 'simple', requiresAuth: false },
     },
     {
       path: '/studio',
@@ -20,8 +20,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/studio/index.vue') }
-      ]
+        { path: '', component: () => import('@/views/studio/index.vue') },
+      ],
     },
     {
       path: '/templates',
@@ -29,8 +29,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/templates/index.vue') }
-      ]
+        { path: '', component: () => import('@/views/templates/index.vue') },
+      ],
     },
     {
       path: '/knowledge',
@@ -38,8 +38,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/knowledge/index.vue') }
-      ]
+        { path: '', component: () => import('@/views/knowledge/index.vue') },
+      ],
     },
     {
       path: '/knowledge/:id',
@@ -47,8 +47,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/knowledge/detail.vue') }
-      ]
+        { path: '', component: () => import('@/views/knowledge/detail.vue') },
+      ],
     },
     {
       path: '/models',
@@ -56,8 +56,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/dashboard/llm-provider/index.vue') }
-      ]
+        { path: '', component: () => import('@/views/dashboard/llm-provider/index.vue') },
+      ],
     },
     {
       path: '/tool/skill',
@@ -65,8 +65,8 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/tool/skill/index.vue') }
-      ]
+        { path: '', component: () => import('@/views/tool/skill/index.vue') },
+      ],
     },
     {
       path: '/tool/skill/:id',
@@ -74,16 +74,16 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', component: () => import('@/views/tool/skill/detail.vue') }
-      ]
+        { path: '', component: () => import('@/views/tool/skill/detail.vue') },
+      ],
     },
     {
       path: '/designer/:flowType/:id?',
       name: 'flowDesigner',
       component: () => import('@/views/flow/designer/index.vue'),
-      meta: { layout: 'simple', requiresAuth: true }
-    }
-  ]
+      meta: { layout: 'simple', requiresAuth: true },
+    },
+  ],
 })
 
 router.beforeEach(async (to, _from, next) => {
@@ -95,6 +95,8 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  if (requiresAuth)
+    await authStore.ensureSession()
   if (requiresAuth && !authStore.getIsAuthenticated) {
     next('/login')
     return

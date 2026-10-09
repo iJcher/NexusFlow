@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import pdfParse from 'pdf-parse';
 
 export interface TextChunk {
   content: string;
@@ -20,8 +21,20 @@ export class ChunkingService {
       strategy?: 'fixed' | 'paragraph' | 'markdown';
     } = {},
   ): TextChunk[] {
-    const { chunkSize = 500, chunkOverlap = 50, strategy = 'paragraph' } = options;
+    const {
+      chunkSize = 500,
+      chunkOverlap = 50,
+      strategy = 'paragraph',
+    } = options;
 
+    if (
+      !Number.isInteger(chunkSize) ||
+      chunkSize <= 0 ||
+      !Number.isInteger(chunkOverlap) ||
+      chunkOverlap < 0 ||
+      chunkOverlap >= chunkSize
+    )
+      throw new Error('INVALID_CHUNK_OPTIONS');
     if (!text || text.trim().length === 0) return [];
 
     const rawChunks =
@@ -43,7 +56,11 @@ export class ChunkingService {
   /**
    * 段落感知分块：按自然段落边界切分，超长段落再做固定切分
    */
-  private paragraphChunk(text: string, maxSize: number, overlap: number): string[] {
+  private paragraphChunk(
+    text: string,
+    maxSize: number,
+    overlap: number,
+  ): string[] {
     const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim().length > 0);
     const chunks: string[] = [];
     let currentChunk = '';
@@ -62,7 +79,7 @@ export class ChunkingService {
       if (currentChunk.length + para.length + 1 > maxSize) {
         if (currentChunk.trim()) {
           chunks.push(currentChunk);
-          const overlapText = currentChunk.slice(-overlap);
+          const overlapText = overlap > 0 ? currentChunk.slice(-overlap) : '';
           currentChunk = overlapText + '\n' + para;
         } else {
           currentChunk = para;
@@ -82,7 +99,11 @@ export class ChunkingService {
   /**
    * Markdown 结构感知分块：优先按标题切分，保留标题上下文。
    */
-  private markdownChunk(text: string, maxSize: number, overlap: number): string[] {
+  private markdownChunk(
+    text: string,
+    maxSize: number,
+    overlap: number,
+  ): string[] {
     const sections = text
       .split(/(?=^#{1,6}\s+)/m)
       .map((section) => section.trim())
@@ -102,7 +123,11 @@ export class ChunkingService {
   /**
    * 固定大小分块，按字符数切分，带重叠
    */
-  private fixedChunk(text: string, chunkSize: number, overlap: number): string[] {
+  private fixedChunk(
+    text: string,
+    chunkSize: number,
+    overlap: number,
+  ): string[] {
     const chunks: string[] = [];
     let start = 0;
     while (start < text.length) {
@@ -125,7 +150,7 @@ export class ChunkingService {
       }
 
       chunks.push(text.substring(start, breakPoint));
-      start = breakPoint - overlap;
+      start = Math.max(start + 1, breakPoint - overlap);
       if (start < 0) start = 0;
       if (breakPoint >= text.length) break;
     }
@@ -160,13 +185,10 @@ export class ChunkingService {
 
   private async extractPdfText(buffer: Buffer): Promise<string> {
     try {
-      // pdf-parse@1.x is CJS; require() is the most reliable way in NestJS
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pdfParse = require('pdf-parse');
       const result = await pdfParse(buffer);
       return result.text || '';
-    } catch (e: any) {
-      throw new Error(`PDF parsing failed: ${e.message}`);
+    } catch {
+      throw new Error('PDF_PARSING_FAILED');
     }
   }
 }

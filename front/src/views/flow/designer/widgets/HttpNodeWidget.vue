@@ -1,15 +1,206 @@
+<script setup lang="ts">
+import type { Ref } from 'vue'
+import type { AnyExpressionUnit, FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import { ArrowDown, ArrowUp, Link } from '@element-plus/icons-vue'
+import { computed, inject, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import VariableSelector from '../components/VariableSelector.vue'
+
+interface HttpKeyValueItem {
+  id: string
+  enabled: boolean
+  key: string
+  value: string
+}
+
+interface PersistedHttpKeyValueItem {
+  id?: string
+  enabled?: boolean
+  key?: string
+  value?: string
+}
+
+type VariableTarget
+  = | { kind: 'url' }
+    | { kind: 'body' }
+    | { kind: 'query', id: string }
+    | { kind: 'header', id: string }
+
+const { t } = useI18n()
+const nodeData = inject<Ref<Record<string, unknown>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
+const onUpdate = inject<(patch: Record<string, unknown>) => void>('onUpdate')!
+
+const collapsed = ref<boolean>(false)
+const displayName = ref<string>(String(nodeData.value.displayName || 'HTTP'))
+const method = ref<string>(String(nodeData.value.method || 'GET'))
+const timeout = ref<number>(Number(nodeData.value.timeoutSeconds ?? 5))
+const bodyMode = ref<'none' | 'json' | 'raw'>((nodeData.value.bodyMode as 'none' | 'json' | 'raw') || 'none')
+
+function extractText(unit: AnyExpressionUnit | string | unknown): string {
+  if (!unit)
+    return ''
+  if (typeof unit === 'string')
+    return unit
+  const field = unit as { typeName?: string, Text?: string, text?: string }
+  if (field.typeName === 'FullTextMiniExpressionUnit')
+    return field.Text || field.text || ''
+  if (field.typeName === 'FullTextExpressionUnit')
+    return field.Text || field.text || ''
+  return ''
+}
+
+function normalizeItems(items: unknown): HttpKeyValueItem[] {
+  if (!Array.isArray(items))
+    return []
+  return items.map((item: PersistedHttpKeyValueItem) => ({
+    id: item.id || generateId('http_item'),
+    enabled: item.enabled !== false,
+    key: item.key || '',
+    value: item.value || '',
+  }))
+}
+
+const urlText = ref<string>(extractText(nodeData.value.url))
+const bodyText = ref<string>(extractText(nodeData.value.body))
+const queryParams = ref<HttpKeyValueItem[]>(normalizeItems(nodeData.value.queryParams))
+const headerParams = ref<HttpKeyValueItem[]>(normalizeItems(nodeData.value.headerParams))
+const variableSelectorVisible = ref<boolean>(false)
+const variableTarget = ref<VariableTarget>({ kind: 'body' })
+
+const urlPreview = computed<string>(() => {
+  const value = urlText.value.trim()
+  return value.length > 35 ? `${value.substring(0, 35)}...` : (value || 'Set URL')
+})
+
+const bodyPlaceholder = computed<string>(() =>
+  bodyMode.value === 'json' ? '{\n  "query": "{{sys.query}}"\n}' : 'Request body',
+)
+
+const update = (key: string, value: unknown) => onUpdate({ [key]: value })
+
+function commitUrl() {
+  const existing = nodeData.value.url as FullTextMiniExpressionUnit | undefined
+  if (existing && existing.typeName === 'FullTextMiniExpressionUnit') {
+    update('url', { ...existing, Text: urlText.value })
+  }
+  else {
+    update('url', ExpressionUnitFactory.createFullTextMiniExpression(urlText.value))
+  }
+}
+
+function commitField(key: string, text: string) {
+  const existing = nodeData.value[key] as AnyExpressionUnit | undefined
+  if (existing && (existing.typeName === 'FullTextExpressionUnit' || existing.typeName === 'FullTextMiniExpressionUnit')) {
+    update(key, { ...existing, Text: text })
+  }
+  else {
+    update(key, ExpressionUnitFactory.createFullTextExpression(text))
+  }
+}
+
+function generateId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+function persistItem(item: HttpKeyValueItem): PersistedHttpKeyValueItem {
+  return {
+    id: item.id,
+    enabled: item.enabled,
+    key: item.key,
+    value: item.value,
+  }
+}
+
+function addQueryParam() {
+  queryParams.value.push({ id: generateId('query'), enabled: true, key: '', value: '' })
+  commitQueryParams()
+}
+
+function removeQueryParam(id: string) {
+  queryParams.value = queryParams.value.filter(item => item.id !== id)
+  commitQueryParams()
+}
+
+function commitQueryParams() {
+  update('queryParams', queryParams.value.map(persistItem))
+}
+
+function addHeaderParam() {
+  headerParams.value.push({ id: generateId('header'), enabled: true, key: '', value: '' })
+  commitHeaderParams()
+}
+
+function removeHeaderParam(id: string) {
+  headerParams.value = headerParams.value.filter(item => item.id !== id)
+  commitHeaderParams()
+}
+
+function commitHeaderParams() {
+  update('headerParams', headerParams.value.map(persistItem))
+}
+
+function handleBodyModeChange(value: string | number | boolean | undefined) {
+  update('bodyMode', value)
+}
+
+function openVariableSelector(target: VariableTarget) {
+  variableTarget.value = target
+  variableSelectorVisible.value = true
+}
+
+function handleVariableSelect(variable: VariableItem) {
+  const placeholder = `{{${variable.key}}}`
+
+  if (variableTarget.value.kind === 'url') {
+    urlText.value += placeholder
+    commitUrl()
+    return
+  }
+
+  const target = variableTarget.value
+
+  if (target.kind === 'query') {
+    const item = queryParams.value.find(row => row.id === target.id)
+    if (item) {
+      item.value += placeholder
+      commitQueryParams()
+    }
+    return
+  }
+
+  if (target.kind === 'header') {
+    const item = headerParams.value.find(row => row.id === target.id)
+    if (item) {
+      item.value += placeholder
+      commitHeaderParams()
+    }
+    return
+  }
+
+  bodyText.value += placeholder
+  commitField('body', bodyText.value)
+}
+</script>
+
 <template>
   <div class="widget-node http-widget">
     <div class="widget-header">
-      <el-icon :size="16" class="widget-icon"><Link /></el-icon>
+      <el-icon :size="16" class="widget-icon">
+        <Link />
+      </el-icon>
       <input
         v-model="displayName"
         class="widget-title-input"
         @blur="update('displayName', displayName || 'HTTP')"
         @keydown.enter="($event.target as HTMLInputElement)?.blur()"
-      />
+      >
       <button class="toggle-btn" @click="collapsed = !collapsed">
-        <el-icon :size="14"><ArrowUp v-if="!collapsed" /><ArrowDown v-else /></el-icon>
+        <el-icon :size="14">
+          <ArrowUp v-if="!collapsed" /><ArrowDown v-else />
+        </el-icon>
       </button>
     </div>
 
@@ -46,10 +237,16 @@
             <div v-for="item in queryParams" :key="item.id" class="kv-row">
               <el-input v-model="item.key" size="small" :placeholder="t('flowComponents.httpKey')" @input="commitQueryParams" />
               <el-input v-model="item.value" size="small" :placeholder="t('flowComponents.httpValue')" @input="commitQueryParams" />
-              <button class="mini-icon-btn" @click.stop="openVariableSelector({ kind: 'query', id: item.id })">{x}</button>
-              <button class="mini-icon-btn danger" @click.stop="removeQueryParam(item.id)">×</button>
+              <button class="mini-icon-btn" @click.stop="openVariableSelector({ kind: 'query', id: item.id })">
+                {x}
+              </button>
+              <button class="mini-icon-btn danger" @click.stop="removeQueryParam(item.id)">
+                ×
+              </button>
             </div>
-            <p v-if="queryParams.length === 0" class="empty-hint">{{ t('flowComponents.httpNoParams') }}</p>
+            <p v-if="queryParams.length === 0" class="empty-hint">
+              {{ t('flowComponents.httpNoParams') }}
+            </p>
           </div>
         </div>
 
@@ -64,10 +261,16 @@
             <div v-for="item in headerParams" :key="item.id" class="kv-row">
               <el-input v-model="item.key" size="small" placeholder="Content-Type" @input="commitHeaderParams" />
               <el-input v-model="item.value" size="small" placeholder="application/json" @input="commitHeaderParams" />
-              <button class="mini-icon-btn" @click.stop="openVariableSelector({ kind: 'header', id: item.id })">{x}</button>
-              <button class="mini-icon-btn danger" @click.stop="removeHeaderParam(item.id)">×</button>
+              <button class="mini-icon-btn" @click.stop="openVariableSelector({ kind: 'header', id: item.id })">
+                {x}
+              </button>
+              <button class="mini-icon-btn danger" @click.stop="removeHeaderParam(item.id)">
+                ×
+              </button>
             </div>
-            <p v-if="headerParams.length === 0" class="empty-hint">{{ t('flowComponents.httpNoHeaders') }}</p>
+            <p v-if="headerParams.length === 0" class="empty-hint">
+              {{ t('flowComponents.httpNoHeaders') }}
+            </p>
           </div>
         </div>
 
@@ -127,183 +330,6 @@
     />
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, inject, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { Link, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
-import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-import type { AnyExpressionUnit, FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
-import VariableSelector from '../components/VariableSelector.vue'
-
-interface HttpKeyValueItem {
-  id: string
-  enabled: boolean
-  key: string
-  value: string
-}
-
-interface PersistedHttpKeyValueItem {
-  id?: string
-  enabled?: boolean
-  key?: string
-  value?: string
-}
-
-type VariableTarget =
-  | { kind: 'url' }
-  | { kind: 'body' }
-  | { kind: 'query'; id: string }
-  | { kind: 'header'; id: string }
-
-const { t } = useI18n()
-const nodeData = inject<Ref<Record<string, unknown>>>('nodeData')!
-const nodeId = inject<string>('nodeId')
-const onUpdate = inject<(patch: Record<string, unknown>) => void>('onUpdate')!
-
-const collapsed = ref<boolean>(false)
-const displayName = ref<string>(String(nodeData.value.displayName || 'HTTP'))
-const method = ref<string>(String(nodeData.value.method || 'GET'))
-const timeout = ref<number>(Number(nodeData.value.timeoutSeconds ?? 5))
-const bodyMode = ref<'none' | 'json' | 'raw'>((nodeData.value.bodyMode as 'none' | 'json' | 'raw') || 'none')
-
-const extractText = (unit: AnyExpressionUnit | string | unknown): string => {
-  if (!unit) return ''
-  if (typeof unit === 'string') return unit
-  const field = unit as { typeName?: string; Text?: string; text?: string }
-  if (field.typeName === 'FullTextMiniExpressionUnit') return field.Text || field.text || ''
-  if (field.typeName === 'FullTextExpressionUnit') return field.Text || field.text || ''
-  return ''
-}
-
-const normalizeItems = (items: unknown): HttpKeyValueItem[] => {
-  if (!Array.isArray(items)) return []
-  return items.map((item: PersistedHttpKeyValueItem) => ({
-    id: item.id || generateId('http_item'),
-    enabled: item.enabled !== false,
-    key: item.key || '',
-    value: item.value || '',
-  }))
-}
-
-const urlText = ref<string>(extractText(nodeData.value.url))
-const bodyText = ref<string>(extractText(nodeData.value.body))
-const queryParams = ref<HttpKeyValueItem[]>(normalizeItems(nodeData.value.queryParams))
-const headerParams = ref<HttpKeyValueItem[]>(normalizeItems(nodeData.value.headerParams))
-const variableSelectorVisible = ref<boolean>(false)
-const variableTarget = ref<VariableTarget>({ kind: 'body' })
-
-const urlPreview = computed<string>(() => {
-  const value = urlText.value.trim()
-  return value.length > 35 ? `${value.substring(0, 35)}...` : (value || 'Set URL')
-})
-
-const bodyPlaceholder = computed<string>(() =>
-  bodyMode.value === 'json' ? '{\n  "query": "{{sys.query}}"\n}' : 'Request body',
-)
-
-const update = (key: string, value: unknown) => onUpdate({ [key]: value })
-
-const commitUrl = () => {
-  const existing = nodeData.value.url as FullTextMiniExpressionUnit | undefined
-  if (existing && existing.typeName === 'FullTextMiniExpressionUnit') {
-    update('url', { ...existing, Text: urlText.value })
-  }
-  else {
-    update('url', ExpressionUnitFactory.createFullTextMiniExpression(urlText.value))
-  }
-}
-
-const commitField = (key: string, text: string) => {
-  const existing = nodeData.value[key] as AnyExpressionUnit | undefined
-  if (existing && (existing.typeName === 'FullTextExpressionUnit' || existing.typeName === 'FullTextMiniExpressionUnit')) {
-    update(key, { ...existing, Text: text })
-  }
-  else {
-    update(key, ExpressionUnitFactory.createFullTextExpression(text))
-  }
-}
-
-const generateId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-
-const persistItem = (item: HttpKeyValueItem): PersistedHttpKeyValueItem => ({
-  id: item.id,
-  enabled: item.enabled,
-  key: item.key,
-  value: item.value,
-})
-
-const addQueryParam = () => {
-  queryParams.value.push({ id: generateId('query'), enabled: true, key: '', value: '' })
-  commitQueryParams()
-}
-
-const removeQueryParam = (id: string) => {
-  queryParams.value = queryParams.value.filter(item => item.id !== id)
-  commitQueryParams()
-}
-
-const commitQueryParams = () => {
-  update('queryParams', queryParams.value.map(persistItem))
-}
-
-const addHeaderParam = () => {
-  headerParams.value.push({ id: generateId('header'), enabled: true, key: '', value: '' })
-  commitHeaderParams()
-}
-
-const removeHeaderParam = (id: string) => {
-  headerParams.value = headerParams.value.filter(item => item.id !== id)
-  commitHeaderParams()
-}
-
-const commitHeaderParams = () => {
-  update('headerParams', headerParams.value.map(persistItem))
-}
-
-const handleBodyModeChange = (value: string | number | boolean | undefined) => {
-  update('bodyMode', value)
-}
-
-const openVariableSelector = (target: VariableTarget) => {
-  variableTarget.value = target
-  variableSelectorVisible.value = true
-}
-
-const handleVariableSelect = (variable: VariableItem) => {
-  const placeholder = `{{${variable.key}}}`
-
-  if (variableTarget.value.kind === 'url') {
-    urlText.value += placeholder
-    commitUrl()
-    return
-  }
-
-  const target = variableTarget.value
-
-  if (target.kind === 'query') {
-    const item = queryParams.value.find(row => row.id === target.id)
-    if (item) {
-      item.value += placeholder
-      commitQueryParams()
-    }
-    return
-  }
-
-  if (target.kind === 'header') {
-    const item = headerParams.value.find(row => row.id === target.id)
-    if (item) {
-      item.value += placeholder
-      commitHeaderParams()
-    }
-    return
-  }
-
-  bodyText.value += placeholder
-  commitField('body', bodyText.value)
-}
-</script>
 
 <style scoped>
 .http-widget {
@@ -426,13 +452,16 @@ const handleVariableSelect = (variable: VariableItem) => {
   border: 1px solid rgba(0, 255, 159, 0.25);
   border-radius: 4px;
   background: transparent;
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   font-size: 12px;
   line-height: 1.4;
   padding: 1px 6px;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .variable-btn--compact {
@@ -456,7 +485,7 @@ const handleVariableSelect = (variable: VariableItem) => {
 .variable-btn:hover,
 .mini-icon-btn:hover {
   border-color: rgba(0, 255, 159, 0.45);
-  color: var(--nf-accent-hover, #33FFB3);
+  color: var(--nf-accent-hover, #33ffb3);
   background: rgba(0, 255, 159, 0.06);
 }
 
@@ -468,7 +497,7 @@ const handleVariableSelect = (variable: VariableItem) => {
 
 .empty-hint {
   margin: 0;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -491,7 +520,7 @@ const handleVariableSelect = (variable: VariableItem) => {
 
 .summary-text {
   font-size: 12px;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
 }
 
 :deep(.el-textarea__inner) {

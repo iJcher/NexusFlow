@@ -1,85 +1,9 @@
-<template>
-  <div
-    class="vf-node-shell"
-    :class="{
-      selected: props.selected,
-      'node-move-mode': currentMode === 'move',
-      'node-select-mode': currentMode === 'select',
-    }"
-    @wheel.stop
-  >
-    <component :is="widgetComponent" />
-
-    <Handle
-      type="target"
-      :position="Position.Left"
-      :id="`${props.id}_left`"
-      class="vf-handle-target vf-handle-hit-area"
-      @mouseenter="targetHover = true"
-      @mouseleave="onTargetLeave"
-    />
-    <div class="target-handle-zone" @mouseenter="targetHover = true" @mouseleave="onTargetLeave">
-      <button
-        v-show="showTargetPlus"
-        class="handle-plus-btn handle-plus-btn--left"
-        :aria-label="t('flowDesigner.addPrevNode')"
-        @click.stop="openSelector('prev')"
-        @mousedown.stop
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-
-    <Handle
-      v-if="!usesCustomSourceHandles"
-      type="source"
-      :position="Position.Right"
-      :id="`${props.id}_right`"
-      class="vf-handle-source vf-handle-hit-area handle-plus-handle"
-      :class="{ 'is-visible': showSourcePlus }"
-      :aria-label="t('flowDesigner.addNextNode')"
-      @mouseenter="sourceHover = true"
-      @mouseleave="onSourceLeave"
-      @pointerdown="recordPointerDown"
-      @click.stop="handlePlusClick('next', $event)"
-    />
-
-    <Transition name="selector-fade">
-      <div
-        v-if="selectorOpen"
-        class="handle-node-selector"
-        :class="selectorDirection === 'prev' ? 'handle-node-selector--left' : 'handle-node-selector--right'"
-        @click.stop
-        @mousedown.stop
-      >
-        <div class="selector-header">
-          <span>{{ selectorTitle }}</span>
-          <button class="selector-close" @click="selectorOpen = false">×</button>
-        </div>
-        <div class="selector-list">
-          <button
-            v-for="n in filteredNodeList"
-            :key="n.typeName"
-            class="selector-item"
-            @click="handleSelectNode(n.typeName)"
-          >
-            <span class="selector-item-name">{{ n.name }}</span>
-            <span class="selector-item-desc">{{ n.description }}</span>
-          </button>
-          <div v-if="filteredNodeList.length === 0" class="selector-empty">
-            {{ t('flowDesigner.noAvailableNode') }}
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { provide, inject, ref, watch, computed, type Component, type Ref } from 'vue'
-import { Handle, Position, useNode } from '@vue-flow/core'
-import { useI18n } from 'vue-i18n'
+import type { Component, Ref } from 'vue'
 import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
+import { Handle, Position, useNode } from '@vue-flow/core'
+import { computed, inject, provide, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getAvailableNextNodeTypes, getAvailablePrevNodeTypes } from '@/utils/flowNodeRules'
 
 const props = defineProps<{
@@ -103,7 +27,7 @@ const targetHover = ref(false)
 const sourceHover = ref(false)
 const selectorOpen = ref(false)
 const selectorDirection = ref<'prev' | 'next'>('next')
-const pointerDownPosition = ref<{ x: number; y: number } | null>(null)
+const pointerDownPosition = ref<{ x: number, y: number } | null>(null)
 
 const currentNodeType = computed<string>(() => String(props.data?.typeName || node.data?.typeName || node.type || ''))
 const usesCustomSourceHandles = computed<boolean>(() => currentNodeType.value === 'ConditionNode')
@@ -123,15 +47,17 @@ const showSourcePlus = computed<boolean>(() => (
   props.selected || sourceHover.value || (selectorDirection.value === 'next' && selectorOpen.value)
 ) && availableNextTypes.value.length > 0)
 
-const onTargetLeave = () => {
-  if (!selectorOpen.value || selectorDirection.value !== 'prev') targetHover.value = false
+function onTargetLeave() {
+  if (!selectorOpen.value || selectorDirection.value !== 'prev')
+    targetHover.value = false
 }
 
-const onSourceLeave = () => {
-  if (!selectorOpen.value || selectorDirection.value !== 'next') sourceHover.value = false
+function onSourceLeave() {
+  if (!selectorOpen.value || selectorDirection.value !== 'next')
+    sourceHover.value = false
 }
 
-const openSelector = (direction: 'prev' | 'next') => {
+function openSelector(direction: 'prev' | 'next') {
   if (selectorOpen.value && selectorDirection.value === direction) {
     selectorOpen.value = false
     return
@@ -141,21 +67,22 @@ const openSelector = (direction: 'prev' | 'next') => {
   selectorOpen.value = true
 }
 
-const recordPointerDown = (event: PointerEvent) => {
+function recordPointerDown(event: PointerEvent) {
   pointerDownPosition.value = { x: event.clientX, y: event.clientY }
 }
 
-const handlePlusClick = (direction: 'prev' | 'next', event: MouseEvent) => {
+function handlePlusClick(direction: 'prev' | 'next', event: MouseEvent) {
   const start = pointerDownPosition.value
   pointerDownPosition.value = null
   if (start) {
     const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
-    if (moved > 5) return
+    if (moved > 5)
+      return
   }
   openSelector(direction)
 }
 
-const handleSelectNode = (nodeType: string) => {
+function handleSelectNode(nodeType: string) {
   if (selectorDirection.value === 'prev') {
     addNodeBeforeAndConnect(props.id, `${props.id}_left`, nodeType)
   }
@@ -187,11 +114,90 @@ provide('onResize', (width: number, height: number) => {
 const widgetComponent = props.widget
 </script>
 
+<template>
+  <div
+    class="vf-node-shell"
+    :class="{
+      'selected': props.selected,
+      'node-move-mode': currentMode === 'move',
+      'node-select-mode': currentMode === 'select',
+    }"
+    @wheel.stop
+  >
+    <component :is="widgetComponent" />
+
+    <Handle
+      :id="`${props.id}_left`"
+      type="target"
+      :position="Position.Left"
+      class="vf-handle-target vf-handle-hit-area"
+      @mouseenter="targetHover = true"
+      @mouseleave="onTargetLeave"
+    />
+    <div class="target-handle-zone" @mouseenter="targetHover = true" @mouseleave="onTargetLeave">
+      <button
+        v-show="showTargetPlus"
+        class="handle-plus-btn handle-plus-btn--left"
+        :aria-label="t('flowDesigner.addPrevNode')"
+        @click.stop="openSelector('prev')"
+        @mousedown.stop
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+      </button>
+    </div>
+
+    <Handle
+      v-if="!usesCustomSourceHandles"
+      :id="`${props.id}_right`"
+      type="source"
+      :position="Position.Right"
+      class="vf-handle-source vf-handle-hit-area handle-plus-handle"
+      :class="{ 'is-visible': showSourcePlus }"
+      :aria-label="t('flowDesigner.addNextNode')"
+      @mouseenter="sourceHover = true"
+      @mouseleave="onSourceLeave"
+      @pointerdown="recordPointerDown"
+      @click.stop="handlePlusClick('next', $event)"
+    />
+
+    <Transition name="selector-fade">
+      <div
+        v-if="selectorOpen"
+        class="handle-node-selector"
+        :class="selectorDirection === 'prev' ? 'handle-node-selector--left' : 'handle-node-selector--right'"
+        @click.stop
+        @mousedown.stop
+      >
+        <div class="selector-header">
+          <span>{{ selectorTitle }}</span>
+          <button class="selector-close" @click="selectorOpen = false">
+            ×
+          </button>
+        </div>
+        <div class="selector-list">
+          <button
+            v-for="n in filteredNodeList"
+            :key="n.typeName"
+            class="selector-item"
+            @click="handleSelectNode(n.typeName)"
+          >
+            <span class="selector-item-name">{{ n.name }}</span>
+            <span class="selector-item-desc">{{ n.description }}</span>
+          </button>
+          <div v-if="filteredNodeList.length === 0" class="selector-empty">
+            {{ t('flowDesigner.noAvailableNode') }}
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
 <style scoped>
 /* ── Node shell ── */
 .vf-node-shell {
   background: rgba(8, 11, 16, 0.92);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 6px;
   transition: all 0.25s ease;
   min-width: 180px;
@@ -207,7 +213,9 @@ const widgetComponent = props.widget
 
 .vf-node-shell.selected {
   border-color: var(--nf-accent);
-  box-shadow: 0 0 16px rgba(0, 255, 159, 0.15), 0 0 32px rgba(0, 255, 159, 0.05);
+  box-shadow:
+    0 0 16px rgba(0, 255, 159, 0.15),
+    0 0 32px rgba(0, 255, 159, 0.05);
 }
 
 /* ── Target handle and add-prev control ── */
@@ -251,7 +259,9 @@ const widgetComponent = props.widget
   height: 12px;
   border-radius: 999px;
   background: rgba(0, 255, 159, 0);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .vf-handle-target:hover::after {
@@ -270,7 +280,12 @@ const widgetComponent = props.widget
   border-radius: 50%;
   position: absolute;
   transform: translateY(-50%);
-  transition: opacity 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: var(--nf-glow-sm);
   opacity: 0;
   z-index: 7;
@@ -349,7 +364,7 @@ const widgetComponent = props.widget
   transform: translateY(-50%);
   width: 210px;
   background: rgba(8, 11, 16, 0.95);
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   overflow: hidden;
   z-index: 100;
@@ -374,14 +389,14 @@ const widgetComponent = props.widget
   font-size: 12px;
   font-weight: 600;
   color: var(--nf-text-body);
-  border-bottom: 1px solid #141A22;
+  border-bottom: 1px solid #141a22;
 }
 .selector-close {
   border: none;
   background: none;
   font-size: 14px;
   cursor: pointer;
-  color: #5A6A7C;
+  color: #5a6a7c;
   line-height: 1;
   padding: 0 2px;
 }
@@ -394,8 +409,13 @@ const widgetComponent = props.widget
   overflow-y: auto;
   padding: 4px;
 }
-.selector-list::-webkit-scrollbar { width: 3px; }
-.selector-list::-webkit-scrollbar-thumb { background: #1E2733; border-radius: 2px; }
+.selector-list::-webkit-scrollbar {
+  width: 3px;
+}
+.selector-list::-webkit-scrollbar-thumb {
+  background: #1e2733;
+  border-radius: 2px;
+}
 
 .selector-item {
   display: flex;
@@ -418,11 +438,11 @@ const widgetComponent = props.widget
   font-family: var(--nf-font-display);
   font-size: 12px;
   font-weight: 500;
-  color: #A0B0C0;
+  color: #a0b0c0;
   line-height: 1.3;
 }
 .selector-item:hover .selector-item-name {
-  color: #E6EDF3;
+  color: #e6edf3;
 }
 .selector-item-desc {
   font-family: var(--nf-font-display);
@@ -460,12 +480,12 @@ const widgetComponent = props.widget
   height: 26px;
   line-height: 26px;
   font-family: var(--nf-font-display);
-  color: #A0B0C0;
+  color: #a0b0c0;
 }
 :deep(.el-input--small .el-input__wrapper) {
   padding: 0 7px;
   background: transparent;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 4px;
   box-shadow: none !important;
 }
@@ -478,8 +498,8 @@ const widgetComponent = props.widget
   min-height: 40px !important;
   font-family: var(--nf-font-display);
   background: transparent;
-  border: 1px solid #1E2733;
-  color: #A0B0C0;
+  border: 1px solid #1e2733;
+  color: #a0b0c0;
 }
 :deep(.el-textarea__inner:focus) {
   border-color: var(--nf-accent);
@@ -497,7 +517,7 @@ const widgetComponent = props.widget
 }
 :deep(.el-slider__runway) {
   height: 3px;
-  background: #1E2733;
+  background: #1e2733;
 }
 :deep(.el-slider__bar) {
   background: var(--nf-accent);
@@ -506,7 +526,7 @@ const widgetComponent = props.widget
   width: 10px;
   height: 10px;
   border-color: var(--nf-accent);
-  background: #05070A;
+  background: #05070a;
 }
 
 /* ── Move mode ── */

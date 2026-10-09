@@ -1,0 +1,14 @@
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
+# Keep Node 22 types; use a provenance-bearing compatible Undici 6 type release.
+overrides:
+  sass: 1.105.1
+
+  undici-types: 6.29.0
+allowBuilds:
+  '@logicflow/core': false
+  '@parcel/watcher': false
+  esbuild: true
+  vue-demi: true

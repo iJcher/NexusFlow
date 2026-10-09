@@ -1,6 +1,12 @@
 import { Controller, Post, Param, Body, Res } from '@nestjs/common';
 import { FlowRuntimeService } from './flow-runtime.service';
-import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import type { Response } from 'express';
+import { ChatRequestDto } from './chat.dto';
+import { assertJson } from '../runs/contracts';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator';
 
 @Controller('Flow')
 export class FlowAIController {
@@ -9,10 +15,11 @@ export class FlowAIController {
   @Post('chat-messages/:flowId')
   async chatStream(
     @Param('flowId') flowId: string,
-    @Body() body: any,
-    @Res() res: any,
+    @Body() body: ChatRequestDto,
+    @Res() res: Response,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    assertJson(body.inputs ?? {});
     const request = {
       query: body.query || '',
       user: user.phoneNumber || user.id,
@@ -22,6 +29,11 @@ export class FlowAIController {
       files: body.files || [],
     };
 
-    await this.flowRuntimeService.runFlowStreaming(BigInt(flowId), user.id, request, res);
+    await this.flowRuntimeService.runFlowStreaming(
+      BigInt(flowId),
+      user.id,
+      request,
+      res,
+    );
   }
 }

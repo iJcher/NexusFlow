@@ -1,9 +1,22 @@
-import { NodeConfig, FlowRuntimeContext, NodeExecuteResult, TokenUsage, LLMChatMessage } from '../types';
-import { createSuccessResult, createErrorResult, FlowRuntime } from './node-base';
+import {
+  NodeConfig,
+  FlowRuntimeContext,
+  NodeExecuteResult,
+  TokenUsage,
+  LLMChatMessage,
+} from '../types';
+import {
+  createSuccessResult,
+  createErrorResult,
+  FlowRuntime,
+} from './node-base';
 import { replacePlaceholders } from '../expression/expression-helper';
 import { callLlmStreaming } from '../llm/llm-adapter';
+import type { LlmProviderService } from '../../llm-provider/llm-provider.service';
+import { extractByJsonPath } from '../expression/expression-helper';
 
-const LEGACY_DEFAULT_PROMPT = '你是 NEXUS 工作流中的智能助手。请基于用户问题给出清晰、准确、简洁的回答。';
+const LEGACY_DEFAULT_PROMPT =
+  '你是 NEXUS 工作流中的智能助手。请基于用户问题给出清晰、准确、简洁的回答。';
 const NEXUS_WORKFLOW_ASSISTANT_PROMPT = `你是 NEXUS 工作流设计器的产品向导，必须基于当前系统能力回答用户。
 
 当前产品上下文：
@@ -32,15 +45,22 @@ function buildKnowledgeContextPrompt(
   context: FlowRuntimeContext,
   runtime: FlowRuntime,
 ): Promise<string> {
-  const incomingLines = context.flowConfigInfoForRun.lines.filter((line) => line.toNodeId === node.id);
+  const incomingLines = context.flowConfigInfoForRun.lines.filter(
+    (line) => line.toNodeId === node.id,
+  );
   return Promise.all(
     incomingLines.map(async (line) => {
-      const sourceNode = context.flowConfigInfoForRun.nodes.find((n) => n.id === line.fromNodeId);
+      const sourceNode = context.flowConfigInfoForRun.nodes.find(
+        (n) => n.id === line.fromNodeId,
+      );
       if (sourceNode?.typeName !== 'KnowledgeNode') return '';
 
-      const result = await runtime.getNodeExecuteResult(context, line.fromNodeId);
-      const knowledgeContext = result?.result?.context;
-      const resultCount = result?.result?.resultCount ?? 0;
+      const result = await runtime.getNodeExecuteResult(
+        context,
+        line.fromNodeId,
+      );
+      const knowledgeContext = extractByJsonPath(result?.result, 'context');
+      const resultCount = extractByJsonPath(result?.result, 'resultCount') ?? 0;
       if (typeof knowledgeContext === 'string' && knowledgeContext.trim()) {
         return `以下是 Knowledge 节点检索到的参考资料。回答时必须优先依据这些资料；如果资料不足，再说明缺失信息。\n\n${knowledgeContext}`;
       }
@@ -56,22 +76,31 @@ export async function executeLLMNode(
   node: NodeConfig,
   context: FlowRuntimeContext,
   runtime: FlowRuntime,
-  findProvider: (modelName: string) => Promise<any>,
+  findProvider: (
+    modelName: string,
+  ) => ReturnType<LlmProviderService['findProviderByModelName']>,
 ): Promise<NodeExecuteResult> {
   try {
     // modelSelection 格式为 "Provider|modelName"，如 "DeepSeek|deepseek-chat"
     const rawModel = node.modelSelection || node.modelName || '';
     let modelName = rawModel.includes('|') ? rawModel.split('|')[1] : rawModel;
-    let provider = await findProvider(modelName);
+    const provider = await findProvider(modelName);
 
     if (!modelName && provider?.llmNames?.length) {
       modelName = provider.llmNames[0];
     }
 
     if (!modelName) {
-      return createErrorResult(node.id, 'No model selected. Please add at least one model name in Models, or select a model in the LLM node.');
+      return createErrorResult(
+        node.id,
+        'No model selected. Please add at least one model name in Models, or select a model in the LLM node.',
+      );
     }
-    if (!provider) return createErrorResult(node.id, `No provider found for model: ${modelName}`);
+    if (!provider)
+      return createErrorResult(
+        node.id,
+        `No provider found for model: ${modelName}`,
+      );
 
     const messages: LLMChatMessage[] = [];
 
@@ -89,7 +118,11 @@ export async function executeLLMNode(
       }
     }
 
-    const knowledgeContextPrompt = await buildKnowledgeContextPrompt(node, context, runtime);
+    const knowledgeContextPrompt = await buildKnowledgeContextPrompt(
+      node,
+      context,
+      runtime,
+    );
     if (knowledgeContextPrompt) {
       messages.push({ role: 'user', content: knowledgeContextPrompt });
     }
@@ -112,7 +145,11 @@ export async function executeLLMNode(
 
     const temperature = node.temperature ?? 0.7;
     const enableThinking = node.enableThinking ?? false;
-    const tokenUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const tokenUsage: TokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
 
     const streamingExecutor = async function* (): AsyncGenerator<string> {
       yield* callLlmStreaming(
@@ -127,7 +164,7 @@ export async function executeLLMNode(
     };
 
     return createSuccessResult(node.id, { tokenUsage }, streamingExecutor);
-  } catch (e: any) {
-    return createErrorResult(node.id, `LLM node failed: ${e.message}`);
+  } catch {
+    return createErrorResult(node.id, 'LLM_NODE_FAILED');
   }
 }

@@ -1,22 +1,27 @@
-<template>
-  <div class="widget-node start-widget">
-    <div class="widget-header">
-      <el-icon :size="16" class="widget-icon"><VideoPlay /></el-icon>
-      <span class="widget-title">{{ displayName }}</span>
-    </div>
-    <p class="widget-desc">{{ description }}</p>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, inject, type Ref } from 'vue'
+import type { Ref } from 'vue'
 import { VideoPlay } from '@element-plus/icons-vue'
+import { computed, inject } from 'vue'
 
 const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
 
 const displayName = computed(() => nodeData.value.displayName || 'Start')
 const description = computed(() => nodeData.value.description || 'Flow entry point')
 </script>
+
+<template>
+  <div class="widget-node start-widget">
+    <div class="widget-header">
+      <el-icon :size="16" class="widget-icon">
+        <VideoPlay />
+      </el-icon>
+      <span class="widget-title">{{ displayName }}</span>
+    </div>
+    <p class="widget-desc">
+      {{ description }}
+    </p>
+  </div>
+</template>
 
 <style scoped>
 .start-widget {

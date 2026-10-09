@@ -1,34 +1,5 @@
-<template>
-  <div
-    class="vf-group-node"
-    :class="{ selected: props.selected }"
-    :style="groupStyle"
-  >
-    <div class="group-toolbar nodrag nopan">
-      <input
-        v-if="isEditing"
-        ref="titleInputRef"
-        class="group-title-input nodrag"
-        :value="title"
-        @input="handleTitleInput"
-        @blur="commitEdit"
-        @keydown.enter.prevent="commitEdit"
-        @keydown.esc.prevent="cancelEdit"
-      />
-      <span v-else class="group-title-text" @dblclick.stop="startEdit">
-        {{ title }}
-      </span>
-      <button class="group-delete-btn nodrag" title="删除 Group" @click.stop="handleDelete">
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-        </svg>
-      </button>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, nextTick, inject } from 'vue'
+import { computed, inject, nextTick, ref } from 'vue'
 
 const props = defineProps<{
   id: string
@@ -48,31 +19,60 @@ const groupStyle = computed(() => ({
   height: `${props.data?.height || 200}px`,
 }))
 
-const startEdit = () => {
+function startEdit() {
   editBuffer.value = title.value
   isEditing.value = true
   nextTick(() => titleInputRef.value?.focus())
 }
 
-const handleTitleInput = (e: Event) => {
+function handleTitleInput(e: Event) {
   editBuffer.value = (e.target as HTMLInputElement).value
 }
 
-const commitEdit = () => {
+function commitEdit() {
   if (editBuffer.value.trim()) {
     title.value = editBuffer.value.trim()
   }
   isEditing.value = false
 }
 
-const cancelEdit = () => {
+function cancelEdit() {
   isEditing.value = false
 }
 
-const handleDelete = () => {
+function handleDelete() {
   deleteGroup(props.id)
 }
 </script>
+
+<template>
+  <div
+    class="vf-group-node"
+    :class="{ selected: props.selected }"
+    :style="groupStyle"
+  >
+    <div class="group-toolbar nodrag nopan">
+      <input
+        v-if="isEditing"
+        ref="titleInputRef"
+        class="group-title-input nodrag"
+        :value="title"
+        @input="handleTitleInput"
+        @blur="commitEdit"
+        @keydown.enter.prevent="commitEdit"
+        @keydown.esc.prevent="cancelEdit"
+      >
+      <span v-else class="group-title-text" @dblclick.stop="startEdit">
+        {{ title }}
+      </span>
+      <button class="group-delete-btn nodrag" title="删除 Group" @click.stop="handleDelete">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .vf-group-node {
@@ -141,7 +141,9 @@ const handleDelete = () => {
   color: #a1a1aa;
   cursor: pointer;
   padding: 0;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 .group-delete-btn:hover {
   background: rgba(239, 68, 68, 0.1);

@@ -1,8 +1,9 @@
+import type { App, Component, Ref } from 'vue'
 import { HtmlNode } from '@logicflow/core'
-import { createApp, ref, h, provide, type App, type Ref, type Component } from 'vue'
 import ElementPlus from 'element-plus'
-import { pinia } from '@/plugins/pinia'
+import { createApp, h, provide, ref } from 'vue'
 import i18n from '@/locales'
+import { pinia } from '@/plugins/pinia'
 
 interface WidgetCache {
   app: App
@@ -24,14 +25,16 @@ export class NodeBaseView extends HtmlNode {
     super(props)
 
     const origMouseDown = this.handleMouseDown
-    this.handleMouseDown = (ev: MouseEvent) => {
-      if (NodeBaseView.selectMode) return
+    this.handleMouseDown = (ev: Parameters<typeof origMouseDown>[0]) => {
+      if (NodeBaseView.selectMode)
+        return
       origMouseDown(ev)
     }
 
     const origClick = this.handleClick
     this.handleClick = (ev: MouseEvent) => {
-      if (NodeBaseView.selectMode) return
+      if (NodeBaseView.selectMode)
+        return
       origClick(ev)
     }
   }

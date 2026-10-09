@@ -9,9 +9,16 @@ export async function executeAssignVariableNode(
 ): Promise<NodeExecuteResult> {
   const assignments = node.assignments || [];
   for (const assignment of assignments) {
-    const result = await computeExpression(assignment.expressionUnit, context, runtime);
-    const variable = context.flowConfigInfoForRun.variables.find((v) => v.name === assignment.targetVariableName);
-    if (!variable) throw new Error(`Variable ${assignment.targetVariableName} not found`);
+    const result = await computeExpression(
+      assignment.expressionUnit,
+      context,
+      runtime,
+    );
+    const variable = context.flowConfigInfoForRun.variables.find(
+      (v) => v.name === assignment.targetVariableName,
+    );
+    if (!variable)
+      throw new Error(`Variable ${assignment.targetVariableName} not found`);
     variable.value = result;
     variable.hasValue = true;
   }

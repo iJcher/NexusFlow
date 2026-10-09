@@ -1,30 +1,30 @@
-import { NodeBaseModel } from '../NodeBase';
-import type { NodeBase, NodeOutputItem } from '../NodeBase';
-import { VariableItemType } from '../Parameters/Variable';
-import type { FullTextMiniExpressionUnit, FullTextExpressionUnit, AnyExpressionUnit } from '../ExpressionUnits/ExpressionUnitBase';
-import { ExpressionUnitFactory } from '../ExpressionUnits/ExpressionUnitBase';
-import { NodeBaseView } from '../NodeBaseView';
-import HttpNodeWidget from '@/views/flow/designer/widgets/HttpNodeWidget.vue';
+import type { AnyExpressionUnit, FullTextExpressionUnit, FullTextMiniExpressionUnit } from '../ExpressionUnits/ExpressionUnitBase'
+import type { NodeBase, NodeOutputItem } from '../NodeBase'
+import HttpNodeWidget from '@/views/flow/designer/widgets/HttpNodeWidget.vue'
+import { ExpressionUnitFactory } from '../ExpressionUnits/ExpressionUnitBase'
+import { NodeBaseModel } from '../NodeBase'
+import { NodeBaseView } from '../NodeBaseView'
+import { VariableItemType } from '../Parameters/Variable'
 
-const typeName = 'HttpNode';
+const typeName = 'HttpNode'
 
-export type HttpMethod = 'GET' | 'POST';
+export type HttpMethod = 'GET' | 'POST'
 
 export interface HttpNodeData extends NodeBase {
-  typeName: 'HttpNode';
-  method?: HttpMethod;
-  url?: FullTextMiniExpressionUnit;
-  headers?: FullTextExpressionUnit;
-  query?: FullTextExpressionUnit;
-  body?: AnyExpressionUnit;
-  timeoutSeconds?: number;
+  typeName: 'HttpNode'
+  method?: HttpMethod
+  url?: FullTextMiniExpressionUnit
+  headers?: FullTextExpressionUnit
+  query?: FullTextExpressionUnit
+  body?: AnyExpressionUnit
+  timeoutSeconds?: number
 }
 
 class HttpNodeModel extends NodeBaseModel {
   setAttributes() {
-    super.setAttributes();
-    this.width = 280;
-    this.height = 280;
+    super.setAttributes()
+    this.width = 280
+    this.height = 280
 
     const nodeData: Partial<HttpNodeData> = {
       typeName,
@@ -41,14 +41,14 @@ class HttpNodeModel extends NodeBaseModel {
       query: (this.properties.query as FullTextExpressionUnit | undefined) || ExpressionUnitFactory.createFullTextExpression('?name=abc'),
       body: (this.properties.body as AnyExpressionUnit | undefined) || ExpressionUnitFactory.createFullTextExpression(''),
       timeoutSeconds: (this.properties.timeoutSeconds as number | undefined) ?? 5,
-    };
-    this.setNodeData(nodeData);
+    }
+    this.setNodeData(nodeData)
   }
 }
 
 class HttpNodeView extends NodeBaseView {
   protected getWidgetComponent() {
-    return HttpNodeWidget;
+    return HttpNodeWidget
   }
 }
 
@@ -56,4 +56,4 @@ export default {
   type: typeName,
   view: HttpNodeView,
   model: HttpNodeModel,
-};
+}

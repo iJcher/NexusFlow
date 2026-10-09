@@ -128,13 +128,15 @@ export class KnowledgeService {
   static async uploadDocument(
     knowledgeBaseId: string,
     file: File,
-    options?: { chunkSize?: number; chunkOverlap?: number },
+    options?: { chunkSize?: number, chunkOverlap?: number },
   ): Promise<TApiResponse<IKnowledgeDocDto>> {
     const formData = new FormData()
     formData.append('file', file)
     const params: any = { knowledgeBaseId }
-    if (options?.chunkSize) params.chunkSize = options.chunkSize
-    if (options?.chunkOverlap) params.chunkOverlap = options.chunkOverlap
+    if (options?.chunkSize)
+      params.chunkSize = options.chunkSize
+    if (options?.chunkOverlap)
+      params.chunkOverlap = options.chunkOverlap
 
     const res = await HttpUtil.getInstance().post<TApiResponse<IKnowledgeDocDto>>(
       '/Knowledge/UploadDocument',

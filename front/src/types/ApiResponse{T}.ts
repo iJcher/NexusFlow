@@ -2,15 +2,15 @@
  * 通用API响应类型
  * @template T - 响应数据的类型
  */
-export type TApiResponse<T = unknown> = {
+export interface TApiResponse<T = unknown> {
   /** 错误码，0表示成功 */
-  errCode: number;
+  errCode: number
   /** 响应数据 */
-  data?: T;
+  data?: T
   /** 错误信息 */
-  errMsg: string;
+  errMsg: string
   /** 请求ID，用于追踪 */
-  requestId: string;
+  requestId: string
 }
 
 /**

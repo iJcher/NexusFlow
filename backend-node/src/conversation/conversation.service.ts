@@ -1,28 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { parseJson } from '../common/json.util';
 
 @Injectable()
 export class ConversationService {
   constructor(private prisma: PrismaService) {}
 
-  async getLocalConversations(flowId: bigint, userId: string, firstId?: string, limit = 20) {
+  async getLocalConversations(
+    flowId: bigint,
+    userId: string,
+    firstId?: string,
+    limit = 20,
+  ) {
     const ownerUserId = BigInt(userId);
     let cursor: Date | undefined;
     if (firstId) {
-      const first = await this.prisma.flowChatConversationEntity.findUnique({
-        where: { conversationId: firstId },
+      const first = await this.prisma.flowChatConversationEntity.findFirst({
+        where: { conversationId: firstId, ownerUserId, flowId },
       });
       if (first) cursor = first.updatedAt;
     }
 
-    const where: any = { ownerUserId, flowId };
+    const where: Prisma.FlowChatConversationEntityWhereInput = {
+      ownerUserId,
+      flowId,
+    };
     if (cursor) where.updatedAt = { lt: cursor };
 
-    const conversations = await this.prisma.flowChatConversationEntity.findMany({
-      where,
-      orderBy: [{ isTop: 'desc' }, { updatedAt: 'desc' }],
-      take: limit,
-    });
+    const conversations = await this.prisma.flowChatConversationEntity.findMany(
+      {
+        where,
+        orderBy: [{ isTop: 'desc' }, { updatedAt: 'desc' }],
+        take: limit,
+      },
+    );
 
     return {
       data: conversations.map((c) => ({
@@ -37,9 +49,19 @@ export class ConversationService {
     };
   }
 
-  async getLocalMessages(flowId: bigint, userId: string, conversationId: string, firstId?: string, limit = 20) {
+  async getLocalMessages(
+    flowId: bigint,
+    userId: string,
+    conversationId: string,
+    firstId?: string,
+    limit = 20,
+  ) {
     const ownerUserId = BigInt(userId);
-    const where: any = { conversationId, ownerUserId, flowId };
+    const where: Prisma.FlowChatMessageEntityWhereInput = {
+      conversationId,
+      ownerUserId,
+      flowId,
+    };
     if (firstId) where.id = { lt: BigInt(firstId) };
 
     const messages = await this.prisma.flowChatMessageEntity.findMany({
@@ -54,7 +76,7 @@ export class ConversationService {
         conversationId: m.conversationId,
         question: m.question,
         answer: m.answer,
-        files: m.files ? JSON.parse(m.files) : [],
+        files: m.files ? parseJson(m.files) : [],
         createdAt: m.createdAt,
         totalTokens: m.totalTokens,
       })),
@@ -78,7 +100,12 @@ export class ConversationService {
     return { success: true, isTop: newTop };
   }
 
-  async updateTitle(flowId: bigint, userId: string, conversationId: string, title: string) {
+  async updateTitle(
+    flowId: bigint,
+    userId: string,
+    conversationId: string,
+    title: string,
+  ) {
     const result = await this.prisma.flowChatConversationEntity.updateMany({
       where: { conversationId, ownerUserId: BigInt(userId), flowId },
       data: { title, updatedAt: new Date() },
@@ -86,14 +113,20 @@ export class ConversationService {
     return result.count > 0;
   }
 
-  async deleteConversation(flowId: bigint, userId: string, conversationId: string) {
+  async deleteConversation(
+    flowId: bigint,
+    userId: string,
+    conversationId: string,
+  ) {
     const ownerUserId = BigInt(userId);
     const deletedMessages = await this.prisma.flowChatMessageEntity.deleteMany({
       where: { conversationId, ownerUserId, flowId },
     });
-    const deletedConv = await this.prisma.flowChatConversationEntity.deleteMany({
-      where: { conversationId, ownerUserId, flowId },
-    });
+    const deletedConv = await this.prisma.flowChatConversationEntity.deleteMany(
+      {
+        where: { conversationId, ownerUserId, flowId },
+      },
+    );
     if (deletedConv.count === 0) return null;
     return { deletedMessages: deletedMessages.count };
   }

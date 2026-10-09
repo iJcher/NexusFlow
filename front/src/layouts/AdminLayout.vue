@@ -1,9 +1,42 @@
+<script setup lang="ts">
+import { Collection, DataBoard, Files, Setting, SwitchButton, Tools } from '@element-plus/icons-vue'
+import { computed, markRaw } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import defaultAvatarImage from '@/assets/images/default.png'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const { t } = useI18n()
+const route = useRoute()
+const _router = useRouter()
+const authStore = useAuthStore()
+
+const userInfo = computed(() => authStore.getLoginUserInfo)
+
+const tabs = computed(() => [
+  { path: '/studio', label: t('nav.studio'), icon: markRaw(DataBoard) },
+  { path: '/templates', label: t('nav.templates'), icon: markRaw(Files) },
+  { path: '/knowledge', label: t('nav.knowledge'), icon: markRaw(Collection) },
+  { path: '/models', label: t('nav.models'), icon: markRaw(Setting) },
+  { path: '/tool/skill', label: t('nav.toolSkill'), icon: markRaw(Tools) },
+])
+
+const isActive = (path: string) => route.path === path || route.path.startsWith(`${path}/`)
+
+function handleCommand(command: string) {
+  if (command === 'logout') {
+    authStore.signOut()
+  }
+}
+</script>
+
 <template>
   <div class="admin-layout">
     <header class="topbar">
       <div class="topbar-inner">
         <div class="topbar-left" @click="$router.push('/studio')">
-          <img src="@/assets/images/logo.png" alt="NexusFlow" class="topbar-logo" />
+          <img src="@/assets/images/logo.png" alt="NexusFlow" class="topbar-logo">
         </div>
 
         <nav class="topbar-nav">
@@ -11,9 +44,11 @@
             v-for="tab in tabs"
             :key="tab.path"
             :to="tab.path"
-            :class="['nav-tab', { active: isActive(tab.path) }]"
+            class="nav-tab" :class="[{ active: isActive(tab.path) }]"
           >
-            <el-icon :size="16"><component :is="tab.icon" /></el-icon>
+            <el-icon :size="16">
+              <component :is="tab.icon" />
+            </el-icon>
             <span>{{ tab.label }}</span>
           </router-link>
         </nav>
@@ -22,7 +57,7 @@
           <LanguageSwitcher />
           <el-dropdown trigger="click" @command="handleCommand">
             <div class="user-avatar">
-              <img :src="defaultAvatarImage" alt="" class="user-avatar-img" />
+              <img :src="defaultAvatarImage" alt="" class="user-avatar-img">
             </div>
             <template #dropdown>
               <el-dropdown-menu>
@@ -51,39 +86,6 @@
     </footer>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed, markRaw } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
-import { DataBoard, Files, Collection, Setting, SwitchButton, Tools } from '@element-plus/icons-vue'
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
-import defaultAvatarImage from '@/assets/images/default.png'
-
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-
-const userInfo = computed(() => authStore.getLoginUserInfo)
-
-const tabs = computed(() => [
-  { path: '/studio', label: t('nav.studio'), icon: markRaw(DataBoard) },
-  { path: '/templates', label: t('nav.templates'), icon: markRaw(Files) },
-  { path: '/knowledge', label: t('nav.knowledge'), icon: markRaw(Collection) },
-  { path: '/models', label: t('nav.models'), icon: markRaw(Setting) },
-  { path: '/tool/skill', label: t('nav.toolSkill'), icon: markRaw(Tools) },
-])
-
-const isActive = (path: string) => route.path === path || route.path.startsWith(path + '/')
-
-const handleCommand = (command: string) => {
-  if (command === 'logout') {
-    authStore.signOut()
-  }
-}
-</script>
 
 <style scoped>
 .admin-layout {
@@ -206,7 +208,9 @@ const handleCommand = (command: string) => {
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .user-avatar-img {

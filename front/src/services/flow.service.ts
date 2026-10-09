@@ -2,15 +2,15 @@
  * 流程管理服务
  * 提供流程的增删改查等API调用
  */
-import type { TApiResponse } from '@/types/ApiResponse{T}';
-import type { 
-  IFlowDto, 
-  ICreateFlowRequest, 
-  IUpdateFlowRequest, 
+import type { TApiResponse } from '@/types/ApiResponse{T}'
+import type {
+  ICreateFlowRequest,
+  IFlowDto,
+  IFlowRunLogDto,
   IGetFlowListRequest,
-  IFlowRunLogDto
-} from '@/types/flow.types';
-import { HttpUtil } from '@/utils/http.util';
+  IUpdateFlowRequest,
+} from '@/types/flow.types'
+import { HttpUtil } from '@/utils/http.util'
 
 export class FlowService {
   /**
@@ -20,8 +20,8 @@ export class FlowService {
    * @returns Promise<TApiResponse<IFlowDto>>
    */
   public static async createFlow(data: ICreateFlowRequest): Promise<TApiResponse<IFlowDto>> {
-    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowDto>>('/Flow/Create', data);
-    return response.data;
+    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowDto>>('/Flow/Create', data)
+    return response.data
   }
 
   /**
@@ -31,9 +31,9 @@ export class FlowService {
    */
   public static async getFlowById(id: number): Promise<TApiResponse<IFlowDto>> {
     const response = await HttpUtil.getInstance().get<TApiResponse<IFlowDto>>('/Flow/GetById', {
-      params: { id }
-    });
-    return response.data;
+      params: { id },
+    })
+    return response.data
   }
 
   /**
@@ -47,10 +47,10 @@ export class FlowService {
       params: {
         flowType: params?.flowType,
         pageIndex: params?.pageIndex ?? 1,
-        pageSize: params?.pageSize ?? 20
-      }
-    });
-    return response.data;
+        pageSize: params?.pageSize ?? 20,
+      },
+    })
+    return response.data
   }
 
   /**
@@ -60,8 +60,8 @@ export class FlowService {
    * @returns Promise<TApiResponse<IFlowDto>>
    */
   public static async updateFlow(data: IUpdateFlowRequest): Promise<TApiResponse<IFlowDto>> {
-    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowDto>>('/Flow/Update', data);
-    return response.data;
+    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowDto>>('/Flow/Update', data)
+    return response.data
   }
 
   /**
@@ -72,9 +72,9 @@ export class FlowService {
    */
   public static async deleteFlow(id: number): Promise<TApiResponse<boolean>> {
     const response = await HttpUtil.getInstance().post<TApiResponse<boolean>>('/Flow/Delete', null, {
-      params: { id }
-    });
-    return response.data;
+      params: { id },
+    })
+    return response.data
   }
 
   /**
@@ -84,8 +84,8 @@ export class FlowService {
    */
   public static async getExecutionLogsByFlowId(flowId: number): Promise<TApiResponse<IFlowRunLogDto[]>> {
     const response = await HttpUtil.getInstance().get<TApiResponse<IFlowRunLogDto[]>>('/Flow/GetExecutionLogsByFlowId', {
-      params: { flowId }
-    });
-    return response.data;
+      params: { flowId },
+    })
+    return response.data
   }
 }

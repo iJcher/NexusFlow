@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
+import { SkillEntity } from '@prisma/client';
+import { parseJson } from '../common/json.util';
+import { safeFetch } from '../security/safe-fetch';
+import { extractByJsonPath } from '../workflow/expression/expression-helper';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
 import {
   SKILL_CREATOR_SYSTEM_PROMPT,
@@ -63,7 +67,9 @@ export class SkillService {
 
     const userProviders = await this.llmProviderService.getAll(userId);
     for (const provider of userProviders) {
-      const names: string[] = Array.isArray(provider.llmNames) ? provider.llmNames : [];
+      const names: string[] = Array.isArray(provider.llmNames)
+        ? provider.llmNames
+        : [];
       for (const modelName of names) {
         if (!modelName) continue;
         options.push({
@@ -92,16 +98,24 @@ export class SkillService {
     },
   ) {
     const ownerUserId = BigInt(userId);
-    const flow = await this.prisma.flowEntity.findFirst({ where: { id: flowId, ownerUserId } });
+    const flow = await this.prisma.flowEntity.findFirst({
+      where: { id: flowId, ownerUserId },
+    });
     if (!flow) return null;
 
-    const resolved = await this.resolveProvider(dto.modelKey, dto.modelName, userId);
+    const resolved = await this.resolveProvider(
+      dto.modelKey,
+      dto.modelName,
+      userId,
+    );
 
     const workflowSnapshot = {
       flowId: flow.id.toString(),
       displayName: flow.displayName,
       description: flow.description,
-      configInfoForRun: flow.configInfoForRun ? JSON.parse(flow.configInfoForRun) : null,
+      configInfoForRun: flow.configInfoForRun
+        ? parseJson(flow.configInfoForRun)
+        : null,
       configInfoForWeb: flow.configInfoForWeb,
     };
 
@@ -121,9 +135,14 @@ export class SkillService {
         ownerUserId,
         flowId,
         name: generated.name || dto.name || flow.displayName,
-        description: generated.description || dto.description || flow.description || '',
-        inputSchema: JSON.stringify(generated.inputSchema || dto.inputSchema || {}),
-        outputSchema: JSON.stringify(generated.outputSchema || dto.outputSchema || {}),
+        description:
+          generated.description || dto.description || flow.description || '',
+        inputSchema: JSON.stringify(
+          generated.inputSchema || dto.inputSchema || {},
+        ),
+        outputSchema: JSON.stringify(
+          generated.outputSchema || dto.outputSchema || {},
+        ),
         workflowSnapshot: JSON.stringify(workflowSnapshot),
         filesJson: JSON.stringify(generated.files),
         generationPrompt,
@@ -184,9 +203,14 @@ export class SkillService {
       throw new Error('No model selected for skill generation.');
     }
 
-    const provider = await this.llmProviderService.findProviderByModelName(finalModelName, userId);
+    const provider = await this.llmProviderService.findProviderByModelName(
+      finalModelName,
+      userId,
+    );
     if (!provider) {
-      throw new Error(`No provider found for skill generation model: ${finalModelName}`);
+      throw new Error(
+        `No provider found for skill generation model: ${finalModelName}`,
+      );
     }
 
     return {
@@ -224,7 +248,7 @@ export class SkillService {
     return result.count > 0;
   }
 
-  private toDto(entity: any) {
+  private toDto(entity: SkillEntity) {
     return {
       id: entity.id.toString(),
       ownerUserId: entity.ownerUserId.toString(),
@@ -232,9 +256,9 @@ export class SkillService {
       name: entity.name,
       description: entity.description,
       version: entity.version,
-      inputSchema: JSON.parse(entity.inputSchema || '{}'),
-      outputSchema: JSON.parse(entity.outputSchema || '{}'),
-      files: JSON.parse(entity.filesJson || '{}'),
+      inputSchema: parseJson(entity.inputSchema || '{}'),
+      outputSchema: parseJson(entity.outputSchema || '{}'),
+      files: parseJson(entity.filesJson || '{}'),
       modelName: entity.modelName,
       status: entity.status,
       createdAt: entity.createdAt,
@@ -289,11 +313,9 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
   ): Promise<GeneratedSkillPayload> {
     const endpoint = this.normalizeChatCompletionsUrl(provider.llmAPIUrl);
     const startedAt = Date.now();
-    this.logger.log(
-      `Calling skill LLM: model=${provider.modelName} endpoint=${endpoint} promptLen=${prompt.length}`,
-    );
+    this.logger.log(`Calling skill LLM: promptLen=${prompt.length}`);
 
-    const response = await fetch(endpoint, {
+    const response = await safeFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -312,39 +334,36 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      await response.body?.cancel();
       this.logger.error(
-        `Skill LLM HTTP ${response.status} after ${Date.now() - startedAt}ms: ${errorText.slice(0, 500)}`,
+        `Skill LLM HTTP ${response.status} after ${Date.now() - startedAt}ms`,
       );
-      throw new Error(`Skill generation model failed ${response.status}: ${errorText}`);
+      throw new Error(`SKILL_MODEL_HTTP_${response.status}`);
     }
 
-    const result: any = await response.json();
-    const content = result.choices?.[0]?.message?.content || '';
+    const result: unknown = await response.json();
+    const content = extractByJsonPath(result, 'choices.0.message.content');
+    if (typeof content !== 'string')
+      throw new Error('INVALID_SKILL_MODEL_RESPONSE');
     this.logger.log(
       `Skill LLM responded in ${Date.now() - startedAt}ms, contentLen=${content.length}`,
     );
     if (!content.trim()) {
-      throw new Error(
-        `LLM returned empty content. Raw response: ${JSON.stringify(result).slice(0, 500)}`,
-      );
+      throw new Error('SKILL_MODEL_EMPTY_RESPONSE');
     }
 
     const parsed = this.parseJsonFromModel(content);
 
     const violations = validateGeneratedSkill(parsed);
     if (violations.length > 0) {
-      const summary = violations.map((v) => `[${v.field}] ${v.message}`).join('\n  - ');
       this.logger.warn(
-        `Skill validation failed: ${summary}\nFirst 300 chars of model output:\n${content.slice(0, 300)}`,
+        `SKILL_VALIDATION_FAILED: violations=${violations.length}`,
       );
-      throw new Error(
-        `Generated skill failed skill-creator validation:\n  - ${summary}\n请重新生成（必要时换更强的模型）。`,
-      );
+      throw new Error('SKILL_VALIDATION_FAILED');
     }
 
     this.logger.log(
-      `Skill validated OK: name=${parsed.name} files=${Object.keys(parsed.files || {}).join(',')}`,
+      `Skill validated OK: files=${Object.keys(parsed.files || {}).length}`,
     );
     return parsed;
   }
@@ -368,19 +387,23 @@ ${JSON.stringify(input.workflowSnapshot, null, 2)}
   private parseJsonFromModel(content: string): GeneratedSkillPayload {
     let trimmed = content.trim();
     if (trimmed.startsWith('```')) {
-      trimmed = trimmed.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+      trimmed = trimmed
+        .replace(/^```(?:json)?/i, '')
+        .replace(/```$/i, '')
+        .trim();
     }
     const firstBrace = trimmed.indexOf('{');
     const lastBrace = trimmed.lastIndexOf('}');
-    if (firstBrace > 0 || (lastBrace !== -1 && lastBrace < trimmed.length - 1)) {
+    if (
+      firstBrace > 0 ||
+      (lastBrace !== -1 && lastBrace < trimmed.length - 1)
+    ) {
       trimmed = trimmed.slice(firstBrace, lastBrace + 1);
     }
     try {
       return JSON.parse(trimmed) as GeneratedSkillPayload;
-    } catch (e) {
-      throw new Error(
-        `Failed to parse skill model output as JSON. First 200 chars:\n${content.slice(0, 200)}`,
-      );
+    } catch {
+      throw new Error('SKILL_MODEL_INVALID_JSON');
     }
   }
 }

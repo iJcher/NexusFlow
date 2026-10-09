@@ -1,6 +1,16 @@
-import { NodeConfig, FlowRuntimeContext, NodeExecuteResult } from '../types';
-import { createSuccessResult, createErrorResult, FlowRuntime } from './node-base';
+import {
+  NodeConfig,
+  FlowRuntimeContext,
+  NodeExecuteResult,
+  ExpressionUnit,
+} from '../types';
+import {
+  createSuccessResult,
+  createErrorResult,
+  FlowRuntime,
+} from './node-base';
 import { replacePlaceholders } from '../expression/expression-helper';
+import { safeFetch } from '../../security/safe-fetch';
 
 interface HttpKeyValueItem {
   enabled?: boolean;
@@ -27,7 +37,11 @@ export async function executeHttpNode(
       }
     }
 
-    const queryParams = await resolveKeyValueItems(node.queryParams || [], context, runtime);
+    const queryParams = await resolveKeyValueItems(
+      node.queryParams || [],
+      context,
+      runtime,
+    );
     if (queryParams.length > 0) {
       const url = new URL(finalUrl);
       queryParams.forEach(({ key, value }) => url.searchParams.set(key, value));
@@ -35,7 +49,9 @@ export async function executeHttpNode(
     }
 
     const method = (node.method || 'GET').toUpperCase();
-    const timeoutMs = ((node.timeoutSeconds || 30) <= 0 ? 30 : node.timeoutSeconds || 30) * 1000;
+    const timeoutMs =
+      ((node.timeoutSeconds || 30) <= 0 ? 30 : node.timeoutSeconds || 30) *
+      1000;
     const headers: Record<string, string> = {};
 
     const fetchOptions: RequestInit = {
@@ -53,7 +69,9 @@ export async function executeHttpNode(
 
     const headersText = await resolveTextField(node.headers, context, runtime);
     if (headersText) {
-      const headerLines = headersText.split(/[\r\n]+/).filter((l: string) => l.trim());
+      const headerLines = headersText
+        .split(/[\r\n]+/)
+        .filter((l: string) => l.trim());
       for (const line of headerLines) {
         const idx = line.indexOf(':');
         if (idx <= 0) continue;
@@ -63,7 +81,11 @@ export async function executeHttpNode(
       }
     }
 
-    const headerParams = await resolveKeyValueItems(node.headerParams || [], context, runtime);
+    const headerParams = await resolveKeyValueItems(
+      node.headerParams || [],
+      context,
+      runtime,
+    );
     headerParams.forEach(({ key, value }) => {
       headers[key] = value;
     });
@@ -72,7 +94,7 @@ export async function executeHttpNode(
       fetchOptions.headers = headers;
     }
 
-    const response = await fetch(finalUrl, fetchOptions);
+    const response = await safeFetch(finalUrl, fetchOptions);
     const responseBody = await response.text();
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -89,18 +111,19 @@ export async function executeHttpNode(
       headers: responseHeaders,
       url: finalUrl,
     });
-  } catch (e: any) {
-    return createErrorResult(node.id, `http node failed: ${e.message}`);
+  } catch {
+    return createErrorResult(node.id, 'HTTP_NODE_FAILED');
   }
 }
 
 async function resolveTextField(
-  field: any,
+  field: string | ExpressionUnit | undefined,
   context: FlowRuntimeContext,
   runtime: FlowRuntime,
 ): Promise<string> {
   if (!field) return '';
-  if (typeof field === 'string') return replacePlaceholders(context, runtime, field);
+  if (typeof field === 'string')
+    return replacePlaceholders(context, runtime, field);
   const text = field.text ?? field.Text ?? '';
   return replacePlaceholders(context, runtime, text);
 }
@@ -122,7 +145,7 @@ async function resolveKeyValueItems(
   return result;
 }
 
-function tryParseJson(text: string): any {
+function tryParseJson(text: string): unknown {
   if (!text) return null;
   try {
     return JSON.parse(text);

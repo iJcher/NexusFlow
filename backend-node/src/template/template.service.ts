@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { TemplateWriteDto } from './template.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
+import { FlowTemplateEntity, Prisma } from '@prisma/client';
+import { parseJson, parseStringList } from '../common/json.util';
 
 const FLOW_TYPE_MAP: Record<string, number> = {
   LogicFlow: 0,
@@ -40,9 +43,15 @@ export class TemplateService {
 
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: any, userId: string, userName: string) {
+  async create(dto: TemplateWriteDto, userId: string, userName: string) {
+    if (dto.isOfficial)
+      throw new ForbiddenException(
+        'Only platform seed can create official templates',
+      );
     const flowType =
-      typeof dto.flowType === 'string' ? FLOW_TYPE_MAP[dto.flowType] ?? 0 : dto.flowType ?? 0;
+      typeof dto.flowType === 'string'
+        ? (FLOW_TYPE_MAP[dto.flowType] ?? 0)
+        : (dto.flowType ?? 0);
 
     const entity = await this.prisma.flowTemplateEntity.create({
       data: {
@@ -53,9 +62,11 @@ export class TemplateService {
         flowType,
         category: dto.category || 'custom',
         tags: dto.tags ? JSON.stringify(dto.tags) : '[]',
-        configInfoForRun: dto.configInfoForRun ? JSON.stringify(dto.configInfoForRun) : null,
+        configInfoForRun: dto.configInfoForRun
+          ? JSON.stringify(dto.configInfoForRun)
+          : null,
         configInfoForWeb: dto.configInfoForWeb || null,
-        isOfficial: dto.isOfficial ?? false,
+        isOfficial: false,
         createdBy: userName,
       },
     });
@@ -63,7 +74,12 @@ export class TemplateService {
     return this.toDto(entity);
   }
 
-  async createFromFlow(flowId: bigint, dto: any, userId: string, userName: string) {
+  async createFromFlow(
+    flowId: bigint,
+    dto: TemplateWriteDto,
+    userId: string,
+    userName: string,
+  ) {
     const flow = await this.prisma.flowEntity.findFirst({
       where: { id: flowId, ownerUserId: BigInt(userId) },
     });
@@ -76,7 +92,9 @@ export class TemplateService {
         flowType: flow.flowType,
         category: dto.category || 'custom',
         tags: dto.tags || [],
-        configInfoForRun: flow.configInfoForRun ? JSON.parse(flow.configInfoForRun) : null,
+        configInfoForRun: flow.configInfoForRun
+          ? parseJson(flow.configInfoForRun)
+          : null,
         configInfoForWeb: flow.configInfoForWeb,
       },
       userId,
@@ -86,30 +104,49 @@ export class TemplateService {
 
   async getById(id: bigint, userId: string) {
     const entity = await this.prisma.flowTemplateEntity.findFirst({
-      where: { id, OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }] },
+      where: {
+        id,
+        OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }],
+      },
     });
     return entity ? this.toDto(entity) : null;
   }
 
-  async getList(params: {
-    flowType?: number;
-    category?: string;
-    isOfficial?: boolean;
-    keyword?: string;
-    pageIndex?: number;
-    pageSize?: number;
-  }, userId: string) {
+  async getList(
+    params: {
+      flowType?: number;
+      category?: string;
+      isOfficial?: boolean;
+      keyword?: string;
+      pageIndex?: number;
+      pageSize?: number;
+    },
+    userId: string,
+  ) {
     await this.ensureOfficialTemplates();
 
-    const { flowType, category, isOfficial, keyword, pageIndex = 1, pageSize = 20 } = params;
-    const where: any = { OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }] };
+    const {
+      flowType,
+      category,
+      isOfficial,
+      keyword,
+      pageIndex = 1,
+      pageSize = 20,
+    } = params;
+    const where: Prisma.FlowTemplateEntityWhereInput = {
+      OR: [{ ownerUserId: BigInt(userId) }, { isOfficial: true }],
+    };
     if (flowType !== undefined) where.flowType = flowType;
     if (category) where.category = category;
     if (isOfficial !== undefined) where.isOfficial = isOfficial;
     if (keyword) {
-      where.OR = [
-        { name: { contains: keyword } },
-        { description: { contains: keyword } },
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: keyword } },
+            { description: { contains: keyword } },
+          ],
+        },
       ];
     }
 
@@ -129,20 +166,23 @@ export class TemplateService {
     };
   }
 
-  async update(id: bigint, dto: any, userId: string) {
+  async update(id: bigint, dto: TemplateWriteDto, userId: string) {
     const entity = await this.prisma.flowTemplateEntity.findFirst({
       where: { id, ownerUserId: BigInt(userId), isOfficial: false },
     });
     if (!entity) return null;
 
-    const updateData: any = {};
+    const updateData: Prisma.FlowTemplateEntityUpdateInput = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.category !== undefined) updateData.category = dto.category;
     if (dto.tags !== undefined) updateData.tags = JSON.stringify(dto.tags);
     if (dto.configInfoForRun !== undefined)
-      updateData.configInfoForRun = dto.configInfoForRun ? JSON.stringify(dto.configInfoForRun) : null;
-    if (dto.configInfoForWeb !== undefined) updateData.configInfoForWeb = dto.configInfoForWeb;
+      updateData.configInfoForRun = dto.configInfoForRun
+        ? JSON.stringify(dto.configInfoForRun)
+        : null;
+    if (dto.configInfoForWeb !== undefined)
+      updateData.configInfoForWeb = dto.configInfoForWeb;
 
     const updated = await this.prisma.flowTemplateEntity.update({
       where: { id },
@@ -158,7 +198,7 @@ export class TemplateService {
     return result.count > 0;
   }
 
-  private toDto(entity: any) {
+  private toDto(entity: FlowTemplateEntity) {
     return {
       id: entity.id.toString(),
       ownerUserId: entity.ownerUserId?.toString?.() ?? null,
@@ -166,8 +206,10 @@ export class TemplateService {
       description: entity.description,
       flowType: entity.flowType,
       category: entity.category,
-      tags: entity.tags ? JSON.parse(entity.tags) : [],
-      configInfoForRun: entity.configInfoForRun ? JSON.parse(entity.configInfoForRun) : null,
+      tags: entity.tags ? parseStringList(entity.tags) : [],
+      configInfoForRun: entity.configInfoForRun
+        ? parseJson(entity.configInfoForRun)
+        : null,
       configInfoForWeb: entity.configInfoForWeb,
       isOfficial: entity.isOfficial,
       createdBy: entity.createdBy,
@@ -225,14 +267,23 @@ export class TemplateService {
           this.createReplyNode('tpl_basic_reply', 820, 180),
         ],
         edges: [
-          { id: 'tpl_basic_e_start_llm', fromNodeId: 'tpl_basic_start', toNodeId: 'tpl_basic_llm' },
-          { id: 'tpl_basic_e_llm_reply', fromNodeId: 'tpl_basic_llm', toNodeId: 'tpl_basic_reply' },
+          {
+            id: 'tpl_basic_e_start_llm',
+            fromNodeId: 'tpl_basic_start',
+            toNodeId: 'tpl_basic_llm',
+          },
+          {
+            id: 'tpl_basic_e_llm_reply',
+            fromNodeId: 'tpl_basic_llm',
+            toNodeId: 'tpl_basic_reply',
+          },
         ],
       }),
       this.createTemplateDefinition({
         id: 910000000000000002n,
         name: '知识库问答',
-        description: 'Start -> Knowledge -> LLM -> Reply，适合基于知识库回答用户问题。',
+        description:
+          'Start -> Knowledge -> LLM -> Reply，适合基于知识库回答用户问题。',
         flowType: 1,
         category: 'rag',
         tags: ['rag', 'knowledge', 'ai'],
@@ -243,28 +294,58 @@ export class TemplateService {
           this.createReplyNode('tpl_rag_reply', 1140, 180),
         ],
         edges: [
-          { id: 'tpl_rag_e_start_knowledge', fromNodeId: 'tpl_rag_start', toNodeId: 'tpl_rag_knowledge' },
-          { id: 'tpl_rag_e_knowledge_llm', fromNodeId: 'tpl_rag_knowledge', toNodeId: 'tpl_rag_llm' },
-          { id: 'tpl_rag_e_llm_reply', fromNodeId: 'tpl_rag_llm', toNodeId: 'tpl_rag_reply' },
+          {
+            id: 'tpl_rag_e_start_knowledge',
+            fromNodeId: 'tpl_rag_start',
+            toNodeId: 'tpl_rag_knowledge',
+          },
+          {
+            id: 'tpl_rag_e_knowledge_llm',
+            fromNodeId: 'tpl_rag_knowledge',
+            toNodeId: 'tpl_rag_llm',
+          },
+          {
+            id: 'tpl_rag_e_llm_reply',
+            fromNodeId: 'tpl_rag_llm',
+            toNodeId: 'tpl_rag_reply',
+          },
         ],
       }),
       this.createTemplateDefinition({
         id: 910000000000000003n,
         name: 'HTTP 外部数据问答',
-        description: 'Start -> HTTP -> LLM -> Reply，适合把外部接口结果交给模型总结。',
+        description:
+          'Start -> HTTP -> LLM -> Reply，适合把外部接口结果交给模型总结。',
         flowType: 1,
         category: 'data',
         tags: ['http', 'api', 'ai'],
         nodes: [
           this.createStartNode('tpl_http_start', 120, 180),
           this.createHttpNode('tpl_http_request', 440, 150),
-          this.createLLMNode('tpl_http_llm', 780, 150, '请结合接口返回结果回答用户问题。\n\n用户问题：{{sys.query}}\n接口结果：{{tpl_http_request.responseBody}}'),
+          this.createLLMNode(
+            'tpl_http_llm',
+            780,
+            150,
+            '请结合接口返回结果回答用户问题。\n\n用户问题：{{sys.query}}\n接口结果：{{tpl_http_request.responseBody}}',
+          ),
           this.createReplyNode('tpl_http_reply', 1140, 180),
         ],
         edges: [
-          { id: 'tpl_http_e_start_http', fromNodeId: 'tpl_http_start', toNodeId: 'tpl_http_request' },
-          { id: 'tpl_http_e_http_llm', fromNodeId: 'tpl_http_request', toNodeId: 'tpl_http_llm' },
-          { id: 'tpl_http_e_llm_reply', fromNodeId: 'tpl_http_llm', toNodeId: 'tpl_http_reply' },
+          {
+            id: 'tpl_http_e_start_http',
+            fromNodeId: 'tpl_http_start',
+            toNodeId: 'tpl_http_request',
+          },
+          {
+            id: 'tpl_http_e_http_llm',
+            fromNodeId: 'tpl_http_request',
+            toNodeId: 'tpl_http_llm',
+          },
+          {
+            id: 'tpl_http_e_llm_reply',
+            fromNodeId: 'tpl_http_llm',
+            toNodeId: 'tpl_http_reply',
+          },
         ],
       }),
     ];
@@ -333,7 +414,12 @@ export class TemplateService {
         sessionVariables: [],
       },
       designerConfig: {
-        flowType: input.flowType === 1 ? 'ai' : input.flowType === 2 ? 'approval' : 'logic',
+        flowType:
+          input.flowType === 1
+            ? 'ai'
+            : input.flowType === 2
+              ? 'approval'
+              : 'logic',
         lastModified: new Date().toISOString(),
         version: '2.0.0',
       },
@@ -351,11 +437,19 @@ export class TemplateService {
     };
   }
 
-  private createStartNode(id: string, x: number, y: number): TemplateNodeDefinition {
+  private createStartNode(
+    id: string,
+    x: number,
+    y: number,
+  ): TemplateNodeDefinition {
     return { id, typeName: 'StartNode', displayName: 'Start', x, y };
   }
 
-  private createReplyNode(id: string, x: number, y: number): TemplateNodeDefinition {
+  private createReplyNode(
+    id: string,
+    x: number,
+    y: number,
+  ): TemplateNodeDefinition {
     return {
       id,
       typeName: 'ReplyNode',
@@ -368,7 +462,11 @@ export class TemplateService {
     };
   }
 
-  private createKnowledgeNode(id: string, x: number, y: number): TemplateNodeDefinition {
+  private createKnowledgeNode(
+    id: string,
+    x: number,
+    y: number,
+  ): TemplateNodeDefinition {
     return {
       id,
       typeName: 'KnowledgeNode',
@@ -376,7 +474,10 @@ export class TemplateService {
       x,
       y,
       properties: {
-        queryExpression: this.createFullTextExpression('knowledge_query', '{{sys.query}}'),
+        queryExpression: this.createFullTextExpression(
+          'knowledge_query',
+          '{{sys.query}}',
+        ),
         topK: 5,
         threshold: 0.1,
         outputVariable: 'knowledge_context',
@@ -384,7 +485,11 @@ export class TemplateService {
     };
   }
 
-  private createHttpNode(id: string, x: number, y: number): TemplateNodeDefinition {
+  private createHttpNode(
+    id: string,
+    x: number,
+    y: number,
+  ): TemplateNodeDefinition {
     return {
       id,
       typeName: 'HttpNode',
@@ -393,7 +498,10 @@ export class TemplateService {
       y,
       properties: {
         method: 'GET',
-        url: this.createFullTextExpression('http_url', 'https://api.example.com/search'),
+        url: this.createFullTextExpression(
+          'http_url',
+          'https://api.example.com/search',
+        ),
         query: this.createFullTextExpression('http_query', 'q={{sys.query}}'),
         timeoutSeconds: 30,
       },

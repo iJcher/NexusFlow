@@ -1,11 +1,13 @@
+import process from 'node:process'
 import { fileURLToPath, URL } from 'node:url'
-import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import Components from 'unplugin-vue-components/vite'
+import { defineConfig, loadEnv } from 'vite'
 
+const apiPrefixPattern = /^\/api/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
 
@@ -25,7 +27,7 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
     server: {
@@ -35,11 +37,12 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:30050',
           changeOrigin: true,
+          cookiePathRewrite: { '/auth': '/api/auth' },
           ...(env.VITE_PROXY_STRIP_PREFIX === 'true'
-            ? { rewrite: (path: string) => path.replace(/^\/api/, '') }
-            : {})
-        }
-      }
-    }
+            ? { rewrite: (path: string) => path.replace(apiPrefixPattern, '') }
+            : {}),
+        },
+      },
+    },
   }
 })

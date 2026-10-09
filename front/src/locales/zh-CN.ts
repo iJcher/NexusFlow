@@ -30,6 +30,23 @@ export default {
   },
 
   login: {
+    email: '邮箱',
+    code: '验证码',
+    emailPlaceholder: 'name{\'@\'}example.com',
+    emailRequired: '请输入邮箱',
+    emailInvalid: '请输入有效的邮箱地址',
+    codePlaceholder: '请输入邮件中的 6 位验证码',
+    codeRequired: '请输入验证码',
+    codeInvalid: '验证码须为 6 位数字',
+    sendCode: '发送验证码',
+    sendingCode: '发送中…',
+    resendAfter: '{seconds} 秒后重发',
+    codeSent: '验证码已发送，请查看收件箱及垃圾邮件',
+    rememberEmail: '记住邮箱',
+    emailSubtitle: '通过邮箱验证码安全登录，无需密码。',
+    emailHint: '首次验证后自动创建账户。验证码仅可使用一次。',
+    requestCodeFirst: '请先发送验证码',
+    requestFailed: '请求失败，请稍后重试',
     phonePlaceholder: '请输入手机号',
     passwordPlaceholder: '请输入密码',
     phoneRequired: '请输入手机号',
@@ -65,7 +82,7 @@ export default {
     knowledge: '知识库',
     models: '模型配置',
     llmProvider: '大模型提供商',
-    toolSkill: '工具与 Skill'
+    toolSkill: '工具与 Skill',
   },
 
   // 字段名称
@@ -85,7 +102,7 @@ export default {
     nodeName: '节点名称',
     message: '消息',
     canvas: '画布',
-    flowId: '流程ID'
+    flowId: '流程ID',
   },
 
   // 流程设计器
@@ -112,7 +129,7 @@ export default {
     inputParameters: '输入参数',
     sessionVariables: '会话变量',
     variables: '变量',
-    unnamedFlow: '未命名流程'
+    unnamedFlow: '未命名流程',
   },
 
   // 聊天测试
@@ -130,7 +147,7 @@ export default {
     sendFailed: '发送消息失败，请检查网络连接',
     noResponse: '无法获取响应流',
     workflowStarted: '工作流已启动',
-    workflowFinished: '工作流已完成'
+    workflowFinished: '工作流已完成',
   },
 
   // 错误提示
@@ -151,7 +168,7 @@ export default {
     saveFailed: '保存失败',
     deleteFailed: '删除失败',
     operationFailed: '操作失败',
-    httpError: 'HTTP 错误! 状态码: {status}'
+    httpError: 'HTTP 错误! 状态码: {status}',
   },
 
   // 成功提示
@@ -161,7 +178,7 @@ export default {
     deleted: '已删除 {count} 项',
     saved: '保存成功',
     copied: '已复制到剪贴板',
-    operationSuccess: '操作成功'
+    operationSuccess: '操作成功',
   },
 
   // 确认提示
@@ -169,7 +186,7 @@ export default {
     delete: '确定要删除 {name} 吗？',
     deleteMultiple: '确定要删除选中的 {count} 项吗？',
     unsavedChanges: '有未保存的更改，确定要离开吗？',
-    clear: '确定要清空吗？'
+    clear: '确定要清空吗？',
   },
 
   // 节点类型
@@ -182,7 +199,7 @@ export default {
     llm: 'LLM',
     jsCode: 'JS代码',
     httpRequest: 'HTTP请求',
-    end: '结束'
+    end: '结束',
   },
 
   // 首页
@@ -221,7 +238,7 @@ export default {
     step3_title: '测试运行',
     step3_desc: '一键进入对话测试，实时查看 AI 工作流的执行效果和运行日志。',
     footerDesc: '开源智能工作流编排平台',
-    items: '个'
+    items: '个',
   },
 
   // 仪表盘
@@ -232,7 +249,7 @@ export default {
     logicFlowDesc: '创建和管理复杂的业务逻辑流程，支持条件判断、循环等逻辑控制',
     aiFlowDesc: '构建智能化的AI对话流程，集成大语言模型实现智能交互',
     approvalFlowDesc: '设计多级审批流程，支持串行、并行等多种审批模式',
-    items: '个'
+    items: '个',
   },
 
   // 布局
@@ -242,7 +259,7 @@ export default {
     logout: '退出登录',
     modelManagement: '模型管理',
     about: '关于',
-    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.'
+    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.',
   },
 
   // Studio 工作流
@@ -272,7 +289,7 @@ export default {
       edit: '编辑信息',
       copy: '复制',
       delete: '删除',
-    }
+    },
   },
 
   // 模板库
@@ -397,7 +414,7 @@ export default {
     invalidFlowId: '流程ID无效',
     unnamedFlow: '未命名流程',
     copySuffix: '副本',
-    subtitle: '管理和编排你的工作流程'
+    subtitle: '管理和编排你的工作流程',
   },
 
   // 流程设计器
@@ -544,7 +561,7 @@ export default {
     noResponse: '无法获取响应流',
     workflowStarted: '工作流已启动',
     workflowFinished: '工作流已完成',
-    thinkingProcess: '深度思考过程'
+    thinkingProcess: '深度思考过程',
   },
 
   // 运行日志
@@ -565,7 +582,7 @@ export default {
     user: '用户',
     system: '系统',
     noLogs: '暂无运行日志',
-    unnamedInstance: '未命名实例'
+    unnamedInstance: '未命名实例',
   },
 
   // 执行日志下拉菜单
@@ -577,7 +594,7 @@ export default {
     failure: '失败',
     duration: '耗时',
     user: '用户',
-    system: '系统'
+    system: '系统',
   },
 
   // 流程组件
@@ -587,7 +604,7 @@ export default {
     zoomOut: '缩小',
     zoomIn: '放大',
     fitCanvas: '适应画布',
-    
+
     // 变量管理器
     variableManagement: '变量管理',
     inputParameterManagement: '输入参数管理',
@@ -635,7 +652,7 @@ export default {
     noDefault: '-',
     edit: '编辑',
     delete: '删除',
-    
+
     // 变量选择器
     selectVariable: '选择变量',
     searchVariable: '搜索变量',
@@ -644,7 +661,7 @@ export default {
     sessionVariables: '会话变量',
     systemVariables: '系统变量',
     noVariableFound: '未找到相关变量',
-    
+
     // 节点属性面板
     nodeProperties: '节点属性',
     basicProperties: '基础属性',
@@ -685,7 +702,7 @@ export default {
     outputType: '输出类型',
     selectOutputType: '请选择输出类型',
     property: '属性',
-    
+
     // 变量类型
     string: '字符串',
     number: '数字',
@@ -695,7 +712,7 @@ export default {
     object: '对象',
     array: '数组',
     unknown: '未知',
-    
+
     // 右键菜单
     addComment: '添加注释',
     comingSoon: '待实现',
@@ -703,7 +720,7 @@ export default {
     copy: '复制',
     node: '节点',
     edge: '连线',
-    
+
     // 节点属性面板
     conditionDescription: '条件描述',
     deleteCondition: '删除条件',
@@ -711,7 +728,7 @@ export default {
     addCondition: '添加条件',
     selectModel: '请选择模型',
     unknownPlatform: '未知平台',
-    
+
     // 节点特有属性
     replyMessage: '回复消息',
     enterReplyMessage: '请输入回复消息内容，使用{{变量名}}引用变量',
@@ -747,7 +764,7 @@ export default {
     jsCode: 'JS代码',
     enterJSCode: '请输入JavaScript代码',
     jsCodeDesc: '编写JavaScript代码，可以使用变量',
-    
+
     // 节点属性字段
     enableMemory: '启用记忆',
     memoryRounds: '记忆轮数：',
@@ -758,7 +775,7 @@ export default {
     condition: '条件',
     atLeastOneCondition: '至少需要保留一个条件分支',
     atLeastOneAssignment: '至少需要保留一个赋值项',
-    
+
     // 表达式单元编辑器
     jsExpression: 'JS表达式',
     expressionMode: '表达式模式',
@@ -795,7 +812,7 @@ export default {
     conditionOpStartsWith: '开头是',
     conditionOpEndsWith: '结尾是',
     conditionOpEmpty: '为空',
-    conditionOpNotEmpty: '不为空'
+    conditionOpNotEmpty: '不为空',
   },
 
   // 模型提供者管理
@@ -844,6 +861,6 @@ export default {
     loadFailed: '加载模型提供者列表失败',
     saveFailed: '保存模型提供者失败',
     invalidProviderId: '提供者ID无效',
-    copyApiKey: '复制API密钥'
-  }
+    copyApiKey: '复制API密钥',
+  },
 }

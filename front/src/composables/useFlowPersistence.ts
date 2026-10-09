@@ -1,25 +1,27 @@
-import { ElMessage } from 'element-plus'
-import { useI18n } from 'vue-i18n'
 import type LogicFlow from '@logicflow/core'
 import type { Ref } from 'vue'
-import { FlowService } from '@/services/flow.service'
-import { useFlowDesignerStore } from '@/stores/flowDesigner'
-import type { IFlowConfigInfo, IUpdateFlowRequest } from '@/types/flow.types'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
 import type { NodeLine } from '@/types/flow-designer/NodeLine'
+import type { IFlowConfigInfo, IUpdateFlowRequest } from '@/types/flow.types'
+import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { FlowService } from '@/services/flow.service'
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
 
 const LOCAL_STORAGE_PREFIX = 'nf_flow_web_'
 
 function saveToLocal(flowId: number | string, webConfigJson: string) {
   try {
     localStorage.setItem(`${LOCAL_STORAGE_PREFIX}${flowId}`, webConfigJson)
-  } catch { /* quota exceeded etc */ }
+  }
+  catch { /* quota exceeded etc */ }
 }
 
 function loadFromLocal(flowId: number | string): string | null {
   try {
     return localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${flowId}`)
-  } catch { return null }
+  }
+  catch { return null }
 }
 
 export function useFlowPersistence(
@@ -49,8 +51,7 @@ export function useFlowPersistence(
           type: 'customBezier',
         }))
       }
-      console.debug('[FlowPersistence] render positions:',
-        webConfig.logicFlowData.nodes?.map((n: any) => `${n.id}(${Math.round(n.x)},${Math.round(n.y)})`).join(' | '))
+      console.debug('[FlowPersistence] render positions:', webConfig.logicFlowData.nodes?.map((n: any) => `${n.id}(${Math.round(n.x)},${Math.round(n.y)})`).join(' | '))
       lf.render(webConfig.logicFlowData)
     }
 
@@ -78,7 +79,8 @@ export function useFlowPersistence(
         if (flowData.configInfoForWeb) {
           webConfigSource = flowData.configInfoForWeb
           console.debug('[FlowPersistence] loaded configInfoForWeb from API, length=', webConfigSource.length)
-        } else {
+        }
+        else {
           webConfigSource = loadFromLocal(id)
           if (webConfigSource) {
             console.warn('[FlowPersistence] API returned no configInfoForWeb, using localStorage fallback')
@@ -227,8 +229,7 @@ export function useFlowPersistence(
       const configInfoForRun = generateConfigInfoForRun()
       const configInfoForWeb = generateConfigInfoForWeb()
 
-      console.debug('[FlowPersistence] saving positions:',
-        currentGraphData.nodes.map(n => `${n.id}(${Math.round(n.x)},${Math.round(n.y)})`).join(' | '))
+      console.debug('[FlowPersistence] saving positions:', currentGraphData.nodes.map(n => `${n.id}(${Math.round(n.x)},${Math.round(n.y)})`).join(' | '))
       console.debug('[FlowPersistence] configInfoForWeb length:', configInfoForWeb.length)
 
       saveToLocal(flowId.value, configInfoForWeb)

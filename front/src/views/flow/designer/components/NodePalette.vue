@@ -1,3 +1,75 @@
+<script setup lang="ts">
+import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
+import { Close, Folder, Pointer, Rank } from '@element-plus/icons-vue'
+import * as Icons from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { NodeCategory } from '@/types/flow-designer/nodeConfig'
+
+const props = defineProps<{
+  nodes: NodeConfig[]
+  canvasMode: 'move' | 'select'
+  isGroupSelecting?: boolean
+}>()
+
+const emit = defineEmits<{
+  addNode: [nodeType: string]
+  group: []
+  modeChange: [mode: 'move' | 'select']
+}>()
+
+const activeCategory = ref<string | null>(null)
+
+interface NodeGroup {
+  category: string
+  label: string
+  icon: any
+  nodes: NodeConfig[]
+}
+
+const categoryMeta: Record<string, { label: string, icon: any }> = {
+  [NodeCategory.BASIC]: { label: '基础节点', icon: Icons.Grid },
+  [NodeCategory.LOGIC]: { label: '逻辑节点', icon: Icons.Share },
+  [NodeCategory.AI]: { label: 'AI 节点', icon: Icons.MagicStick },
+  [NodeCategory.APPROVAL]: { label: '审批节点', icon: Icons.CircleCheck },
+}
+
+const groupedNodes = computed<NodeGroup[]>(() => {
+  const map = new Map<string, NodeConfig[]>()
+  for (const n of props.nodes) {
+    if (!map.has(n.category))
+      map.set(n.category, [])
+    map.get(n.category)!.push(n)
+  }
+  return Array.from(map.entries()).map(([cat, nodes]) => ({
+    category: cat,
+    label: categoryMeta[cat]?.label || cat,
+    icon: categoryMeta[cat]?.icon || Icons.Grid,
+    nodes,
+  }))
+})
+
+const activeCategoryLabel = computed(() => {
+  const g = groupedNodes.value.find(g => g.category === activeCategory.value)
+  return g?.label || ''
+})
+
+const activeCategoryNodes = computed(() => {
+  const g = groupedNodes.value.find(g => g.category === activeCategory.value)
+  return g?.nodes || []
+})
+
+const getIcon = (name: string) => (Icons as any)[name] || Icons.Document
+
+function toggleCategory(cat: string) {
+  activeCategory.value = activeCategory.value === cat ? null : cat
+}
+
+function handleAdd(nodeType: string) {
+  emit('addNode', nodeType)
+  activeCategory.value = null
+}
+</script>
+
 <template>
   <div class="node-palette">
     <button
@@ -34,7 +106,9 @@
       :title="props.isGroupSelecting ? '取消框选分组 (Esc)' : '框选分组 — 点击后拖动框选节点'"
       @click="emit('group')"
     >
-      <el-icon :size="18"><Folder /></el-icon>
+      <el-icon :size="18">
+        <Folder />
+      </el-icon>
     </button>
 
     <Transition name="popover-fade">
@@ -45,7 +119,9 @@
       >
         <div class="popover-header">
           <span>{{ activeCategoryLabel }}</span>
-          <el-icon class="close-icon" @click="activeCategory = null"><Close /></el-icon>
+          <el-icon class="close-icon" @click="activeCategory = null">
+            <Close />
+          </el-icon>
         </div>
         <div class="popover-nodes">
           <button
@@ -58,8 +134,12 @@
               <component :is="getIcon(node.icon)" />
             </el-icon>
             <div class="node-item-info">
-              <div class="node-item-name">{{ node.name }}</div>
-              <div class="node-item-desc">{{ node.description }}</div>
+              <div class="node-item-name">
+                {{ node.name }}
+              </div>
+              <div class="node-item-desc">
+                {{ node.description }}
+              </div>
             </div>
           </button>
         </div>
@@ -67,77 +147,6 @@
     </Transition>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Close, Folder, Pointer, Rank } from '@element-plus/icons-vue'
-import * as Icons from '@element-plus/icons-vue'
-import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
-import { NodeCategory } from '@/types/flow-designer/nodeConfig'
-
-const props = defineProps<{
-  nodes: NodeConfig[]
-  canvasMode: 'move' | 'select'
-  isGroupSelecting?: boolean
-}>()
-
-const emit = defineEmits<{
-  addNode: [nodeType: string]
-  group: []
-  modeChange: [mode: 'move' | 'select']
-}>()
-
-const activeCategory = ref<string | null>(null)
-
-interface NodeGroup {
-  category: string
-  label: string
-  icon: any
-  nodes: NodeConfig[]
-}
-
-const categoryMeta: Record<string, { label: string; icon: any }> = {
-  [NodeCategory.BASIC]: { label: '基础节点', icon: Icons.Grid },
-  [NodeCategory.LOGIC]: { label: '逻辑节点', icon: Icons.Share },
-  [NodeCategory.AI]: { label: 'AI 节点', icon: Icons.MagicStick },
-  [NodeCategory.APPROVAL]: { label: '审批节点', icon: Icons.CircleCheck },
-}
-
-const groupedNodes = computed<NodeGroup[]>(() => {
-  const map = new Map<string, NodeConfig[]>()
-  for (const n of props.nodes) {
-    if (!map.has(n.category)) map.set(n.category, [])
-    map.get(n.category)!.push(n)
-  }
-  return Array.from(map.entries()).map(([cat, nodes]) => ({
-    category: cat,
-    label: categoryMeta[cat]?.label || cat,
-    icon: categoryMeta[cat]?.icon || Icons.Grid,
-    nodes,
-  }))
-})
-
-const activeCategoryLabel = computed(() => {
-  const g = groupedNodes.value.find(g => g.category === activeCategory.value)
-  return g?.label || ''
-})
-
-const activeCategoryNodes = computed(() => {
-  const g = groupedNodes.value.find(g => g.category === activeCategory.value)
-  return g?.nodes || []
-})
-
-const getIcon = (name: string) => (Icons as any)[name] || Icons.Document
-
-const toggleCategory = (cat: string) => {
-  activeCategory.value = activeCategory.value === cat ? null : cat
-}
-
-const handleAdd = (nodeType: string) => {
-  emit('addNode', nodeType)
-  activeCategory.value = null
-}
-</script>
 
 <style scoped>
 .node-palette {
@@ -151,7 +160,7 @@ const handleAdd = (nodeType: string) => {
   gap: 2px;
   padding: 4px;
   background: rgba(8, 11, 16, 0.9);
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   backdrop-filter: blur(12px);
 }
@@ -170,7 +179,7 @@ const handleAdd = (nodeType: string) => {
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
-  color: #5A6A7C;
+  color: #5a6a7c;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -178,14 +187,14 @@ const handleAdd = (nodeType: string) => {
 .palette-divider {
   width: 20px;
   height: 1px;
-  background: #141A22;
+  background: #141a22;
   align-self: center;
   margin: 4px 0;
 }
 
 .palette-icon-btn:hover {
-  color: #A0B0C0;
-  border-color: #1E2733;
+  color: #a0b0c0;
+  border-color: #1e2733;
 }
 .palette-icon-btn.active {
   color: var(--nf-accent);
@@ -200,7 +209,7 @@ const handleAdd = (nodeType: string) => {
   transform: translateY(-50%);
   width: 230px;
   background: rgba(8, 11, 16, 0.95);
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   overflow: hidden;
   backdrop-filter: blur(16px);
@@ -216,13 +225,13 @@ const handleAdd = (nodeType: string) => {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #5A6A7C;
-  border-bottom: 1px solid #141A22;
+  color: #5a6a7c;
+  border-bottom: 1px solid #141a22;
 }
 
 .close-icon {
   cursor: pointer;
-  color: #5A6A7C;
+  color: #5a6a7c;
   transition: color 0.15s;
 }
 .close-icon:hover {
@@ -260,7 +269,7 @@ const handleAdd = (nodeType: string) => {
 
 .node-item-icon {
   flex-shrink: 0;
-  color: #5A6A7C;
+  color: #5a6a7c;
 }
 
 .node-item:hover .node-item-icon {
@@ -276,7 +285,7 @@ const handleAdd = (nodeType: string) => {
   font-family: var(--nf-font-display);
   font-size: 13px;
   font-weight: 500;
-  color: #A0B0C0;
+  color: #a0b0c0;
   line-height: 1.3;
 }
 
@@ -287,7 +296,7 @@ const handleAdd = (nodeType: string) => {
 .node-item-desc {
   font-family: var(--nf-font-display);
   font-size: 11px;
-  color: #3A4A5C;
+  color: #3a4a5c;
   line-height: 1.3;
   letter-spacing: 0.02em;
   white-space: nowrap;

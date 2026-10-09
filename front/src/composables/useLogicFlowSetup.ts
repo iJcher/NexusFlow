@@ -1,18 +1,18 @@
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Ref } from 'vue'
-import LogicFlow, { BezierEdge, BezierEdgeModel } from '@logicflow/core'
-import '@logicflow/core/dist/index.css'
-import { Group, NodeResize, SelectionSelect } from '@logicflow/extension'
-import '@logicflow/extension/dist/index.css'
-import { ElMessage } from 'element-plus'
-import { useI18n } from 'vue-i18n'
-import { getAvailableNodes, loadNodeClass } from '@/types/flow-designer/nodeConfig'
-import type { FlowTypeKey, NodeConfig } from '@/types/flow-designer/nodeConfig'
-import { generateNodeId } from '@/utils/uuid'
-import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
-import { NodeBaseView } from '@/types/flow-designer/NodeBaseView'
+import type { FlowTypeKey, NodeConfig } from '@/types/flow-designer/nodeConfig'
+import LogicFlow, { BezierEdge, BezierEdgeModel } from '@logicflow/core'
+import { Group, NodeResize, SelectionSelect } from '@logicflow/extension'
+import { ElMessage } from 'element-plus'
+import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTheme } from '@/composables/useTheme'
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
+import { NodeBaseView } from '@/types/flow-designer/NodeBaseView'
+import { getAvailableNodes, loadNodeClass } from '@/types/flow-designer/nodeConfig'
+import { generateNodeId } from '@/utils/uuid'
+import '@logicflow/core/dist/index.css'
+import '@logicflow/extension/dist/index.css'
 
 function isCurrentDark(): boolean {
   return document.documentElement.classList.contains('dark')
@@ -50,7 +50,6 @@ const customBezier = {
   model: CustomBezierModel,
 }
 
-
 export function useLogicFlowSetup(
   lfContainer: Ref<HTMLElement | null>,
   flowType: Ref<string>,
@@ -84,11 +83,13 @@ export function useLogicFlowSetup(
   const getLf = () => lf
 
   const applyCanvasTheme = () => {
-    if (!lf || !lfContainer.value) return
+    if (!lf || !lfContainer.value)
+      return
     const colors = getCanvasColors()
     lfContainer.value.style.backgroundColor = colors.bg
     const svgBg = lfContainer.value.querySelector('.lf-background') as HTMLElement
-    if (svgBg) svgBg.style.background = colors.bg
+    if (svgBg)
+      svgBg.style.background = colors.bg
     const gridSvg = lfContainer.value.querySelector('.lf-grid svg') as SVGElement
     if (gridSvg) {
       const circles = gridSvg.querySelectorAll('circle')
@@ -98,9 +99,10 @@ export function useLogicFlowSetup(
       const paths = gridSvg.querySelectorAll('path[stroke]')
       paths.forEach(p => p.setAttribute('stroke', colors.grid))
       const rects = gridSvg.querySelectorAll('rect[fill]')
-      rects.forEach(r => {
+      rects.forEach((r) => {
         const fill = r.getAttribute('fill')
-        if (fill && fill !== 'none' && !fill.startsWith('url(')) r.setAttribute('fill', colors.bg)
+        if (fill && fill !== 'none' && !fill.startsWith('url('))
+          r.setAttribute('fill', colors.bg)
       })
     }
   }
@@ -110,7 +112,8 @@ export function useLogicFlowSetup(
   })
 
   const initLogicFlow = async () => {
-    if (!lfContainer.value) return
+    if (!lfContainer.value)
+      return
 
     const initColors = getCanvasColors()
 
@@ -255,7 +258,8 @@ export function useLogicFlowSetup(
     })
 
     lfContainer.value.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (!NodeBaseView.selectMode) return
+      if (!NodeBaseView.selectMode)
+        return
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) {
         e.stopImmediatePropagation()
@@ -272,10 +276,12 @@ export function useLogicFlowSetup(
   }
 
   const addNodeAtPosition = (nodeType: string) => {
-    if (!lf) return
+    if (!lf)
+      return
 
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
-    if (!nodeConfig) return
+    if (!nodeConfig)
+      return
 
     const nodeId = generateNodeId(nodeType)
 
@@ -302,7 +308,8 @@ export function useLogicFlowSetup(
   }
 
   const handleSaveNodeProperties = (nodeId: string, properties: Record<string, unknown>) => {
-    if (!lf) return
+    if (!lf)
+      return
 
     try {
       flowStore.updateNodeProperties(nodeId, properties)
@@ -326,7 +333,8 @@ export function useLogicFlowSetup(
     const isSelect = mode === 'select'
     NodeBaseView.selectMode = isSelect
 
-    if (!lf) return
+    if (!lf)
+      return
     lf.updateEditConfig({
       stopMoveGraph: isSelect,
       stopScrollGraph: false,
@@ -343,11 +351,16 @@ export function useLogicFlowSetup(
   let _groupSelectionCleanup: (() => void) | null = null
 
   const _createGroupFromNodes = (selectedNodes: { id: string }[]) => {
-    if (!lf) return
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    if (!lf)
+      return
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
     for (const n of selectedNodes) {
       const model = lf.getNodeModelById(n.id)
-      if (!model) continue
+      if (!model)
+        continue
       const halfW = model.width / 2
       const halfH = model.height / 2
       minX = Math.min(minX, model.x - halfW)
@@ -413,7 +426,8 @@ export function useLogicFlowSetup(
   }
 
   const _exitGroupSelectionMode = () => {
-    if (!lf) return
+    if (!lf)
+      return
     isGroupSelecting.value = false
     const selectionPlugin = (lf.extension as any)?.selectionSelect
     if (selectionPlugin) {
@@ -430,7 +444,8 @@ export function useLogicFlowSetup(
   }
 
   const startGroupSelection = () => {
-    if (!lf) return
+    if (!lf)
+      return
 
     if (isGroupSelecting.value) {
       _exitGroupSelectionMode()
@@ -450,7 +465,8 @@ export function useLogicFlowSetup(
 
     const handleSelectionDone = () => {
       setTimeout(() => {
-        if (!lf) return
+        if (!lf)
+          return
         const { nodes } = lf.getSelectElements()
         if (nodes && nodes.length >= 2) {
           _createGroupFromNodes(nodes)
@@ -465,7 +481,8 @@ export function useLogicFlowSetup(
     const container = lfContainer.value
     if (container) {
       const onMouseUp = () => {
-        if (!isGroupSelecting.value) return
+        if (!isGroupSelecting.value)
+          return
         handleSelectionDone()
       }
       container.addEventListener('mouseup', onMouseUp, { once: true, capture: true })
@@ -482,7 +499,8 @@ export function useLogicFlowSetup(
   const zoomIn = () => lf?.zoom(true)
   const zoomOut = () => lf?.zoom(false)
   const resetZoom = () => {
-    if (!lf) return
+    if (!lf)
+      return
     lf.resetZoom()
     lf.resetTranslate()
     currentZoomPercent.value = 100

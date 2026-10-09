@@ -1,22 +1,22 @@
 # ============================================
 # Stage 1: 构建阶段
 # ============================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 # 配置国内源加速：Alpine apk 使用中科大源，npm/pnpm 使用 npmmirror
 RUN sed -i 's#https://dl-cdn.alpinelinux.org/alpine#https://mirrors.ustc.edu.cn/alpine#g' /etc/apk/repositories && \
     npm config set registry https://registry.npmmirror.com && \
-    npm install -g pnpm && \
+    npm install -g pnpm@11.22.0 && \
     pnpm config set registry https://registry.npmmirror.com
 
 # 先拷贝依赖清单，利用 Docker 层缓存
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 
 # 安装所有依赖（含 devDependencies，构建需要）
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --frozen-lockfile
 
 # 生成 Prisma Client
 RUN npx prisma generate
@@ -31,7 +31,7 @@ RUN pnpm prune --prod
 # ============================================
 # Stage 2: 运行阶段
 # ============================================
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
+import { safeFetch } from '../security/safe-fetch';
 
 /**
  * 重排（rerank）服务 —— RAG 二阶段检索的第二阶段
@@ -29,7 +30,11 @@ export class RerankService {
    * @returns 重排后的索引数组（指向原 documents 中的位置），长度 = topN；
    *          失败/未配置时回退为 [0, 1, 2, ..., topN-1]（保持原顺序）
    */
-  async rerank(query: string, documents: string[], topN: number): Promise<RerankItem[]> {
+  async rerank(
+    query: string,
+    documents: string[],
+    topN: number,
+  ): Promise<RerankItem[]> {
     if (documents.length === 0) return [];
 
     const provider = this.llmProviderService.getDefaultRerankProvider();
@@ -38,7 +43,7 @@ export class RerankService {
     }
 
     try {
-      const response = await fetch(provider.llmAPIUrl, {
+      const response = await safeFetch(provider.llmAPIUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +71,10 @@ export class RerankService {
       }
 
       this.rerankFailLogged = false;
-      return items.map((it) => ({ index: it.index, score: it.relevance_score }));
+      return items.map((it) => ({
+        index: it.index,
+        score: it.relevance_score,
+      }));
     } catch (e) {
       this.logRerankFallback((e as Error).message);
       return this.identityFallback(documents, topN);

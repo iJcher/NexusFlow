@@ -1,9 +1,155 @@
+<script setup lang="ts">
+import type { IEmbeddingModelOption, IKnowledgeBaseDto } from '@/services/knowledge.service'
+import { Collection, Delete, Document, Edit, Grid, MoreFilled, Plus } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { KnowledgeService } from '@/services/knowledge.service'
+
+const { t } = useI18n()
+const router = useRouter()
+
+const loading = ref(false)
+const submitting = ref(false)
+const knowledgeBases = ref<IKnowledgeBaseDto[]>([])
+const dialogVisible = ref(false)
+const editingKb = ref<IKnowledgeBaseDto | null>(null)
+const formData = ref({ name: '', description: '', embeddingModel: '' })
+const allEmbeddingModels = ref<IEmbeddingModelOption[]>([])
+
+async function loadList() {
+  loading.value = true
+  try {
+    const res = await KnowledgeService.getList({ pageSize: 50 })
+    if (res.errCode === 0) {
+      knowledgeBases.value = res.data?.items || []
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.loadFailed'))
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+async function loadEmbeddingModels() {
+  try {
+    const res = await KnowledgeService.getAvailableEmbeddingModels()
+    if (res.errCode === 0 && res.data) {
+      allEmbeddingModels.value = res.data
+    }
+  }
+  catch {
+    /* ignore */
+  }
+}
+
+async function showCreateDialog() {
+  editingKb.value = null
+  await loadEmbeddingModels()
+  formData.value = {
+    name: '',
+    description: '',
+    embeddingModel: allEmbeddingModels.value[0]?.modelName || '',
+  }
+  dialogVisible.value = true
+}
+
+async function handleCommand(command: string, kb: IKnowledgeBaseDto) {
+  if (command === 'edit') {
+    editingKb.value = kb
+    await loadEmbeddingModels()
+    formData.value = {
+      name: kb.name,
+      description: kb.description,
+      embeddingModel: kb.embeddingModel || allEmbeddingModels.value[0]?.modelName || '',
+    }
+    dialogVisible.value = true
+  }
+  else if (command === 'delete') {
+    ElMessageBox.confirm(
+      t('knowledge.deleteKbConfirm', { name: kb.name }),
+      t('flowList.deleteHint'),
+      { type: 'warning' },
+    ).then(async () => {
+      const res = await KnowledgeService.delete(kb.id)
+      if (res.errCode === 0) {
+        ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
+        loadList()
+      }
+    }).catch(() => {})
+  }
+}
+
+async function handleSubmit() {
+  if (!formData.value.name) {
+    ElMessage.warning(t('knowledge.nameRequired'))
+    return
+  }
+
+  submitting.value = true
+  try {
+    if (editingKb.value) {
+      const res = await KnowledgeService.update({
+        id: editingKb.value.id,
+        name: formData.value.name,
+        description: formData.value.description,
+        embeddingModel: formData.value.embeddingModel || undefined,
+      })
+      if (res.errCode === 0) {
+        ElMessage.success(t('success.updated', { name: t('knowledge.title') }))
+        dialogVisible.value = false
+        loadList()
+      }
+    }
+    else {
+      const res = await KnowledgeService.create({
+        name: formData.value.name,
+        description: formData.value.description,
+        embeddingModel: formData.value.embeddingModel || undefined,
+      })
+      if (res.errCode === 0) {
+        ElMessage.success(t('success.created', { name: t('knowledge.title') }))
+        dialogVisible.value = false
+        loadList()
+      }
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.operationFailed'))
+  }
+  finally {
+    submitting.value = false
+  }
+}
+
+function goToDetail(id: string) {
+  router.push(`/knowledge/${id}`)
+}
+
+function formatDate(dateStr: string) {
+  if (!dateStr)
+    return ''
+  return new Date(dateStr).toLocaleDateString()
+}
+
+onMounted(() => {
+  loadList()
+})
+</script>
+
 <template>
   <div class="knowledge-page">
     <div class="page-header">
       <div>
-        <h2 class="page-title">{{ t('knowledge.title') }}</h2>
-        <p class="page-subtitle">{{ t('knowledge.subtitle') }}</p>
+        <h2 class="page-title">
+          {{ t('knowledge.title') }}
+        </h2>
+        <p class="page-subtitle">
+          {{ t('knowledge.subtitle') }}
+        </p>
       </div>
       <el-button type="primary" :icon="Plus" @click="showCreateDialog">
         {{ t('knowledge.create') }}
@@ -19,10 +165,14 @@
       >
         <div class="kb-card-header">
           <div class="kb-icon">
-            <el-icon :size="24"><Collection /></el-icon>
+            <el-icon :size="24">
+              <Collection />
+            </el-icon>
           </div>
           <el-dropdown trigger="click" @command="handleCommand($event, kb)" @click.stop>
-            <el-icon class="kb-more"><MoreFilled /></el-icon>
+            <el-icon class="kb-more">
+              <MoreFilled />
+            </el-icon>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="edit">
@@ -35,8 +185,12 @@
             </template>
           </el-dropdown>
         </div>
-        <h3 class="kb-name">{{ kb.name }}</h3>
-        <p class="kb-desc">{{ kb.description || t('flowList.noDescription') }}</p>
+        <h3 class="kb-name">
+          {{ kb.name }}
+        </h3>
+        <p class="kb-desc">
+          {{ kb.description || t('flowList.noDescription') }}
+        </p>
         <div class="kb-stats">
           <span class="stat-item">
             <el-icon><Document /></el-icon>
@@ -66,9 +220,15 @@
       >
         <template #description>
           <div class="empty-content">
-            <el-icon :size="48" color="var(--nf-text-muted)"><Collection /></el-icon>
-            <p class="empty-title">{{ t('knowledge.emptyTitle') }}</p>
-            <p class="empty-desc">{{ t('knowledge.emptyDesc') }}</p>
+            <el-icon :size="48" color="var(--nf-text-muted)">
+              <Collection />
+            </el-icon>
+            <p class="empty-title">
+              {{ t('knowledge.emptyTitle') }}
+            </p>
+            <p class="empty-desc">
+              {{ t('knowledge.emptyDesc') }}
+            </p>
           </div>
         </template>
       </el-empty>
@@ -105,145 +265,16 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ t('common.confirm') }}</el-button>
+        <el-button @click="dialogVisible = false">
+          {{ t('common.cancel') }}
+        </el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">
+          {{ t('common.confirm') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Collection, Document, Grid, MoreFilled, Edit, Delete } from '@element-plus/icons-vue'
-import { KnowledgeService, type IKnowledgeBaseDto, type IEmbeddingModelOption } from '@/services/knowledge.service'
-
-const { t } = useI18n()
-const router = useRouter()
-
-const loading = ref(false)
-const submitting = ref(false)
-const knowledgeBases = ref<IKnowledgeBaseDto[]>([])
-const dialogVisible = ref(false)
-const editingKb = ref<IKnowledgeBaseDto | null>(null)
-const formData = ref({ name: '', description: '', embeddingModel: '' })
-const allEmbeddingModels = ref<IEmbeddingModelOption[]>([])
-
-const loadList = async () => {
-  loading.value = true
-  try {
-    const res = await KnowledgeService.getList({ pageSize: 50 })
-    if (res.errCode === 0) {
-      knowledgeBases.value = res.data?.items || []
-    }
-  } catch {
-    ElMessage.error(t('errors.loadFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadEmbeddingModels = async () => {
-  try {
-    const res = await KnowledgeService.getAvailableEmbeddingModels()
-    if (res.errCode === 0 && res.data) {
-      allEmbeddingModels.value = res.data
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-const showCreateDialog = async () => {
-  editingKb.value = null
-  await loadEmbeddingModels()
-  formData.value = {
-    name: '',
-    description: '',
-    embeddingModel: allEmbeddingModels.value[0]?.modelName || '',
-  }
-  dialogVisible.value = true
-}
-
-const handleCommand = async (command: string, kb: IKnowledgeBaseDto) => {
-  if (command === 'edit') {
-    editingKb.value = kb
-    await loadEmbeddingModels()
-    formData.value = {
-      name: kb.name,
-      description: kb.description,
-      embeddingModel: kb.embeddingModel || allEmbeddingModels.value[0]?.modelName || '',
-    }
-    dialogVisible.value = true
-  } else if (command === 'delete') {
-    ElMessageBox.confirm(
-      t('knowledge.deleteKbConfirm', { name: kb.name }),
-      t('flowList.deleteHint'),
-      { type: 'warning' },
-    ).then(async () => {
-      const res = await KnowledgeService.delete(kb.id)
-      if (res.errCode === 0) {
-        ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
-        loadList()
-      }
-    }).catch(() => {})
-  }
-}
-
-const handleSubmit = async () => {
-  if (!formData.value.name) {
-    ElMessage.warning(t('knowledge.nameRequired'))
-    return
-  }
-
-  submitting.value = true
-  try {
-    if (editingKb.value) {
-      const res = await KnowledgeService.update({
-        id: editingKb.value.id,
-        name: formData.value.name,
-        description: formData.value.description,
-        embeddingModel: formData.value.embeddingModel || undefined,
-      })
-      if (res.errCode === 0) {
-        ElMessage.success(t('success.updated', { name: t('knowledge.title') }))
-        dialogVisible.value = false
-        loadList()
-      }
-    } else {
-      const res = await KnowledgeService.create({
-        name: formData.value.name,
-        description: formData.value.description,
-        embeddingModel: formData.value.embeddingModel || undefined,
-      })
-      if (res.errCode === 0) {
-        ElMessage.success(t('success.created', { name: t('knowledge.title') }))
-        dialogVisible.value = false
-        loadList()
-      }
-    }
-  } catch {
-    ElMessage.error(t('errors.operationFailed'))
-  } finally {
-    submitting.value = false
-  }
-}
-
-const goToDetail = (id: string) => {
-  router.push(`/knowledge/${id}`)
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString()
-}
-
-onMounted(() => {
-  loadList()
-})
-</script>
 
 <style scoped>
 .knowledge-page {
@@ -264,13 +295,13 @@ onMounted(() => {
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 4px;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.06em;
 }
 
 .page-subtitle {
   font-size: 13px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   margin: 0;
   letter-spacing: 0.04em;
 }
@@ -284,7 +315,7 @@ onMounted(() => {
 
 .kb-card {
   background: rgba(8, 11, 16, 0.5);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
@@ -293,7 +324,9 @@ onMounted(() => {
 
 .kb-card:hover {
   border-color: rgba(0, 255, 159, 0.4);
-  box-shadow: 0 0 16px rgba(0, 255, 159, 0.12), 0 0 32px rgba(0, 255, 159, 0.04);
+  box-shadow:
+    0 0 16px rgba(0, 255, 159, 0.12),
+    0 0 32px rgba(0, 255, 159, 0.04);
 }
 
 .kb-card-header {
@@ -316,7 +349,7 @@ onMounted(() => {
 
 .kb-more {
   cursor: pointer;
-  color: #3A4E5E;
+  color: #3a4e5e;
   transition: color 0.15s;
 }
 
@@ -328,13 +361,13 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 600;
   margin: 0 0 6px;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.06em;
 }
 
 .kb-desc {
   font-size: 13px;
-  color: #7A8B9C;
+  color: #7a8b9c;
   line-height: 1.7;
   letter-spacing: 0.02em;
   margin: 0 0 12px;
@@ -356,7 +389,7 @@ onMounted(() => {
   gap: 4px;
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   font-variant-numeric: tabular-nums;
 }
 
@@ -366,7 +399,7 @@ onMounted(() => {
 
 .form-hint {
   font-size: 12px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   margin-top: 4px;
   line-height: 1.5;
 }
@@ -388,7 +421,7 @@ onMounted(() => {
 .kb-date {
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   font-variant-numeric: tabular-nums;
 }
 
@@ -407,14 +440,14 @@ onMounted(() => {
 .empty-title {
   font-size: 16px;
   font-weight: 600;
-  color: #E6EDF3;
+  color: #e6edf3;
   margin: 8px 0 0;
   letter-spacing: 0.04em;
 }
 
 .empty-desc {
   font-size: 13px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   margin: 0;
   letter-spacing: 0.02em;
 }

@@ -1,6 +1,6 @@
 <!--
   CodeMirror编辑器组件
-  
+
   功能：
   1. JavaScript代码高亮
   2. 将{{变量}}渲染为可视化标签
@@ -8,190 +8,183 @@
   4. 支持点击标签查看/删除
   5. 支持光标位置插入变量
 -->
-<template>
-  <div class="codemirror-editor-wrapper">
-    <div ref="editorRef" class="codemirror-editor"></div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
-import { EditorView, Decoration, ViewPlugin, WidgetType, keymap } from '@codemirror/view';
-import type { DecorationSet, ViewUpdate } from '@codemirror/view';
-import { EditorState, StateEffect } from '@codemirror/state';
-import { javascript } from '@codemirror/lang-javascript';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { autocompletion, startCompletion } from '@codemirror/autocomplete';
-import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { useFlowDesignerStore } from '@/stores/flowDesigner';
-import { useI18n } from 'vue-i18n';
+import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete'
+import type { DecorationSet, ViewUpdate } from '@codemirror/view'
+import { autocompletion } from '@codemirror/autocomplete'
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { javascript } from '@codemirror/lang-javascript'
+import { EditorState, StateEffect } from '@codemirror/state'
+import { Decoration, EditorView, keymap, ViewPlugin, WidgetType } from '@codemirror/view'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
 
 // Props
 interface Props {
-  modelValue: string;
-  placeholder?: string;
-  readonly?: boolean;
-  disabled?: boolean;
+  modelValue: string
+  placeholder?: string
+  readonly?: boolean
+  disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: 'Enter your code', // 修改默认 placeholder 为英文
   readonly: false,
-  disabled: false
-});
+  disabled: false,
+})
 
 // Emits
 const emit = defineEmits<{
-  'update:modelValue': [value: string];
-  'change': [value: string];
-}>();
+  'update:modelValue': [value: string]
+  'change': [value: string]
+}>()
 
 // Refs
-const editorRef = ref<HTMLElement>();
-let editorView: EditorView | null = null;
+const editorRef = ref<HTMLElement>()
+let editorView: EditorView | null = null
 
 // 状态管理
-const flowStore = useFlowDesignerStore();
+const flowStore = useFlowDesignerStore()
 
 // 辅助函数：将 nodeId.属性名 转换为 节点名.属性名
-const getDisplayName = (variableName: string): string => {
+function getDisplayName(variableName: string): string {
   // 检查是否是节点输出格式（nodeId.属性名）
-  const dotIndex = variableName.indexOf('.');
+  const dotIndex = variableName.indexOf('.')
   if (dotIndex > 0) {
-    const nodeId = variableName.substring(0, dotIndex);
-    const outputName = variableName.substring(dotIndex + 1);
-    
+    const nodeId = variableName.substring(0, dotIndex)
+    const outputName = variableName.substring(dotIndex + 1)
+
     // 从 flowStore 查找节点
-    const nodes = flowStore.currentNodes || [];
-    const node = nodes.find(n => n.id === nodeId);
-    
+    const nodes = flowStore.currentNodes || []
+    const node = nodes.find(n => n.id === nodeId)
+
     if (node) {
       // 使用节点的显示名称
-      const nodeName = node.properties?.displayName || nodeId;
-      return `${nodeName}.${outputName}`;
+      const nodeName = node.properties?.displayName || nodeId
+      return `${nodeName}.${outputName}`
     }
   }
-  
+
   // 不是节点输出格式，直接返回原名称
-  return variableName;
-};
+  return variableName
+}
 
 // 变量标签Widget
 class VariableWidget extends WidgetType {
   constructor(readonly name: string) {
-    super();
+    super()
   }
 
   eq(other: VariableWidget) {
-    return other.name === this.name;
+    return other.name === this.name
   }
 
   toDOM() {
-    const span = document.createElement('span');
-    span.className = 'cm-variable-tag';
+    const span = document.createElement('span')
+    span.className = 'cm-variable-tag'
     // 显示转换后的名称（节点名.属性名）
-    span.textContent = getDisplayName(this.name);
+    span.textContent = getDisplayName(this.name)
     // 保存原始变量名（nodeId.属性名）
-    span.setAttribute('data-variable', this.name);
-    return span;
+    span.setAttribute('data-variable', this.name)
+    return span
   }
 
   ignoreEvent() {
-    return false;
+    return false
   }
 }
 
 // 创建变量装饰器
 function createVariableDecorations(state: EditorState): DecorationSet {
-  const decorations: any[] = [];
-  const text = state.doc.toString();
-  
+  const decorations: any[] = []
+  const text = state.doc.toString()
+
   // 匹配 {{variableName}} 格式
-  const regex = /\{\{([^}]+)\}\}/g;
-  let match;
-  
-  while ((match = regex.exec(text)) !== null) {
-    const from = match.index;
-    const to = from + match[0].length;
-    const variableName = match[1];
-    
+  const regex = /\{\{([^}]+)\}\}/g
+  for (const match of text.matchAll(regex)) {
+    const from = match.index
+    const to = from + match[0].length
+    const variableName = match[1]
+
     // 创建widget装饰器，替换 {{variableName}} 为可视化标签
     decorations.push(
       Decoration.replace({
         widget: new VariableWidget(variableName),
-        inclusive: true
-      }).range(from, to)
-    );
+        inclusive: true,
+      }).range(from, to),
+    )
   }
-  
-  return Decoration.set(decorations);
+
+  return Decoration.set(decorations)
 }
 
 // 变量装饰器插件
 const variablePlugin = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
+    decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = createVariableDecorations(view.state);
+      this.decorations = createVariableDecorations(view.state)
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
-        this.decorations = createVariableDecorations(update.state);
+        this.decorations = createVariableDecorations(update.state)
       }
     }
   },
   {
-    decorations: (v) => v.decorations
-  }
-);
+    decorations: v => v.decorations,
+  },
+)
 
 // @ 触发变量补全
 function variableCompletionSource(context: CompletionContext): CompletionResult | null {
-  const line = context.state.doc.lineAt(context.pos);
-  const textBefore = line.text.slice(0, context.pos - line.from);
-  const atMatch = textBefore.match(/@(\w*)$/);
-  if (!atMatch) return null;
+  const line = context.state.doc.lineAt(context.pos)
+  const textBefore = line.text.slice(0, context.pos - line.from)
+  const atMatch = textBefore.match(/@(\w*)$/)
+  if (!atMatch)
+    return null
 
-  const from = context.pos - atMatch[0].length;
-  const nodes = flowStore.currentNodes || [];
-  const inputs = flowStore.currentInputParameters || [];
-  const sessions = flowStore.currentSessionVariables || [];
-  const options: { label: string; detail: string; apply: string }[] = [];
+  const from = context.pos - atMatch[0].length
+  const nodes = flowStore.currentNodes || []
+  const inputs = flowStore.currentInputParameters || []
+  const sessions = flowStore.currentSessionVariables || []
+  const options: { label: string, detail: string, apply: string }[] = []
 
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     if (node.properties?.outputs && Array.isArray(node.properties.outputs)) {
-      const nodeName = node.properties?.displayName || node.id;
+      const nodeName = node.properties?.displayName || node.id
       node.properties.outputs.forEach((output: any) => {
         options.push({
           label: `${nodeName}.${output.name}`,
           detail: 'Node Output',
-          apply: `{{${node.id}.${output.name}}}`
-        });
-      });
+          apply: `{{${node.id}.${output.name}}}`,
+        })
+      })
     }
-  });
+  })
 
-  inputs.forEach(v => {
-    options.push({ label: v.name, detail: 'Input', apply: `{{${v.name}}}` });
-  });
+  inputs.forEach((v) => {
+    options.push({ label: v.name, detail: 'Input', apply: `{{${v.name}}}` })
+  })
 
-  sessions.forEach(v => {
-    options.push({ label: v.name, detail: 'Session', apply: `{{${v.name}}}` });
-  });
+  sessions.forEach((v) => {
+    options.push({ label: v.name, detail: 'Session', apply: `{{${v.name}}}` })
+  })
 
-  const sysVars = ['sys.query', 'sys.user', 'sys.flowId', 'sys.flowInstanceId', 'sys.dialogueCount', 'sys.conversationId', 'sys.files'];
-  sysVars.forEach(key => {
-    options.push({ label: key, detail: 'System', apply: `{{${key}}}` });
-  });
+  const sysVars = ['sys.query', 'sys.user', 'sys.flowId', 'sys.flowInstanceId', 'sys.dialogueCount', 'sys.conversationId', 'sys.files']
+  sysVars.forEach((key) => {
+    options.push({ label: key, detail: 'System', apply: `{{${key}}}` })
+  })
 
-  return { from, options, filter: true };
+  return { from, options, filter: true }
 }
 
 // 初始化编辑器
 onMounted(() => {
-  if (!editorRef.value) return;
+  if (!editorRef.value)
+    return
 
   const startState = EditorState.create({
     doc: props.modelValue || '',
@@ -202,32 +195,32 @@ onMounted(() => {
       variablePlugin,
       autocompletion({
         override: [variableCompletionSource],
-        activateOnTyping: true
+        activateOnTyping: true,
       }),
       EditorView.editable.of(!props.readonly && !props.disabled),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          const newValue = update.state.doc.toString();
-          emit('update:modelValue', newValue);
-          emit('change', newValue);
+          const newValue = update.state.doc.toString()
+          emit('update:modelValue', newValue)
+          emit('change', newValue)
         }
       }),
       EditorView.theme({
         '&': {
           fontSize: '13px',
           fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-          height: '100%'
+          height: '100%',
         },
         '.cm-content': {
           padding: '8px',
-          minHeight: '100px'
+          minHeight: '100px',
         },
         '.cm-line': {
           padding: '0 2px',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
         },
         '&.cm-focused': {
-          outline: 'none'
+          outline: 'none',
         },
         '.cm-variable-tag': {
           display: 'inline-block',
@@ -240,48 +233,48 @@ onMounted(() => {
           fontWeight: '500',
           cursor: 'pointer',
           border: '1px solid var(--nf-border)',
-          userSelect: 'none'
+          userSelect: 'none',
         },
         '.cm-variable-tag:hover': {
           backgroundColor: 'var(--nf-accent-muted)',
-          borderColor: 'var(--nf-accent)'
+          borderColor: 'var(--nf-accent)',
         },
         '.cm-tooltip-autocomplete': {
           border: '1px solid var(--nf-border)',
           borderRadius: '8px',
           background: 'var(--nf-bg-elevated)',
           boxShadow: 'var(--nf-shadow-lg)',
-          overflow: 'hidden'
+          overflow: 'hidden',
         },
         '.cm-tooltip-autocomplete ul': {
           fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-          fontSize: '12px'
+          fontSize: '12px',
         },
         '.cm-tooltip-autocomplete ul li': {
           padding: '4px 10px',
-          color: 'var(--nf-text-primary)'
+          color: 'var(--nf-text-primary)',
         },
         '.cm-tooltip-autocomplete ul li[aria-selected]': {
           background: 'var(--nf-accent-muted)',
-          color: 'var(--nf-accent)'
+          color: 'var(--nf-accent)',
         },
         '.cm-completionLabel': {
-          fontSize: '12px'
+          fontSize: '12px',
         },
         '.cm-completionDetail': {
           fontSize: '10px',
           color: 'var(--nf-text-muted)',
-          fontStyle: 'normal'
-        }
-      })
-    ]
-  });
+          fontStyle: 'normal',
+        },
+      }),
+    ],
+  })
 
   editorView = new EditorView({
     state: startState,
-    parent: editorRef.value
-  });
-});
+    parent: editorRef.value,
+  })
+})
 
 // 监听外部值变化
 watch(() => props.modelValue, (newValue) => {
@@ -290,54 +283,61 @@ watch(() => props.modelValue, (newValue) => {
       changes: {
         from: 0,
         to: editorView.state.doc.length,
-        insert: newValue || ''
-      }
-    });
+        insert: newValue || '',
+      },
+    })
   }
-});
+})
 
 // 监听readonly/disabled变化
 watch(() => [props.readonly, props.disabled], ([readonly, disabled]) => {
   if (editorView) {
     editorView.dispatch({
       effects: StateEffect.reconfigure.of([
-        EditorView.editable.of(!readonly && !disabled)
-      ])
-    });
+        EditorView.editable.of(!readonly && !disabled),
+      ]),
+    })
   }
-});
+})
 
 // 暴露方法：在光标位置插入文本
-const insertAtCursor = (text: string) => {
-  if (!editorView) return;
-  
-  const selection = editorView.state.selection.main;
+function insertAtCursor(text: string) {
+  if (!editorView)
+    return
+
+  const selection = editorView.state.selection.main
   editorView.dispatch({
     changes: {
       from: selection.from,
       to: selection.to,
-      insert: text
+      insert: text,
     },
     selection: {
-      anchor: selection.from + text.length
-    }
-  });
-  editorView.focus();
-};
+      anchor: selection.from + text.length,
+    },
+  })
+  editorView.focus()
+}
 
 // 暴露给父组件
 defineExpose({
-  insertAtCursor
-});
+  insertAtCursor,
+})
 
 // 清理
 onBeforeUnmount(() => {
   if (editorView) {
-    editorView.destroy();
-    editorView = null;
+    editorView.destroy()
+    editorView = null
   }
-});
+})
 </script>
+
+<template>
+  <div class="codemirror-editor-wrapper">
+    <div ref="editorRef" class="codemirror-editor" />
+  </div>
+</template>
 
 <style scoped>
 .codemirror-editor-wrapper {

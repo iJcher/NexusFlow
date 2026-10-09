@@ -2,22 +2,22 @@
   应用根组件
   根据路由配置动态选择布局组件
  -->
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import SimpleLayout from '@/layouts/SimpleLayout.vue'
+
+const route = useRoute()
+
+const layoutType = computed(() => route.meta.layout as string)
+</script>
+
 <template>
   <SimpleLayout v-if="layoutType === 'simple'">
     <router-view />
   </SimpleLayout>
   <router-view v-else />
 </template>
-
-<script setup lang="ts">
-import { computed } from "vue";
-import { useRoute } from "vue-router";
-import SimpleLayout from "@/layouts/SimpleLayout.vue";
-
-const route = useRoute();
-
-const layoutType = computed(() => route.meta.layout as string);
-</script>
 
 <style>
 * {
@@ -41,7 +41,6 @@ body {
   min-height: 100%;
   width: 100%;
 }
-
 
 ::-webkit-scrollbar {
   width: 6px;

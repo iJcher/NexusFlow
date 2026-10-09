@@ -1,14 +1,13 @@
+import type { JSExpressionUnit } from '../ExpressionUnits/ExpressionUnitBase'
 
-import LogicFlow from '@logicflow/core';
-import { HtmlNode } from '@logicflow/core';
-import { NodeBaseModel } from '../NodeBase';
-import type { NodeBase } from '../NodeBase';
-import type { JSExpressionUnit } from '../ExpressionUnits/ExpressionUnitBase';
-import { ExpressionUnitFactory } from '../ExpressionUnits/ExpressionUnitBase';
-import type { NodeLine } from '../NodeLine';
-import StartNode from './StartNode';
+import type { NodeBase } from '../NodeBase'
+import type { NodeLine } from '../NodeLine'
+import LogicFlow, { HtmlNode } from '@logicflow/core'
+import { ExpressionUnitFactory } from '../ExpressionUnits/ExpressionUnitBase'
+import { NodeBaseModel } from '../NodeBase'
+import StartNode from './StartNode'
 
-const typeName = 'ForLoopNode';
+const typeName = 'ForLoopNode'
 
 /**
  * For 循环内部子节点结构
@@ -16,34 +15,36 @@ const typeName = 'ForLoopNode';
  */
 export interface ForLoopInnerNode extends NodeBase {
   /** 便于可视化定位的坐标（预留） */
-  x?: number;
-  y?: number;
+  x?: number
+  y?: number
   /** 兼容 LogicFlow 的类型字段（预留） */
-  type?: string;
+  type?: string
 }
 
 /**
  * For 循环节点数据结构
  */
 export interface ForLoopNodeData extends NodeBase {
-  typeName: 'ForLoopNode';
+  typeName: 'ForLoopNode'
   /** 循环次数（JS 表达式） */
-  loopCount: JSExpressionUnit;
+  loopCount: JSExpressionUnit
   /** 子流程节点列表（默认包含一个开始节点） */
-  innerNodes: ForLoopInnerNode[];
+  innerNodes: ForLoopInnerNode[]
   /** 子流程连线列表（预留，默认空） */
-  innerLines: NodeLine[];
+  innerLines: NodeLine[]
 }
 
 // 默认内部开始节点生成器
-const createDefaultInnerStart = (parentId: string): ForLoopInnerNode => ({
-  id: `${parentId}_inner_start`,
-  typeName: 'StartNode',
-  displayName: 'Start',
-  description: 'Loop entry',
-  x: 120,
-  y: 80
-});
+function createDefaultInnerStart(parentId: string): ForLoopInnerNode {
+  return {
+    id: `${parentId}_inner_start`,
+    typeName: 'StartNode',
+    displayName: 'Start',
+    description: 'Loop entry',
+    x: 120,
+    y: 80,
+  }
+}
 
 // For 循环节点模型
 class ForLoopNodeModel extends NodeBaseModel {
@@ -52,24 +53,24 @@ class ForLoopNodeModel extends NodeBaseModel {
    * 这是LogicFlow用于判断节点是否可以调整尺寸的方法
    */
   isResizable() {
-    return true;
+    return true
   }
 
   // 设置节点默认属性（支持外部传入宽高，用于拖拽缩放）
-  setAttributes(attributes?: { width?: number; height?: number }) {
+  setAttributes(attributes?: { width?: number, height?: number }) {
     // 先调用父类设置基础属性
-    super.setAttributes(attributes);
+    super.setAttributes(attributes)
 
     // 容器节点默认 600x400，允许外部传入覆盖
-    this.width = attributes?.width ?? 600;
-    this.height = attributes?.height ?? 400;
+    this.width = attributes?.width ?? 600
+    this.height = attributes?.height ?? 400
 
     // 缺省时自动补齐内部开始节点
-    const existingInnerNodes = this.properties.innerNodes as ForLoopInnerNode[] | undefined;
-    const innerNodes =
-      (existingInnerNodes && existingInnerNodes.length > 0)
+    const existingInnerNodes = this.properties.innerNodes as ForLoopInnerNode[] | undefined
+    const innerNodes
+      = (existingInnerNodes && existingInnerNodes.length > 0)
         ? existingInnerNodes
-        : [createDefaultInnerStart(this.id)];
+        : [createDefaultInnerStart(this.id)]
 
     const nodeData: Partial<ForLoopNodeData> = {
       typeName,
@@ -81,42 +82,42 @@ class ForLoopNodeModel extends NodeBaseModel {
       hasOutput: false,
       // 默认携带一个内部开始节点，后续可扩展
       innerNodes,
-      innerLines: (this.properties.innerLines as NodeLine[] | undefined) || []
-    };
+      innerLines: (this.properties.innerLines as NodeLine[] | undefined) || [],
+    }
 
-    this.setNodeData(nodeData);
+    this.setNodeData(nodeData)
   }
 
   /**
    * 左右各一个锚点：左进右出
    */
   getDefaultAnchor() {
-    const { width, height, x, y, id } = this;
+    const { width, height: _height, x, y, id } = this
     return [
       {
         x: x - width / 2,
         y,
-        id: `${id}_input`
+        id: `${id}_input`,
       },
       {
         x: x + width / 2,
         y,
-        id: `${id}_output`
-      }
-    ];
+        id: `${id}_output`,
+      },
+    ]
   }
 }
 
 // For 循环节点视图
 class ForLoopNodeView extends HtmlNode {
-  private innerLf: LogicFlow | null = null;
+  private innerLf: LogicFlow | null = null
 
   setHtml(rootEl: SVGForeignObjectElement) {
-    const { properties } = this.props.model;
-    const nodeData = properties as unknown as ForLoopNodeData;
+    const { properties } = this.props.model
+    const nodeData = properties as unknown as ForLoopNodeData
 
     // 取循环次数预览文本（表达式模式）
-    const loopExpression = (nodeData.loopCount?.expressionCode || '').trim() || '10';
+    const loopExpression = (nodeData.loopCount?.expressionCode || '').trim() || '10'
 
     rootEl.innerHTML = `
       <style>
@@ -236,27 +237,28 @@ class ForLoopNodeView extends HtmlNode {
         </div>
         <div class="resize-handle" data-role="resize"></div>
       </div>
-    `;
+    `
 
     // 初始化内部 LogicFlow 画布
-    const canvasId = `inner-canvas-${this.props.model.id}`;
-    this.initInnerCanvas(canvasId, nodeData);
-    this.bindInnerCanvasEvents(canvasId);
-    this.bindResizeHandle(rootEl);
+    const canvasId = `inner-canvas-${this.props.model.id}`
+    this.initInnerCanvas(canvasId, nodeData)
+    this.bindInnerCanvasEvents(canvasId)
+    this.bindResizeHandle(rootEl)
   }
 
   /**
    * 初始化内部子画布，支持选中/拖拽，数据同步到节点属性
    */
   private initInnerCanvas(containerId: string, nodeData: ForLoopNodeData) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    const container = document.getElementById(containerId)
+    if (!container)
+      return
 
     // 复用或重建实例（兼容场景：render 触发多次 setHtml）
     if (this.innerLf && typeof (this.innerLf as any).destroy === 'function') {
-      (this.innerLf as any).destroy();
+      (this.innerLf as any).destroy()
     }
-    this.innerLf = null;
+    this.innerLf = null
 
     const lf = new LogicFlow({
       container,
@@ -270,10 +272,10 @@ class ForLoopNodeView extends HtmlNode {
       },
       stopScrollGraph: true,
       stopZoomGraph: true,
-    });
+    })
 
     // 注册可用节点（当前仅 Start，后续可扩展）
-    lf.register(StartNode as any);
+    lf.register(StartNode as any)
 
     // 准备图数据
     const nodes = (nodeData.innerNodes || []).map(n => ({
@@ -282,7 +284,7 @@ class ForLoopNodeView extends HtmlNode {
       x: n.x ?? 120,
       y: n.y ?? 80,
       properties: { ...n, typeName: n.typeName, displayName: n.displayName || 'Start' },
-    }));
+    }))
 
     const edges = (nodeData.innerLines || []).map(line => ({
       id: line.id,
@@ -291,12 +293,12 @@ class ForLoopNodeView extends HtmlNode {
       targetNodeId: line.toNodeId,
       sourceAnchorId: line.sourceAnchorId,
       targetAnchorId: line.targetAnchorId,
-    }));
+    }))
 
-    lf.render({ nodes, edges });
+    lf.render({ nodes, edges })
 
     const syncToNodeProperties = () => {
-      const data = lf.getGraphData() as { nodes: any[]; edges: any[] };
+      const data = lf.getGraphData() as { nodes: any[], edges: any[] }
       const innerNodes: ForLoopInnerNode[] = data.nodes.map((n: any) => ({
         id: n.id,
         typeName: n.type || n.properties?.typeName || 'StartNode',
@@ -304,54 +306,56 @@ class ForLoopNodeView extends HtmlNode {
         description: n.properties?.description,
         x: n.x,
         y: n.y,
-      }));
+      }))
       const innerLines: NodeLine[] = (data.edges || []).map((e: any) => ({
         id: e.id,
         fromNodeId: e.sourceNodeId,
         toNodeId: e.targetNodeId,
         sourceAnchorId: e.sourceAnchorId,
         targetAnchorId: e.targetAnchorId,
-      }));
-      const model = this.props.model as ForLoopNodeModel;
+      }))
+      const model = this.props.model as ForLoopNodeModel
       model.setProperties({
         innerNodes,
         innerLines,
-      });
-    };
+      })
+    }
 
     // 拖拽结束时限制在子画布范围内，避免拖出后持续跟随
     const clampOnDragEnd = ({ data }: any) => {
-      if (!data) return;
-      const rect = container.getBoundingClientRect();
-      const halfW = rect.width / 2;
-      const halfH = rect.height / 2;
-      const model = lf.getNodeModelById(data.id);
-      const nodeW = (model as any)?.width ?? (data?.width ?? 240);
-      const nodeH = (model as any)?.height ?? (data?.height ?? 90);
-      const halfNodeW = nodeW / 2;
-      const halfNodeH = nodeH / 2;
-      const minX = -halfW + halfNodeW + 4;
-      const maxX = halfW - halfNodeW - 4;
-      const minY = -halfH + halfNodeH + 4;
-      const maxY = halfH - halfNodeH - 4;
-      const clampedX = Math.max(minX, Math.min(maxX, data.x));
-      const clampedY = Math.max(minY, Math.min(maxY, data.y));
+      if (!data)
+        return
+      const rect = container.getBoundingClientRect()
+      const halfW = rect.width / 2
+      const halfH = rect.height / 2
+      const model = lf.getNodeModelById(data.id)
+      const nodeW = (model as any)?.width ?? (data?.width ?? 240)
+      const nodeH = (model as any)?.height ?? (data?.height ?? 90)
+      const halfNodeW = nodeW / 2
+      const halfNodeH = nodeH / 2
+      const minX = -halfW + halfNodeW + 4
+      const maxX = halfW - halfNodeW - 4
+      const minY = -halfH + halfNodeH + 4
+      const maxY = halfH - halfNodeH - 4
+      const clampedX = Math.max(minX, Math.min(maxX, data.x))
+      const clampedY = Math.max(minY, Math.min(maxY, data.y))
       if (model && (clampedX !== model.x || clampedY !== model.y)) {
         if (typeof (model as any).moveTo === 'function') {
-          (model as any).moveTo(clampedX, clampedY);
-        } else {
-          model.x = clampedX;
-          model.y = clampedY;
+          (model as any).moveTo(clampedX, clampedY)
+        }
+        else {
+          model.x = clampedX
+          model.y = clampedY
         }
       }
-      syncToNodeProperties();
-    };
+      syncToNodeProperties()
+    }
 
-    lf.on('node:dragend', clampOnDragEnd);
-    lf.on('edge:add', syncToNodeProperties);
-    lf.on('edge:delete', syncToNodeProperties);
+    lf.on('node:dragend', clampOnDragEnd)
+    lf.on('edge:add', syncToNodeProperties)
+    lf.on('edge:delete', syncToNodeProperties)
 
-    this.innerLf = lf;
+    this.innerLf = lf
   }
 
   /**
@@ -359,90 +363,92 @@ class ForLoopNodeView extends HtmlNode {
    * 不调用 preventDefault，保留内部逻辑流的正常拖拽
    */
   private bindInnerCanvasEvents(containerId: string) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    const container = document.getElementById(containerId)
+    if (!container)
+      return
     const stop = (e: Event) => e.stopPropagation();
     // 阻止按下等事件冒泡，释放（mouseup/touchend）不拦截，确保LogicFlow能正确结束拖拽
     ['mousedown', 'click', 'dblclick', 'contextmenu', 'wheel', 'touchstart'].forEach(evt =>
-      container.addEventListener(evt, stop, false)
-    );
+      container.addEventListener(evt, stop, false),
+    )
   }
 
   /**
    * 绑定右下角拖拽缩放
    */
   private bindResizeHandle(rootEl: SVGForeignObjectElement) {
-    const handle = rootEl.querySelector('.resize-handle') as HTMLElement | null;
-    if (!handle) return;
-    const model = this.props.model as ForLoopNodeModel;
-    const canvasEl = rootEl.querySelector('.inner-canvas') as HTMLElement | null;
+    const handle = rootEl.querySelector('.resize-handle') as HTMLElement | null
+    if (!handle)
+      return
+    const model = this.props.model as ForLoopNodeModel
+    const canvasEl = rootEl.querySelector('.inner-canvas') as HTMLElement | null
 
-    const minW = 360;
-    const minH = 260;
-    const maxW = 1000;
-    const maxH = 800;
+    const minW = 360
+    const minH = 260
+    const maxW = 1000
+    const maxH = 800
 
     const onMouseDown = (e: MouseEvent) => {
-      e.stopPropagation();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startW = model.width;
-      const startH = model.height;
+      e.stopPropagation()
+      const startX = e.clientX
+      const startY = e.clientY
+      const startW = model.width
+      const startH = model.height
 
       const onMouseMove = (ev: MouseEvent) => {
-        ev.stopPropagation();
-        const dw = ev.clientX - startX;
-        const dh = ev.clientY - startY;
-        const newW = Math.max(minW, Math.min(maxW, startW + dw));
-        const newH = Math.max(minH, Math.min(maxH, startH + dh));
+        ev.stopPropagation()
+        const dw = ev.clientX - startX
+        const dh = ev.clientY - startY
+        const newW = Math.max(minW, Math.min(maxW, startW + dw))
+        const newH = Math.max(minH, Math.min(maxH, startH + dh))
         if (newW !== model.width || newH !== model.height) {
           // 直接更新模型的宽高
-          model.width = newW;
-          model.height = newH;
-          
+          model.width = newW
+          model.height = newH
+
           // 手动更新DOM元素尺寸（HTML节点需要手动同步DOM）
           if (rootEl) {
-            rootEl.style.width = `${newW}px`;
-            rootEl.style.height = `${newH}px`;
-            
+            rootEl.style.width = `${newW}px`
+            rootEl.style.height = `${newH}px`
+
             // 找到foreignObject父元素并更新其尺寸属性
-            const foreignObject = rootEl.parentElement;
+            const foreignObject = rootEl.parentElement
             if (foreignObject && foreignObject.tagName === 'foreignObject') {
-              foreignObject.setAttribute('width', String(newW));
-              foreignObject.setAttribute('height', String(newH));
+              foreignObject.setAttribute('width', String(newW))
+              foreignObject.setAttribute('height', String(newH))
             }
           }
-          
+
           // 触发视图刷新和锚点重算
           model.setProperties({
             ...model.properties,
             __forLoopResizeVersion: Date.now(),
-          });
-          
+          })
+
           // 同步子画布尺寸，避免白板
           if (canvasEl && this.innerLf) {
             requestAnimationFrame(() => {
-              const w = canvasEl.clientWidth;
-              const h = canvasEl.clientHeight;
+              const w = canvasEl.clientWidth
+              const h = canvasEl.clientHeight
               if (w > 0 && h > 0) {
-                this.innerLf?.resize(w, h);
+                this.innerLf?.resize(w, h)
               }
-            });
+            })
           }
         }
-      };
+      }
 
       const onMouseUp = (ev: MouseEvent) => {
-        ev.stopPropagation();
-        window.removeEventListener('mousemove', onMouseMove, true);
-        window.removeEventListener('mouseup', onMouseUp, true);
-      };
+        ev.stopPropagation()
+        window.removeEventListener('mousemove', onMouseMove, true)
+        window.removeEventListener('mouseup', onMouseUp, true)
+      }
 
-      window.addEventListener('mousemove', onMouseMove, true);
-      window.addEventListener('mouseup', onMouseUp, true);
-    };
+      window.addEventListener('mousemove', onMouseMove, true)
+      window.addEventListener('mouseup', onMouseUp, true)
+    }
 
-    handle.addEventListener('mousedown', onMouseDown, true);
+    handle.addEventListener('mousedown', onMouseDown, true)
   }
 }
 
@@ -451,4 +457,4 @@ export default {
   type: typeName,
   view: ForLoopNodeView,
   model: ForLoopNodeModel,
-};
+}

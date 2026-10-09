@@ -1,4 +1,9 @@
-import { NodeConfig, FlowRuntimeContext, NodeLine, NodeExecuteResult } from '../types';
+import {
+  NodeConfig,
+  FlowRuntimeContext,
+  NodeLine,
+  NodeExecuteResult,
+} from '../types';
 import { createSuccessResult, FlowRuntime } from './node-base';
 import { computeExpression } from '../expression/expression-helper';
 
@@ -13,21 +18,31 @@ export async function getConditionExecuteLine(
 ): Promise<NodeLine | null> {
   const conditions = node.conditions || [];
   for (const condition of conditions) {
-    if (!condition.expressionUnit) throw new Error(`Condition rule expression is null`);
+    if (!condition.expressionUnit)
+      throw new Error(`Condition rule expression is null`);
     if (!condition.lineId) throw new Error(`Condition rule line id is null`);
 
-    const result = await computeExpression(condition.expressionUnit, context, runtime);
+    const result = await computeExpression(
+      condition.expressionUnit,
+      context,
+      runtime,
+    );
     const isMet = Boolean(result);
     if (isMet) {
-      const line = context.flowConfigInfoForRun.lines.find((l) => l.id === condition.lineId);
-      if (!line) throw new Error(`Condition line ${condition.lineId} not found`);
+      const line = context.flowConfigInfoForRun.lines.find(
+        (l) => l.id === condition.lineId,
+      );
+      if (!line)
+        throw new Error(`Condition line ${condition.lineId} not found`);
       return line;
     }
   }
 
   const elseRule = node.elseRule;
   if (elseRule?.lineId) {
-    const line = context.flowConfigInfoForRun.lines.find((l) => l.id === elseRule.lineId);
+    const line = context.flowConfigInfoForRun.lines.find(
+      (l) => l.id === elseRule.lineId,
+    );
     if (!line) throw new Error(`Else line ${elseRule.lineId} not found`);
     return line;
   }

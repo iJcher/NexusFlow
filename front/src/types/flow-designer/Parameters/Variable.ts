@@ -13,7 +13,7 @@ export enum VariableItemType {
   ObjectVariable = 'ObjectVariable',
   DateTimeVariable = 'DateTimeVariable',
   BooleanVariable = 'BooleanVariable',
-  ArrayVariable = 'ArrayVariable'
+  ArrayVariable = 'ArrayVariable',
 }
 
 /**
@@ -22,97 +22,97 @@ export enum VariableItemType {
  */
 export interface Variable {
   /** 变量唯一标识 */
-  id?: string;
-  
+  id?: string
+
   /** 变量名称 */
-  name: string;
-  
+  name: string
+
   /** 是否必填 */
-  required?: boolean;
-  
+  required?: boolean
+
   /** 默认值 */
-  defaultValue?: any;
-  
+  defaultValue?: any
+
   /** 是否已设置值（前端暂不使用，保持与后端结构一致） */
-  hasValue?: boolean;
-  
+  hasValue?: boolean
+
   /** 变量类型标识，用于序列化 */
-  typeName: VariableItemType;
+  typeName: VariableItemType
 }
 
 /**
  * 字符串变量
  */
 export interface StringVariable extends Variable {
-  typeName: VariableItemType.StringVariable;
-  defaultValue?: string;
+  typeName: VariableItemType.StringVariable
+  defaultValue?: string
 }
 
 /**
  * 数字变量（长整型）
  */
 export interface LongVariable extends Variable {
-  typeName: VariableItemType.LongVariable;
-  defaultValue?: number;
+  typeName: VariableItemType.LongVariable
+  defaultValue?: number
 }
 
 /**
  * 浮点数变量
  */
 export interface DecimalVariable extends Variable {
-  typeName: VariableItemType.DecimalVariable;
-  defaultValue?: number;
+  typeName: VariableItemType.DecimalVariable
+  defaultValue?: number
 }
 
 /**
  * 布尔变量
  */
 export interface BooleanVariable extends Variable {
-  typeName: VariableItemType.BooleanVariable;
-  defaultValue?: boolean;
+  typeName: VariableItemType.BooleanVariable
+  defaultValue?: boolean
 }
 
 /**
  * 日期时间变量
  */
 export interface DateTimeVariable extends Variable {
-  typeName: VariableItemType.DateTimeVariable;
-  defaultValue?: string; // ISO日期字符串格式
+  typeName: VariableItemType.DateTimeVariable
+  defaultValue?: string // ISO日期字符串格式
 }
 
 /**
  * 对象变量
  */
 export interface ObjectVariable extends Variable {
-  typeName: VariableItemType.ObjectVariable;
+  typeName: VariableItemType.ObjectVariable
   /** 对象的子属性列表 */
-  children?: Variable[];
-  defaultValue?: Record<string, any>;
+  children?: Variable[]
+  defaultValue?: Record<string, any>
 }
 
 /**
  * 数组变量
  */
 export interface ArrayVariable extends Variable {
-  typeName: VariableItemType.ArrayVariable;
+  typeName: VariableItemType.ArrayVariable
   /** 数组元素的类型 */
-  itemType?: VariableItemType;
+  itemType?: VariableItemType
   /** 数组元素模板（当itemType为ObjectVariable时使用） */
-  children?: Variable[];
-  defaultValue?: any[];
+  children?: Variable[]
+  defaultValue?: any[]
 }
 
 /**
  * 变量联合类型
  */
-export type AnyVariable = 
-  | StringVariable 
-  | LongVariable 
-  | DecimalVariable 
-  | BooleanVariable 
-  | DateTimeVariable 
-  | ObjectVariable 
-  | ArrayVariable;
+export type AnyVariable
+  = | StringVariable
+    | LongVariable
+    | DecimalVariable
+    | BooleanVariable
+    | DateTimeVariable
+    | ObjectVariable
+    | ArrayVariable
 
 /**
  * 创建变量的工厂函数
@@ -127,8 +127,8 @@ export class VariableFactory {
       required,
       defaultValue,
       typeName: VariableItemType.StringVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -140,8 +140,8 @@ export class VariableFactory {
       required,
       defaultValue,
       typeName: VariableItemType.LongVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -153,8 +153,8 @@ export class VariableFactory {
       required,
       defaultValue,
       typeName: VariableItemType.DecimalVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -166,8 +166,8 @@ export class VariableFactory {
       required,
       defaultValue,
       typeName: VariableItemType.BooleanVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -179,8 +179,8 @@ export class VariableFactory {
       required,
       defaultValue,
       typeName: VariableItemType.DateTimeVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -193,8 +193,8 @@ export class VariableFactory {
       defaultValue,
       children,
       typeName: VariableItemType.ObjectVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 
   /**
@@ -208,7 +208,7 @@ export class VariableFactory {
       itemType,
       children,
       typeName: VariableItemType.ArrayVariable,
-      hasValue: false
-    };
+      hasValue: false,
+    }
   }
 }

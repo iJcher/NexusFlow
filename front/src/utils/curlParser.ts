@@ -7,7 +7,8 @@ export interface ParsedCurlResult {
 }
 
 function stripQuotes(text: string): string {
-  if (!text) return text
+  if (!text)
+    return text
   if ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith('\'') && text.endsWith('\''))) {
     return text.slice(1, -1)
   }
@@ -16,18 +17,21 @@ function stripQuotes(text: string): string {
 
 export function parseCurlCommand(cmd: string): ParsedCurlResult {
   const result: ParsedCurlResult = {}
-  if (!cmd) return result
+  if (!cmd)
+    return result
 
   const normalized = cmd.replace(/\\\r?\n/g, ' ').trim()
   const tokens = normalized.split(/\s+/).filter(Boolean)
-  if (!tokens.length) return result
+  if (!tokens.length)
+    return result
 
   const headerLines: string[] = []
   const bodyParts: string[] = []
 
   let i = 0
   const curlIndex = tokens.findIndex(t => t.toLowerCase() === 'curl')
-  if (curlIndex >= 0) i = curlIndex + 1
+  if (curlIndex >= 0)
+    i = curlIndex + 1
 
   for (; i < tokens.length; i++) {
     const t = tokens[i]
@@ -46,7 +50,8 @@ export function parseCurlCommand(cmd: string): ParsedCurlResult {
         while (i + 1 < tokens.length) {
           const nextTok = tokens[++i]
           header += ` ${nextTok}`
-          if (nextTok.endsWith(firstChar)) break
+          if (nextTok.endsWith(firstChar))
+            break
         }
       }
 
@@ -63,7 +68,8 @@ export function parseCurlCommand(cmd: string): ParsedCurlResult {
         while (i + 1 < tokens.length) {
           const nextTok = tokens[++i]
           body += ` ${nextTok}`
-          if (nextTok.endsWith(firstChar)) break
+          if (nextTok.endsWith(firstChar))
+            break
         }
       }
 
@@ -86,8 +92,10 @@ export function parseCurlCommand(cmd: string): ParsedCurlResult {
     result.query = q ? `?${q}` : undefined
   }
 
-  if (headerLines.length) result.headers = headerLines.join('\n')
-  if (bodyParts.length) result.body = bodyParts.join('\n')
+  if (headerLines.length)
+    result.headers = headerLines.join('\n')
+  if (bodyParts.length)
+    result.body = bodyParts.join('\n')
 
   return result
 }

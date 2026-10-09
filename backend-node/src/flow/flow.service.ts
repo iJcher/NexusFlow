@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { FlowWriteDto } from './flow.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
+import { FlowEntity, Prisma } from '@prisma/client';
+import { parseJson } from '../common/json.util';
 
 @Injectable()
 export class FlowService {
@@ -8,7 +11,7 @@ export class FlowService {
 
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: any, userId: string, userName: string) {
+  async create(dto: FlowWriteDto, userId: string, userName: string) {
     const entity = await this.prisma.flowEntity.create({
       data: {
         id: nextId(),
@@ -16,7 +19,9 @@ export class FlowService {
         displayName: dto.displayName || '',
         flowType: dto.flowType || 0,
         description: dto.description || '',
-        configInfoForRun: dto.configInfoForRun ? JSON.stringify(dto.configInfoForRun) : null,
+        configInfoForRun: dto.configInfoForRun
+          ? JSON.stringify(dto.configInfoForRun)
+          : null,
         configInfoForWeb: dto.configInfoForWeb || null,
         lastModified: new Date(),
         lastModifyBy: userName,
@@ -33,8 +38,13 @@ export class FlowService {
     return entity ? this.toDto(entity) : null;
   }
 
-  async getList(userId: string, flowType?: number, pageIndex = 1, pageSize = 20) {
-    const where: any = { ownerUserId: BigInt(userId) };
+  async getList(
+    userId: string,
+    flowType?: number,
+    pageIndex = 1,
+    pageSize = 20,
+  ) {
+    const where: Prisma.FlowEntityWhereInput = { ownerUserId: BigInt(userId) };
     if (flowType !== undefined) where.flowType = flowType;
     const entities = await this.prisma.flowEntity.findMany({
       where,
@@ -45,19 +55,26 @@ export class FlowService {
     return entities.map((e) => this.toDto(e));
   }
 
-  async update(dto: any, userId: string, userName: string) {
+  async update(dto: FlowWriteDto, userId: string, userName: string) {
+    if (!dto.id) throw new BadRequestException('Flow ID is required');
     const id = BigInt(dto.id);
     const entity = await this.prisma.flowEntity.findFirst({
       where: { id, ownerUserId: BigInt(userId) },
     });
     if (!entity) return null;
 
-    const updateData: any = { lastModified: new Date(), lastModifyBy: userName };
+    const updateData: Prisma.FlowEntityUpdateInput = {
+      lastModified: new Date(),
+      lastModifyBy: userName,
+    };
     if (dto.displayName) updateData.displayName = dto.displayName;
     if (dto.description) updateData.description = dto.description;
     if (dto.configInfoForRun !== undefined)
-      updateData.configInfoForRun = dto.configInfoForRun ? JSON.stringify(dto.configInfoForRun) : null;
-    if (dto.configInfoForWeb !== undefined) updateData.configInfoForWeb = dto.configInfoForWeb;
+      updateData.configInfoForRun = dto.configInfoForRun
+        ? JSON.stringify(dto.configInfoForRun)
+        : null;
+    if (dto.configInfoForWeb !== undefined)
+      updateData.configInfoForWeb = dto.configInfoForWeb;
 
     const updated = await this.prisma.flowEntity.update({
       where: { id },
@@ -73,14 +90,16 @@ export class FlowService {
     return result.count > 0;
   }
 
-  private toDto(entity: any) {
+  private toDto(entity: FlowEntity) {
     return {
       id: entity.id.toString(),
       ownerUserId: entity.ownerUserId?.toString?.() ?? null,
       displayName: entity.displayName,
       flowType: entity.flowType,
       description: entity.description,
-      configInfoForRun: entity.configInfoForRun ? JSON.parse(entity.configInfoForRun) : null,
+      configInfoForRun: entity.configInfoForRun
+        ? parseJson(entity.configInfoForRun)
+        : null,
       configInfoForWeb: entity.configInfoForWeb,
       lastModified: entity.lastModified,
       lastModifyBy: entity.lastModifyBy,

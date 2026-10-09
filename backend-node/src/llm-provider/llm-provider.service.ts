@@ -1,42 +1,58 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { LlmProviderWriteDto } from './llm-provider.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { nextId } from '../common/snowflake';
+import { FlowLLMProviderEntity, Prisma } from '@prisma/client';
+import { parseStringList } from '../common/json.util';
+import { SecretVault, connectionSecretContext } from '../security/secret-vault';
 
 @Injectable()
 export class LlmProviderService {
   private readonly logger = new Logger(LlmProviderService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly vault: SecretVault,
+  ) {}
 
-  async create(dto: any, userId: string) {
+  async create(dto: LlmProviderWriteDto, userId: string) {
+    if (!dto.platformName)
+      throw new BadRequestException('Provider name is required');
     const exists = await this.prisma.flowLLMProviderEntity.findFirst({
       where: { platformName: dto.platformName, ownerUserId: BigInt(userId) },
     });
-    if (exists) throw new Error(`platform '${dto.platformName}' already exists`);
+    if (exists)
+      throw new Error(`platform '${dto.platformName}' already exists`);
 
+    const id = nextId();
     const entity = await this.prisma.flowLLMProviderEntity.create({
       data: {
-        id: nextId(),
+        id,
         ownerUserId: BigInt(userId),
         platformName: dto.platformName,
         llmNames: JSON.stringify(dto.llmNames || []),
         llmAPIUrl: dto.llmAPIUrl || dto.llmapiUrl || '',
-        llmAPIKey: dto.llmAPIKey || dto.llmapiKey || '',
+        llmAPIKey: this.vault.seal(
+          dto.llmAPIKey || dto.llmapiKey || '',
+          connectionSecretContext('provider', id, BigInt(userId), 'apiKey'),
+        ),
       },
     });
     return this.toSafeDto(entity);
   }
 
-  async getById(id: bigint, userId: string, options: { includeSecret?: boolean } = {}) {
+  async getById(id: bigint, userId: string) {
     const entity = await this.prisma.flowLLMProviderEntity.findFirst({
       where: { id, ownerUserId: BigInt(userId) },
     });
     if (!entity) return null;
-    return options.includeSecret ? this.toDto(entity) : this.toSafeDto(entity);
+    return this.toSafeDto(entity);
   }
 
   async getList(platformName: string | undefined, userId: string) {
-    const where: any = { ownerUserId: BigInt(userId) };
+    const where: Prisma.FlowLLMProviderEntityWhereInput = {
+      ownerUserId: BigInt(userId),
+    };
     if (platformName) where.platformName = { contains: platformName };
     const entities = await this.prisma.flowLLMProviderEntity.findMany({
       where,
@@ -52,19 +68,29 @@ export class LlmProviderService {
     return entity ? this.toDto(entity) : null;
   }
 
-  async update(dto: any, userId: string) {
+  async update(dto: LlmProviderWriteDto, userId: string) {
+    if (!dto.id) throw new BadRequestException('Provider ID is required');
     const entity = await this.prisma.flowLLMProviderEntity.findFirst({
       where: { id: BigInt(dto.id), ownerUserId: BigInt(userId) },
     });
     if (!entity) return null;
 
-    const updateData: any = {};
+    const updateData: Prisma.FlowLLMProviderEntityUpdateInput = {};
     if (dto.platformName) updateData.platformName = dto.platformName;
     if (dto.llmNames) updateData.llmNames = JSON.stringify(dto.llmNames);
     const apiUrl = dto.llmAPIUrl ?? dto.llmapiUrl;
     const apiKey = dto.llmAPIKey ?? dto.llmapiKey;
     if (apiUrl !== undefined) updateData.llmAPIUrl = apiUrl;
-    if (apiKey !== undefined && !String(apiKey).includes('****')) updateData.llmAPIKey = apiKey;
+    if (apiKey !== undefined && !apiKey.includes('****'))
+      updateData.llmAPIKey = this.vault.seal(
+        apiKey,
+        connectionSecretContext(
+          'provider',
+          entity.id,
+          entity.ownerUserId,
+          'apiKey',
+        ),
+      );
 
     const updated = await this.prisma.flowLLMProviderEntity.update({
       where: { id: BigInt(dto.id) },
@@ -81,6 +107,7 @@ export class LlmProviderService {
   }
 
   async getAll(userId?: string) {
+    if (!userId) throw new BadRequestException('Provider owner is required');
     const entities = await this.prisma.flowLLMProviderEntity.findMany({
       where: userId ? { ownerUserId: BigInt(userId) } : undefined,
     });
@@ -88,11 +115,12 @@ export class LlmProviderService {
   }
 
   async findProviderByModelName(modelName: string, userId?: string) {
+    if (!userId) return null;
     const all = await this.prisma.flowLLMProviderEntity.findMany({
       where: userId ? { ownerUserId: BigInt(userId) } : undefined,
     });
     for (const p of all) {
-      const names: string[] = JSON.parse(p.llmNames || '[]');
+      const names = parseStringList(p.llmNames || '[]');
       if (names.includes(modelName)) {
         return this.toDto(p);
       }
@@ -119,7 +147,8 @@ export class LlmProviderService {
     const llmAPIKey = process.env.SKILL_DEFAULT_API_KEY || '';
     if (!modelName || !llmAPIUrl || !llmAPIKey) return null;
 
-    const displayName = process.env.SKILL_DEFAULT_DISPLAY_NAME || `NEXUS 免费模型 (${modelName})`;
+    const displayName =
+      process.env.SKILL_DEFAULT_DISPLAY_NAME || `NEXUS 免费模型 (${modelName})`;
     return { modelName, displayName, llmAPIUrl, llmAPIKey };
   }
 
@@ -169,7 +198,9 @@ export class LlmProviderService {
     const llmAPIUrl = process.env.RAG_DEFAULT_RERANK_API_URL || '';
     // key 兜底：rerank 没单独配就复用 embedding 的 key
     const llmAPIKey =
-      process.env.RAG_DEFAULT_RERANK_API_KEY || process.env.RAG_DEFAULT_EMBEDDING_API_KEY || '';
+      process.env.RAG_DEFAULT_RERANK_API_KEY ||
+      process.env.RAG_DEFAULT_EMBEDDING_API_KEY ||
+      '';
     if (!modelName || !llmAPIUrl || !llmAPIKey) return null;
     return { modelName, llmAPIUrl, llmAPIKey };
   }
@@ -183,6 +214,7 @@ export class LlmProviderService {
    * 3. 放弃匹配，返回 null（由 EmbeddingService 走 TF-IDF 降级）
    */
   async findProviderForEmbedding(embeddingModelName?: string, userId?: string) {
+    if (!userId) return null;
     const all = await this.prisma.flowLLMProviderEntity.findMany({
       where: userId ? { ownerUserId: BigInt(userId) } : undefined,
     });
@@ -190,18 +222,22 @@ export class LlmProviderService {
 
     if (embeddingModelName) {
       for (const p of all) {
-        const names: string[] = JSON.parse(p.llmNames || '[]');
+        const names = parseStringList(p.llmNames || '[]');
         if (names.includes(embeddingModelName)) {
-          this.logger.log(`Embedding provider matched by model name: ${p.platformName}`);
+          this.logger.log(
+            `Embedding provider matched by model name: ${p.platformName}`,
+          );
           return this.toDto(p);
         }
       }
     }
 
     for (const p of all) {
-      const names: string[] = JSON.parse(p.llmNames || '[]');
+      const names = parseStringList(p.llmNames || '[]');
       if (names.some((n) => n.toLowerCase().includes('embedding'))) {
-        this.logger.log(`Embedding provider matched by keyword: ${p.platformName}`);
+        this.logger.log(
+          `Embedding provider matched by keyword: ${p.platformName}`,
+        );
         return this.toDto(p);
       }
     }
@@ -213,32 +249,33 @@ export class LlmProviderService {
     return null;
   }
 
-  private toDto(entity: any) {
+  private toDto(entity: FlowLLMProviderEntity, includeSecret = true) {
+    const apiKey = includeSecret
+      ? this.vault.open(
+          entity.llmAPIKey,
+          connectionSecretContext(
+            'provider',
+            entity.id,
+            entity.ownerUserId,
+            'apiKey',
+          ),
+        )
+      : entity.llmAPIKey
+        ? '****'
+        : '';
     return {
       id: entity.id.toString(),
       ownerUserId: entity.ownerUserId?.toString?.() ?? null,
       platformName: entity.platformName,
-      llmNames: JSON.parse(entity.llmNames || '[]'),
+      llmNames: parseStringList(entity.llmNames || '[]'),
       llmAPIUrl: entity.llmAPIUrl,
-      llmAPIKey: entity.llmAPIKey,
+      llmAPIKey: apiKey,
       llmapiUrl: entity.llmAPIUrl,
-      llmapiKey: entity.llmAPIKey,
+      llmapiKey: apiKey,
     };
   }
 
-  private toSafeDto(entity: any) {
-    const dto = this.toDto(entity);
-    const masked = this.maskApiKey(dto.llmAPIKey);
-    return {
-      ...dto,
-      llmAPIKey: masked,
-      llmapiKey: masked,
-    };
-  }
-
-  private maskApiKey(apiKey: string) {
-    if (!apiKey) return '';
-    if (apiKey.length <= 8) return '****';
-    return `${apiKey.slice(0, 4)}****${apiKey.slice(-4)}`;
+  private toSafeDto(entity: FlowLLMProviderEntity) {
+    return this.toDto(entity, false);
   }
 }

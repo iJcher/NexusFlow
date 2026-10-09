@@ -1,160 +1,13 @@
-<template>
-  <div class="widget-node condition-widget" @wheel.stop>
-    <div class="widget-header">
-      <el-icon :size="16" class="widget-icon"><Share /></el-icon>
-      <input
-        v-model="displayName"
-        class="widget-title-input"
-        @blur="update('displayName', displayName || 'Condition')"
-        @keydown.enter="($event.target as HTMLInputElement)?.blur()"
-      />
-      <button class="add-btn" @click.stop="addCondition" title="Add condition">
-        <el-icon :size="14"><Plus /></el-icon>
-      </button>
-    </div>
-
-    <div class="widget-body" @mousedown.stop>
-      <div
-        v-for="(cond, idx) in conditions"
-        :key="cond.id"
-        class="condition-row"
-      >
-        <div class="cond-label">
-          <span class="cond-index">{{ idx + 1 }}</span>
-          <input
-            v-model="cond.description"
-            class="cond-desc-input"
-            :placeholder="`Condition ${idx + 1}`"
-            @input="commitConditions"
-          />
-          <el-select
-            v-model="cond.mode"
-            size="small"
-            class="mode-select"
-            @change="handleModeChange(idx)"
-          >
-            <el-option :label="t('flowComponents.conditionSimpleMode')" value="simple" />
-            <el-option :label="t('flowComponents.conditionAdvancedMode')" value="advanced" />
-          </el-select>
-        </div>
-
-        <div v-if="cond.mode !== 'advanced'" class="simple-rule">
-          <button class="variable-select-btn" @click.stop="openVariableSelector(idx)">
-            {{ cond.leftVariableKey || t('flowComponents.conditionSelectVariable') }}
-          </button>
-          <el-select
-            v-model="cond.operator"
-            size="small"
-            class="operator-select"
-            @change="commitSimpleCondition(idx)"
-          >
-            <el-option
-              v-for="op in operatorOptions"
-              :key="op.value"
-              :label="op.label"
-              :value="op.value"
-            />
-          </el-select>
-          <el-input
-            v-if="!isUnaryOperator(cond.operator)"
-            v-model="cond.rightValue"
-            size="small"
-            :placeholder="t('flowComponents.conditionCompareValue')"
-            @input="commitSimpleCondition(idx)"
-          />
-          <button v-if="conditions.length > 1" class="remove-btn" @click.stop="removeCondition(idx)">
-            <el-icon :size="12"><Close /></el-icon>
-          </button>
-        </div>
-
-        <div v-else class="cond-expr-row">
-          <el-input
-            v-model="conditionExprs[idx]"
-            size="small"
-            placeholder="e.g. {{sys.query}} === 'hello'"
-            @input="commitConditionExpr(idx)"
-          />
-          <button class="variable-btn" @click.stop="openVariableSelector(idx)">
-            {{ t('flowComponents.insertVariable') }}
-          </button>
-          <button v-if="conditions.length > 1" class="remove-btn" @click.stop="removeCondition(idx)">
-            <el-icon :size="12"><Close /></el-icon>
-          </button>
-        </div>
-
-        <Handle
-          type="source"
-          :position="Position.Right"
-          :id="cond.id"
-          class="cond-branch-handle"
-          :aria-label="t('flowDesigner.addNextNode')"
-          @pointerdown="recordPointerDown"
-          @click.stop="handleBranchPlusClick(cond.id, $event)"
-        />
-      </div>
-
-      <div class="condition-row else-row">
-        <div class="cond-label">
-          <span class="cond-index else-badge">E</span>
-          <span class="else-label">ELSE</span>
-        </div>
-        <Handle
-          type="source"
-          :position="Position.Right"
-          :id="elseRule.id"
-          class="cond-branch-handle else-handle"
-          :aria-label="t('flowDesigner.addNextNode')"
-          @pointerdown="recordPointerDown"
-          @click.stop="handleBranchPlusClick(elseRule.id, $event)"
-        />
-      </div>
-    </div>
-
-    <Transition name="selector-fade">
-      <div
-        v-if="branchSelectorOpen"
-        class="condition-node-selector"
-        @click.stop
-        @mousedown.stop
-      >
-        <div class="selector-header">
-          <span>{{ t('flowDesigner.addNextNode') }}</span>
-          <button class="selector-close" @click="branchSelectorOpen = false">×</button>
-        </div>
-        <div class="selector-list">
-          <button
-            v-for="n in filteredNodeList"
-            :key="n.typeName"
-            class="selector-item"
-            @click="handleSelectNextNode(n.typeName)"
-          >
-            <span class="selector-item-name">{{ n.name }}</span>
-            <span class="selector-item-desc">{{ n.description }}</span>
-          </button>
-          <div v-if="filteredNodeList.length === 0" class="selector-empty">
-            {{ t('flowDesigner.noAvailableNode') }}
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <VariableSelector
-      v-model:visible="variableSelectorVisible"
-      :current-node-id="nodeId"
-      @select="handleVariableSelect"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, ref, inject, type Ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { Handle, Position } from '@vue-flow/core'
-import { Share, Plus, Close } from '@element-plus/icons-vue'
-import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
-import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { Ref } from 'vue'
 import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { NodeConfig } from '@/types/flow-designer/nodeConfig'
 import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import { Close, Plus, Share } from '@element-plus/icons-vue'
+import { Handle, Position } from '@vue-flow/core'
+import { computed, inject, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
 import { getAvailableNextNodeTypes } from '@/utils/flowNodeRules'
 import VariableSelector from '../components/VariableSelector.vue'
 
@@ -194,9 +47,9 @@ const variableSelectorVisible = ref<boolean>(false)
 const variableTargetIndex = ref<number>(0)
 const branchSelectorOpen = ref<boolean>(false)
 const activeBranchHandle = ref<string>('')
-const pointerDownPosition = ref<{ x: number; y: number } | null>(null)
+const pointerDownPosition = ref<{ x: number, y: number } | null>(null)
 
-const operatorOptions = computed<Array<{ value: ConditionOperator; label: string }>>(() => [
+const operatorOptions = computed<Array<{ value: ConditionOperator, label: string }>>(() => [
   { value: 'eq', label: t('flowComponents.conditionOpEq') },
   { value: 'neq', label: t('flowComponents.conditionOpNeq') },
   { value: 'gt', label: '>' },
@@ -257,7 +110,8 @@ function createConditionRule(index: number): ConditionRule {
 }
 
 function extractExpr(unit: JSExpressionUnit): string {
-  if (!unit) return ''
+  if (!unit)
+    return ''
   return unit.isFunctionMode ? (unit.functionCode || '') : (unit.expressionCode || '')
 }
 
@@ -272,7 +126,8 @@ function commitConditions() {
 
 function commitConditionExpr(idx: number) {
   const cond = conditions.value[idx]
-  if (!cond) return
+  if (!cond)
+    return
 
   const text = conditionExprs.value[idx] || ''
   cond.expressionUnit = {
@@ -285,7 +140,8 @@ function commitConditionExpr(idx: number) {
 
 function commitSimpleCondition(idx: number) {
   const cond = conditions.value[idx]
-  if (!cond) return
+  if (!cond)
+    return
 
   const expression = buildSimpleExpression(cond)
   conditionExprs.value[idx] = expression
@@ -298,7 +154,8 @@ function commitSimpleCondition(idx: number) {
 }
 
 function buildSimpleExpression(cond: ConditionRule): string {
-  if (!cond.leftVariableKey) return ''
+  if (!cond.leftVariableKey)
+    return ''
 
   const left = `{{${cond.leftVariableKey}}}`
   const operator = cond.operator || 'eq'
@@ -336,9 +193,12 @@ function buildSimpleExpression(cond: ConditionRule): string {
 
 function createRightLiteral(value: string): string {
   const text = value.trim()
-  if (/^\{\{[^}]+\}\}$/.test(text)) return text
-  if (['true', 'false', 'null'].includes(text)) return text
-  if (text !== '' && !Number.isNaN(Number(text))) return text
+  if (/^\{\{[^}]+\}\}$/.test(text))
+    return text
+  if (['true', 'false', 'null'].includes(text))
+    return text
+  if (text !== '' && !Number.isNaN(Number(text)))
+    return text
   return JSON.stringify(value)
 }
 
@@ -348,7 +208,8 @@ function isUnaryOperator(operator?: ConditionOperator): boolean {
 
 function handleModeChange(idx: number) {
   const cond = conditions.value[idx]
-  if (!cond) return
+  if (!cond)
+    return
 
   if (cond.mode === 'simple') {
     commitSimpleCondition(idx)
@@ -380,7 +241,8 @@ function openVariableSelector(idx: number) {
 function handleVariableSelect(variable: VariableItem) {
   const idx = variableTargetIndex.value
   const cond = conditions.value[idx]
-  if (!cond) return
+  if (!cond)
+    return
 
   if (cond.mode !== 'advanced') {
     cond.leftVariableKey = variable.key
@@ -401,7 +263,8 @@ function handleBranchPlusClick(branchHandle: string, event: MouseEvent) {
   pointerDownPosition.value = null
   if (start) {
     const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
-    if (moved > 5) return
+    if (moved > 5)
+      return
   }
 
   const isSameBranch = activeBranchHandle.value === branchHandle
@@ -410,7 +273,8 @@ function handleBranchPlusClick(branchHandle: string, event: MouseEvent) {
 }
 
 function handleSelectNextNode(nodeType: string) {
-  if (!nodeId || !activeBranchHandle.value) return
+  if (!nodeId || !activeBranchHandle.value)
+    return
   addNodeAndConnect(nodeId, activeBranchHandle.value, nodeType)
   branchSelectorOpen.value = false
 }
@@ -424,6 +288,164 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   elseRule.value = normalizeElseRule(newElseRule)
 }, { deep: true })
 </script>
+
+<template>
+  <div class="widget-node condition-widget" @wheel.stop>
+    <div class="widget-header">
+      <el-icon :size="16" class="widget-icon">
+        <Share />
+      </el-icon>
+      <input
+        v-model="displayName"
+        class="widget-title-input"
+        @blur="update('displayName', displayName || 'Condition')"
+        @keydown.enter="($event.target as HTMLInputElement)?.blur()"
+      >
+      <button class="add-btn" title="Add condition" @click.stop="addCondition">
+        <el-icon :size="14">
+          <Plus />
+        </el-icon>
+      </button>
+    </div>
+
+    <div class="widget-body" @mousedown.stop>
+      <div
+        v-for="(cond, idx) in conditions"
+        :key="cond.id"
+        class="condition-row"
+      >
+        <div class="cond-label">
+          <span class="cond-index">{{ idx + 1 }}</span>
+          <input
+            v-model="cond.description"
+            class="cond-desc-input"
+            :placeholder="`Condition ${idx + 1}`"
+            @input="commitConditions"
+          >
+          <el-select
+            v-model="cond.mode"
+            size="small"
+            class="mode-select"
+            @change="handleModeChange(idx)"
+          >
+            <el-option :label="t('flowComponents.conditionSimpleMode')" value="simple" />
+            <el-option :label="t('flowComponents.conditionAdvancedMode')" value="advanced" />
+          </el-select>
+        </div>
+
+        <div v-if="cond.mode !== 'advanced'" class="simple-rule">
+          <button class="variable-select-btn" @click.stop="openVariableSelector(idx)">
+            {{ cond.leftVariableKey || t('flowComponents.conditionSelectVariable') }}
+          </button>
+          <el-select
+            v-model="cond.operator"
+            size="small"
+            class="operator-select"
+            @change="commitSimpleCondition(idx)"
+          >
+            <el-option
+              v-for="op in operatorOptions"
+              :key="op.value"
+              :label="op.label"
+              :value="op.value"
+            />
+          </el-select>
+          <el-input
+            v-if="!isUnaryOperator(cond.operator)"
+            v-model="cond.rightValue"
+            size="small"
+            :placeholder="t('flowComponents.conditionCompareValue')"
+            @input="commitSimpleCondition(idx)"
+          />
+          <button v-if="conditions.length > 1" class="remove-btn" @click.stop="removeCondition(idx)">
+            <el-icon :size="12">
+              <Close />
+            </el-icon>
+          </button>
+        </div>
+
+        <div v-else class="cond-expr-row">
+          <el-input
+            v-model="conditionExprs[idx]"
+            size="small"
+            placeholder="e.g. {{sys.query}} === 'hello'"
+            @input="commitConditionExpr(idx)"
+          />
+          <button class="variable-btn" @click.stop="openVariableSelector(idx)">
+            {{ t('flowComponents.insertVariable') }}
+          </button>
+          <button v-if="conditions.length > 1" class="remove-btn" @click.stop="removeCondition(idx)">
+            <el-icon :size="12">
+              <Close />
+            </el-icon>
+          </button>
+        </div>
+
+        <Handle
+          :id="cond.id"
+          type="source"
+          :position="Position.Right"
+          class="cond-branch-handle"
+          :aria-label="t('flowDesigner.addNextNode')"
+          @pointerdown="recordPointerDown"
+          @click.stop="handleBranchPlusClick(cond.id, $event)"
+        />
+      </div>
+
+      <div class="condition-row else-row">
+        <div class="cond-label">
+          <span class="cond-index else-badge">E</span>
+          <span class="else-label">ELSE</span>
+        </div>
+        <Handle
+          :id="elseRule.id"
+          type="source"
+          :position="Position.Right"
+          class="cond-branch-handle else-handle"
+          :aria-label="t('flowDesigner.addNextNode')"
+          @pointerdown="recordPointerDown"
+          @click.stop="handleBranchPlusClick(elseRule.id, $event)"
+        />
+      </div>
+    </div>
+
+    <Transition name="selector-fade">
+      <div
+        v-if="branchSelectorOpen"
+        class="condition-node-selector"
+        @click.stop
+        @mousedown.stop
+      >
+        <div class="selector-header">
+          <span>{{ t('flowDesigner.addNextNode') }}</span>
+          <button class="selector-close" @click="branchSelectorOpen = false">
+            ×
+          </button>
+        </div>
+        <div class="selector-list">
+          <button
+            v-for="n in filteredNodeList"
+            :key="n.typeName"
+            class="selector-item"
+            @click="handleSelectNextNode(n.typeName)"
+          >
+            <span class="selector-item-name">{{ n.name }}</span>
+            <span class="selector-item-desc">{{ n.description }}</span>
+          </button>
+          <div v-if="filteredNodeList.length === 0" class="selector-empty">
+            {{ t('flowDesigner.noAvailableNode') }}
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <VariableSelector
+      v-model:visible="variableSelectorVisible"
+      :current-node-id="nodeId"
+      @select="handleVariableSelect"
+    />
+  </div>
+</template>
 
 <style scoped>
 .condition-widget {
@@ -544,7 +566,7 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   padding: 0;
 }
 
@@ -558,13 +580,16 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   border: 1px solid rgba(0, 255, 159, 0.25);
   border-radius: 4px;
   background: transparent;
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   font-size: 12px;
   line-height: 1.4;
   padding: 1px 6px;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .variable-select-btn {
@@ -581,7 +606,7 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
 .variable-select-btn:hover,
 .variable-btn:hover {
   border-color: rgba(0, 255, 159, 0.45);
-  color: var(--nf-accent-hover, #33FFB3);
+  color: var(--nf-accent-hover, #33ffb3);
   background: rgba(0, 255, 159, 0.06);
 }
 
@@ -608,13 +633,17 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--nf-bg-surface, #080B10);
+  background: var(--nf-bg-surface, #080b10);
   border: 1px solid rgba(0, 255, 159, 0.35);
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   box-shadow: var(--nf-glow-sm);
   cursor: crosshair;
   transform: translateY(-50%);
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .cond-branch-handle::before,
@@ -636,8 +665,8 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
 }
 
 .cond-branch-handle:hover {
-  border-color: var(--nf-accent-hover, #33FFB3);
-  color: var(--nf-accent-hover, #33FFB3);
+  border-color: var(--nf-accent-hover, #33ffb3);
+  color: var(--nf-accent-hover, #33ffb3);
   background: rgba(0, 255, 159, 0.06);
   box-shadow: var(--nf-glow-md);
 }
@@ -676,7 +705,7 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   padding: 8px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -685,13 +714,13 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   background: transparent;
   font-size: 14px;
   cursor: pointer;
-  color: var(--nf-text-secondary, #6B7D8E);
+  color: var(--nf-text-secondary, #6b7d8e);
   line-height: 1;
   padding: 0 2px;
 }
 
 .selector-close:hover {
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
 }
 
 .selector-list {
@@ -711,28 +740,30 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .selector-item:hover {
   background: rgba(0, 255, 159, 0.06);
-  border-left-color: var(--nf-accent, #00FF9F);
+  border-left-color: var(--nf-accent, #00ff9f);
 }
 
 .selector-item-name {
   font-size: 12px;
   font-weight: 500;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   line-height: 1.3;
 }
 
 .selector-item:hover .selector-item-name {
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
 }
 
 .selector-item-desc {
   font-size: 12px;
-  color: var(--nf-text-tertiary, #4A5C6E);
+  color: var(--nf-text-tertiary, #4a5c6e);
   line-height: 1.5;
   white-space: nowrap;
   overflow: hidden;
@@ -741,7 +772,7 @@ watch(() => nodeData.value.elseRule, (newElseRule) => {
 
 .selector-empty {
   padding: 10px 8px;
-  color: var(--nf-text-secondary, #6B7D8E);
+  color: var(--nf-text-secondary, #6b7d8e);
   font-size: 12px;
   line-height: 1.5;
 }

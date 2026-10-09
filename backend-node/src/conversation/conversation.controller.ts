@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Param, Query, Body } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
-import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator';
 
 @Controller('FlowConversation')
 export class ConversationController {
@@ -46,7 +49,11 @@ export class ConversationController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('conversationId') conversationId: string,
   ) {
-    const result = await this.conversationService.toggleTop(BigInt(flowId), user.id, conversationId);
+    const result = await this.conversationService.toggleTop(
+      BigInt(flowId),
+      user.id,
+      conversationId,
+    );
     if (!result) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: result };
   }
@@ -58,7 +65,12 @@ export class ConversationController {
     @Query('conversationId') conversationId: string,
     @Body() body: { title: string },
   ) {
-    const ok = await this.conversationService.updateTitle(BigInt(flowId), user.id, conversationId, body.title);
+    const ok = await this.conversationService.updateTitle(
+      BigInt(flowId),
+      user.id,
+      conversationId,
+      body.title,
+    );
     if (!ok) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: { success: true } };
   }
@@ -69,7 +81,11 @@ export class ConversationController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('conversationId') conversationId: string,
   ) {
-    const result = await this.conversationService.deleteConversation(BigInt(flowId), user.id, conversationId);
+    const result = await this.conversationService.deleteConversation(
+      BigInt(flowId),
+      user.id,
+      conversationId,
+    );
     if (!result) return { errCode: 1, errMsg: 'conversation not found' };
     return { errCode: 0, errMsg: '', data: { success: true, ...result } };
   }

@@ -1,4 +1,17 @@
 <script setup lang="ts">
+import type { IFileTreeNode } from './FileTreeNode.vue'
+import type { ISkillDto } from '@/services/skill.service'
+import {
+  ArrowLeft,
+  Delete,
+  Document as DocIcon,
+  DocumentCopy,
+  Download,
+  Folder,
+} from '@element-plus/icons-vue'
+import DOMPurify from 'dompurify'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { marked } from 'marked'
 /**
  * Skill Detail Page —— GitHub-style file viewer.
  *
@@ -11,14 +24,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  ArrowLeft, Delete, Document as DocIcon, DocumentCopy, Download, Folder,
-} from '@element-plus/icons-vue'
-import DOMPurify from 'dompurify'
-import { marked } from 'marked'
-import { SkillService, type ISkillDto } from '@/services/skill.service'
-import FileTreeNode, { type IFileTreeNode } from './FileTreeNode.vue'
+import { SkillService } from '@/services/skill.service'
+import FileTreeNode from './FileTreeNode.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,7 +36,8 @@ const selectedPath = ref<string>('')
 const expandedDirs = ref<Set<string>>(new Set())
 
 const fileEntries = computed<Array<[string, string]>>(() => {
-  if (!skill.value?.files) return []
+  if (!skill.value?.files)
+    return []
   return Object.entries(skill.value.files)
 })
 
@@ -40,7 +48,8 @@ const totalChars = computed<number>(() =>
 const tree = computed<IFileTreeNode[]>(() => buildTree(fileEntries.value.map(([path]) => path)))
 
 const selectedContent = computed<string>(() => {
-  if (!selectedPath.value || !skill.value?.files) return ''
+  if (!selectedPath.value || !skill.value?.files)
+    return ''
   return skill.value.files[selectedPath.value] || ''
 })
 
@@ -50,13 +59,15 @@ const isMarkdown = computed<boolean>(() =>
 )
 
 const renderedHtml = computed<string>(() => {
-  if (!isMarkdown.value || !selectedContent.value) return ''
+  if (!isMarkdown.value || !selectedContent.value)
+    return ''
   const html = marked(selectedContent.value, { breaks: true }) as string
   return DOMPurify.sanitize(html)
 })
 
 const formattedUpdated = computed<string>(() => {
-  if (!skill.value?.updatedAt) return '-'
+  if (!skill.value?.updatedAt)
+    return '-'
   const d = new Date(skill.value.updatedAt)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
@@ -87,22 +98,24 @@ function buildTree(paths: string[]): IFileTreeNode[] {
 
 function sortTree(node: IFileTreeNode): void {
   node.children.sort((a, b) => {
-    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1
+    if (a.isDir !== b.isDir)
+      return a.isDir ? -1 : 1
     return a.name.localeCompare(b.name)
   })
   node.children.forEach(sortTree)
 }
 
-const handleNodeClick = (node: IFileTreeNode): void => {
+function handleNodeClick(node: IFileTreeNode): void {
   if (node.isDir) {
-    if (expandedDirs.value.has(node.path)) expandedDirs.value.delete(node.path)
+    if (expandedDirs.value.has(node.path))
+      expandedDirs.value.delete(node.path)
     else expandedDirs.value.add(node.path)
     return
   }
   selectedPath.value = node.path
 }
 
-const loadSkill = async (): Promise<void> => {
+async function loadSkill(): Promise<void> {
   const id = route.params.id as string
   if (!id) {
     ElMessage.error('缺少 Skill ID')
@@ -131,7 +144,7 @@ const loadSkill = async (): Promise<void> => {
   }
 }
 
-const autoExpandAll = (): void => {
+function autoExpandAll(): void {
   const collect = (nodes: IFileTreeNode[]): void => {
     for (const n of nodes) {
       if (n.isDir) {
@@ -143,22 +156,25 @@ const autoExpandAll = (): void => {
   collect(tree.value)
 }
 
-const autoSelectFirstFile = (): void => {
-  if (!skill.value?.files) return
+function autoSelectFirstFile(): void {
+  if (!skill.value?.files)
+    return
   if (skill.value.files['SKILL.md']) {
     selectedPath.value = 'SKILL.md'
     return
   }
   const firstFile = Object.keys(skill.value.files)[0]
-  if (firstFile) selectedPath.value = firstFile
+  if (firstFile)
+    selectedPath.value = firstFile
 }
 
-const goBack = (): void => {
+function goBack(): void {
   router.push('/tool/skill')
 }
 
-const downloadSkill = async (): Promise<void> => {
-  if (!skill.value) return
+async function downloadSkill(): Promise<void> {
+  if (!skill.value)
+    return
   try {
     await SkillService.downloadAsZip(skill.value)
     ElMessage.success('下载已开始')
@@ -169,8 +185,9 @@ const downloadSkill = async (): Promise<void> => {
   }
 }
 
-const copyCurrentFile = async (): Promise<void> => {
-  if (!selectedContent.value) return
+async function copyCurrentFile(): Promise<void> {
+  if (!selectedContent.value)
+    return
   try {
     await navigator.clipboard.writeText(selectedContent.value)
     ElMessage.success(`已复制 ${selectedPath.value}`)
@@ -180,8 +197,9 @@ const copyCurrentFile = async (): Promise<void> => {
   }
 }
 
-const deleteSkill = async (): Promise<void> => {
-  if (!skill.value) return
+async function deleteSkill(): Promise<void> {
+  if (!skill.value)
+    return
   await ElMessageBox.confirm(
     `确认删除 Skill「${skill.value.name}」？`,
     '删除 Skill',
@@ -202,7 +220,9 @@ onMounted(loadSkill)
     <header class="detail-header">
       <div class="header-left">
         <button class="back-btn" @click="goBack">
-          <el-icon :size="14"><ArrowLeft /></el-icon>
+          <el-icon :size="14">
+            <ArrowLeft />
+          </el-icon>
           <span>BACK</span>
         </button>
         <div v-if="skill" class="title-block">
@@ -210,21 +230,31 @@ onMounted(loadSkill)
             TOOL <span class="bc-sep">/</span> SKILL <span class="bc-sep">/</span>
             <span class="bc-current">{{ skill.name }}</span>
           </p>
-          <h1 class="skill-title">{{ skill.name }}</h1>
-          <p class="skill-desc">{{ skill.description || '暂无描述' }}</p>
+          <h1 class="skill-title">
+            {{ skill.name }}
+          </h1>
+          <p class="skill-desc">
+            {{ skill.description || '暂无描述' }}
+          </p>
         </div>
       </div>
       <div v-if="skill" class="header-actions">
         <button class="fui-btn fui-btn--ghost" :disabled="!selectedContent" @click="copyCurrentFile">
-          <el-icon :size="14"><DocumentCopy /></el-icon>
+          <el-icon :size="14">
+            <DocumentCopy />
+          </el-icon>
           复制当前文件
         </button>
         <button class="fui-btn fui-btn--primary" @click="downloadSkill">
-          <el-icon :size="14"><Download /></el-icon>
+          <el-icon :size="14">
+            <Download />
+          </el-icon>
           下载 ZIP
         </button>
         <button class="fui-btn fui-btn--danger" @click="deleteSkill">
-          <el-icon :size="14"><Delete /></el-icon>
+          <el-icon :size="14">
+            <Delete />
+          </el-icon>
           删除
         </button>
       </div>
@@ -250,7 +280,9 @@ onMounted(loadSkill)
     <section v-if="skill" class="repo-body">
       <aside class="file-tree">
         <div class="tree-header">
-          <el-icon :size="14"><Folder /></el-icon>
+          <el-icon :size="14">
+            <Folder />
+          </el-icon>
           <span class="tree-title">{{ skill.name }}</span>
           <span class="tree-count">{{ fileEntries.length }}</span>
         </div>
@@ -269,7 +301,9 @@ onMounted(loadSkill)
 
       <main class="file-viewer">
         <div v-if="selectedPath" class="file-tab">
-          <el-icon :size="13"><DocIcon /></el-icon>
+          <el-icon :size="13">
+            <DocIcon />
+          </el-icon>
           <span class="file-tab__path">{{ selectedPath }}</span>
           <span class="file-tab__size">{{ selectedContent.length }} chars</span>
         </div>
@@ -290,9 +324,7 @@ onMounted(loadSkill)
 .skill-detail-page {
   min-height: 100%;
   padding: 28px 32px;
-  background:
-    radial-gradient(circle, var(--nf-grid-color) 0.5px, transparent 0.5px),
-    var(--nf-bg-base);
+  background: radial-gradient(circle, var(--nf-grid-color) 0.5px, transparent 0.5px), var(--nf-bg-base);
   background-size: var(--nf-grid-size) var(--nf-grid-size);
   font-family: var(--nf-font-display);
   display: flex;
@@ -336,7 +368,9 @@ onMounted(loadSkill)
   font-weight: 600;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 
   &:hover {
     border-color: rgba(0, 255, 159, 0.35);
@@ -415,7 +449,11 @@ onMounted(loadSkill)
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:disabled {
     opacity: 0.4;
@@ -429,7 +467,7 @@ onMounted(loadSkill)
 
   &:hover:not(:disabled) {
     border-color: rgba(0, 255, 159, 0.35);
-    color: #B0BEC5;
+    color: #b0bec5;
   }
 }
 
@@ -500,7 +538,7 @@ onMounted(loadSkill)
 
   &:hover {
     border-color: rgba(255, 255, 255, 0.18);
-    color: #B0BEC5;
+    color: #b0bec5;
   }
 }
 

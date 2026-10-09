@@ -1,13 +1,49 @@
+<script setup lang="ts">
+import type { Ref } from 'vue'
+import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import { Refresh } from '@element-plus/icons-vue'
+import { inject, ref } from 'vue'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+
+const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
+
+const displayName = ref(nodeData.value.displayName || 'For Loop')
+
+function extractExpr(): string {
+  const unit = nodeData.value.loopCount as JSExpressionUnit | undefined
+  if (!unit)
+    return '10'
+  return (unit.expressionCode || '').trim() || '10'
+}
+
+const loopExpr = ref(extractExpr())
+
+const update = (key: string, value: any) => onUpdate({ [key]: value })
+
+function commitLoopCount() {
+  const existing = nodeData.value.loopCount as JSExpressionUnit | undefined
+  if (existing) {
+    update('loopCount', { ...existing, expressionCode: loopExpr.value, isFunctionMode: false })
+  }
+  else {
+    update('loopCount', ExpressionUnitFactory.createJSExpression('', loopExpr.value))
+  }
+}
+</script>
+
 <template>
   <div class="widget-node forloop-widget">
     <div class="widget-header">
-      <el-icon :size="16" class="widget-icon"><Refresh /></el-icon>
+      <el-icon :size="16" class="widget-icon">
+        <Refresh />
+      </el-icon>
       <input
         v-model="displayName"
         class="widget-title-input"
         @blur="update('displayName', displayName || 'For Loop')"
         @keydown.enter="($event.target as HTMLInputElement)?.blur()"
-      />
+      >
     </div>
     <div class="loop-meta" @mousedown.stop>
       <span class="meta-label">Times</span>
@@ -24,37 +60,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, inject, type Ref } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
-import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-
-const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
-const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
-
-const displayName = ref(nodeData.value.displayName || 'For Loop')
-
-const extractExpr = (): string => {
-  const unit = nodeData.value.loopCount as JSExpressionUnit | undefined
-  if (!unit) return '10'
-  return (unit.expressionCode || '').trim() || '10'
-}
-
-const loopExpr = ref(extractExpr())
-
-const update = (key: string, value: any) => onUpdate({ [key]: value })
-
-const commitLoopCount = () => {
-  const existing = nodeData.value.loopCount as JSExpressionUnit | undefined
-  if (existing) {
-    update('loopCount', { ...existing, expressionCode: loopExpr.value, isFunctionMode: false })
-  } else {
-    update('loopCount', ExpressionUnitFactory.createJSExpression('', loopExpr.value))
-  }
-}
-</script>
 
 <style scoped>
 .forloop-widget {
@@ -73,14 +78,26 @@ const commitLoopCount = () => {
   gap: 6px;
 }
 
-.widget-icon { color: var(--nf-text-secondary, #71717a); flex-shrink: 0; }
+.widget-icon {
+  color: var(--nf-text-secondary, #71717a);
+  flex-shrink: 0;
+}
 
 .widget-title-input {
-  flex: 1; min-width: 0; border: none; outline: none;
-  background: transparent; font-size: 13px; font-weight: 600;
-  color: var(--nf-text-primary, #fafafa); padding: 2px 4px; border-radius: 4px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nf-text-primary, #fafafa);
+  padding: 2px 4px;
+  border-radius: 4px;
 }
-.widget-title-input:focus { background: var(--nf-bg-elevated, #27272a); }
+.widget-title-input:focus {
+  background: var(--nf-bg-elevated, #27272a);
+}
 
 .loop-meta {
   display: flex;
@@ -89,12 +106,15 @@ const commitLoopCount = () => {
 }
 
 .meta-label {
-  font-size: 11px; font-weight: 600;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--nf-accent, #00d4aa);
   flex-shrink: 0;
 }
 
-.loop-expr-input { width: 120px; }
+.loop-expr-input {
+  width: 120px;
+}
 
 .loop-body-placeholder {
   flex: 1;
@@ -111,5 +131,7 @@ const commitLoopCount = () => {
   color: var(--nf-text-muted, #52525b);
 }
 
-:deep(.el-input__inner) { font-size: 12px; }
+:deep(.el-input__inner) {
+  font-size: 12px;
+}
 </style>

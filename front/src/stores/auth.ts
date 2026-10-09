@@ -1,154 +1,101 @@
-/**
- * 认证状态管理
- * 使用 Pinia 的选项式 API，管理用户登录状态和token
- */
-import { defineStore } from 'pinia';
-import type { ITokenInfo } from '@/types/auth.types';
-import { AuthService } from '@/services/auth.service';
-import router from '@/router';
+import type { ISignInRequest, ITokenInfo } from '@/types/auth.types'
+import { defineStore } from 'pinia'
+import router from '@/router'
+import { AuthService } from '@/services/auth.service'
+import { setAuthSession } from '@/utils/auth-session'
 
-// 定义 Store 的状态接口
-interface IAuthState {
-  tokenInfo: ITokenInfo | null;
-  refreshTimerId: number | null;
-}
-
-/**
- * 认证状态管理Store
- */
+let initializePromise: Promise<void> | null = null
+let refreshPromise: Promise<ITokenInfo | null> | null = null
 export const useAuthStore = defineStore('auth', {
-  // 状态定义
-  state: (): IAuthState => ({
-    /** Token信息 */
-    tokenInfo: JSON.parse(localStorage.getItem('tokenInfo') || 'null'),
-    /** 刷新定时器ID */
-    refreshTimerId: null,
+  state: () => ({
+    tokenInfo: null as ITokenInfo | null,
+    refreshTimerId: null as ReturnType<typeof setTimeout> | null,
+    initialized: false,
+    sessionGeneration: 0,
   }),
-
-  // 类似于计算属性
   getters: {
-    /**
-     * 是否已认证
-     * @returns {boolean}
-     */
-    getIsAuthenticated: (state) => !!state.tokenInfo,
-
-    /**
-     * 获取访问令牌
-     * @returns {string | null}
-     */
-    getAccessToken: (state) => state.tokenInfo?.accessToken ?? null,
-
-    /**
-     * 获取登录用户信息（从JWT token中解析）
-     */
-    getLoginUserInfo: (state) => {
-      if (state.tokenInfo?.accessToken) {
-        const payloadBase64 = state.tokenInfo?.accessToken.split('.')[1];
-        const payloadJson = atob(payloadBase64);
-        const payload = JSON.parse(payloadJson);
-        return {
-          id: payload.sub,
-          name: payload.name,
-          role: payload.role
-        }
-      }
-      return null;
-    },
-
-    /**
-     * 获取登录用户角色
-     */
-    getLoginUserRole: (state) => {
-      if (state.tokenInfo?.accessToken) {
-        const payloadBase64 = state.tokenInfo?.accessToken.split('.')[1];
-        const payloadJson = atob(payloadBase64);
-        const payload = JSON.parse(payloadJson);
-        return payload.role;
-      }
-      return null;
-    }
+    getIsAuthenticated: state => !!state.tokenInfo,
+    getAccessToken: state => state.tokenInfo?.accessToken ?? null,
+    getLoginUserInfo: state => state.tokenInfo
+      ? { id: state.tokenInfo.user.id, name: state.tokenInfo.user.nickName, role: state.tokenInfo.user.role }
+      : null,
+    getLoginUserRole: state => state.tokenInfo?.user.role ?? null,
   },
-
-  // 定义可以改变状态的同步或异步操作
   actions: {
-    /**
-     * 启动token刷新定时器
-     * 私有方法，每9分钟自动刷新一次token
-     */
-    _startRefreshTimer() {
-      if (this.refreshTimerId) {
-        clearInterval(this.refreshTimerId);
-      }
-      // 每9分钟刷新一次token
-      this.refreshTimerId = window.setInterval(async () => {
-        await this.refreshToken();
-      }, 9 * 60 * 1000);
+    _setSession(value: ITokenInfo | null) {
+      this.tokenInfo = value
+      setAuthSession(value)
+      localStorage.removeItem('tokenInfo')
+      localStorage.removeItem('phoneNumber')
+      if (this.refreshTimerId)
+        clearTimeout(this.refreshTimerId)
+      this.refreshTimerId = value
+        ? setTimeout(() => { void this.refreshToken().catch(() => undefined) }, value.expiresIn * 800)
+        : null
     },
-
-    /**
-     * 登录
-     * @param {string} phoneNumber - 手机号
-     * @param {string} password - 密码
-     * @returns {Promise<ITokenInfo | null>}
-     */
-    async signIn(phoneNumber: string, password: string) {
-      const response = await AuthService.signIn({ phoneNumber, password });
-      this.tokenInfo = response.data || null;
-      // 持久化存储
-      if (this.tokenInfo) {
-        localStorage.setItem('tokenInfo', JSON.stringify(this.tokenInfo));
-        localStorage.setItem('phoneNumber', phoneNumber);
-      }
-      this._startRefreshTimer();
-      return response.data;
+    async signIn(data: ISignInRequest) {
+      const generation = ++this.sessionGeneration
+      refreshPromise = null
+      const response = await AuthService.signIn(data)
+      if (generation !== this.sessionGeneration)
+        return null
+      this._setSession(response.data || null)
+      this.initialized = true
+      return this.tokenInfo
     },
-
-    /**
-     * 登出
-     * 清除token和相关信息，跳转到登录页
-     */
-    signOut() {
-      this.tokenInfo = null;
-      // 清除持久化存储
-      localStorage.removeItem('tokenInfo');
-      if (this.refreshTimerId) {
-        clearInterval(this.refreshTimerId);
-        this.refreshTimerId = null;
+    async signOut() {
+      ++this.sessionGeneration
+      refreshPromise = null
+      this._setSession(null)
+      this.initialized = true
+      try {
+        await AuthService.signOut()
       }
-      router.push('/login');
+      finally { await router.push('/login') }
     },
-
-    /**
-     * 初始化
-     * 应用启动时调用，如果有token则启动刷新定时器
-     */
-    init() {
-      // 如果有 token，启动刷新定时器
-      if (this.tokenInfo) {
-        this._startRefreshTimer();
-      }
+    async init() {
+      await this.ensureSession()
     },
-
-    /**
-     * 刷新token
-     * 使用当前的refreshToken获取新的accessToken
-     */
-    async refreshToken() {
-      if (this.tokenInfo) {  // 如果有 tokenInfo，就用整个 tokenInfo 对象去刷新
-        try {
-          const response = await AuthService.refreshToken(this.tokenInfo);
-          this.tokenInfo = response.data || null;
-          // 持久化存储
-          if (this.tokenInfo) {
-            localStorage.setItem('tokenInfo', JSON.stringify(this.tokenInfo));
+    async ensureSession() {
+      if (this.initialized)
+        return
+      if (!initializePromise) {
+        initializePromise = (async () => {
+          try {
+            await this.refreshToken()
           }
-        } catch (error) {
-          console.error('刷新token失败', error);
-          // 刷新失败可能需要登出
-          this.signOut();
-        }
+          catch { /* refreshToken owns generation-checked invalidation. */ }
+          finally {
+            this.initialized = true
+          }
+        })().finally(() => { initializePromise = null })
       }
-    }
-  }
-});
+      await initializePromise
+    },
+    async refreshToken(): Promise<ITokenInfo | null> {
+      if (!refreshPromise) {
+        const generation = this.sessionGeneration
+        const request = (async () => {
+          try {
+            const response = await AuthService.refreshToken()
+            if (generation !== this.sessionGeneration)
+              return null
+            this._setSession(response.data || null)
+            return this.tokenInfo
+          }
+          catch (error) {
+            if (generation === this.sessionGeneration)
+              this._setSession(null)
+            throw error
+          }
+        })()
+        refreshPromise = request
+        void request.finally(() => {
+          if (refreshPromise === request)
+            refreshPromise = null
+        }).catch(() => undefined)
+      }
+      return refreshPromise
+    },
+  },
+})

@@ -10,9 +10,26 @@ export interface Variable {
   id?: string;
   name: string;
   required?: boolean;
-  defaultValue?: any;
+  defaultValue?: unknown;
   hasValue?: boolean;
-  value?: any;
+  value?: unknown;
+}
+
+export interface ExpressionUnit {
+  typeName?: string;
+  text?: string;
+  Text?: string;
+}
+
+export interface ConditionRule {
+  expressionUnit?: ExpressionUnit;
+  lineId?: string;
+}
+
+export interface HttpKeyValueItem {
+  enabled?: boolean;
+  key?: string;
+  value?: string;
 }
 
 export interface NodeConfig {
@@ -20,7 +37,36 @@ export interface NodeConfig {
   id: string;
   displayName?: string;
   description?: string;
-  [key: string]: any;
+  modelSelection?: string;
+  modelName?: string;
+  systemPrompt?: ExpressionUnit;
+  userPrompt?: ExpressionUnit;
+  temperature?: number;
+  enableThinking?: boolean;
+  message?: ExpressionUnit;
+  conditions?: ConditionRule[];
+  elseRule?: ConditionRule;
+  assignments?: {
+    expressionUnit?: ExpressionUnit;
+    targetVariableName: string;
+  }[];
+  knowledgeBaseIds?: string[];
+  queryExpression?: ExpressionUnit;
+  topK?: number;
+  threshold?: number;
+  embeddingModel?: string;
+  rerankEnabled?: boolean;
+  outputVariable?: string;
+  url?: string | ExpressionUnit;
+  query?: string | ExpressionUnit;
+  body?: string | ExpressionUnit;
+  headers?: string | ExpressionUnit;
+  method?: string;
+  timeoutSeconds?: number;
+  bodyMode?: string;
+  queryParams?: HttpKeyValueItem[];
+  headerParams?: HttpKeyValueItem[];
+  [key: string]: unknown;
 }
 
 export interface NodeLine {
@@ -34,7 +80,7 @@ export interface NodeLine {
 export interface NodeExecuteResult {
   nodeId: string;
   isSuccess: boolean;
-  result?: any;
+  result?: unknown;
   errorMsg: string;
   errorCode: number;
   streamingExecutor?: () => AsyncGenerator<string>;
@@ -49,7 +95,7 @@ export interface FlowRuntimeContext {
   flowConfigInfoForRun: FlowConfigInfo;
   startTime: Date;
   inputVariables: Variable[];
-  inputVariablesOriginal: Record<string, any>;
+  inputVariablesOriginal: Record<string, unknown>;
   variables: Variable[];
   request?: AIChatRequest;
   conversationId?: string;
@@ -63,7 +109,7 @@ export interface AIChatRequest {
   user: string;
   conversationId?: string;
   responseMode?: string;
-  inputs?: Record<string, any>;
+  inputs?: Record<string, unknown>;
   files?: AIFileRequest[];
 }
 
@@ -90,7 +136,12 @@ export interface TokenUsage {
   totalTokens: number;
 }
 
-export type NodeRunStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+export type NodeRunStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'failed'
+  | 'skipped';
 
 export interface NodeRunState {
   nodeId: string;

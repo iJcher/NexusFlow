@@ -1,6 +1,10 @@
 import { Controller, Post, Get, Body, Query } from '@nestjs/common';
 import { FlowService } from './flow.service';
-import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import { FlowWriteDto } from './flow.dto';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator';
 
 const FLOW_TYPE_MAP: Record<string, number> = {
   LogicFlow: 0,
@@ -20,16 +24,23 @@ export class FlowController {
   constructor(private flowService: FlowService) {}
 
   @Post('Create')
-  async create(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
-    if (typeof dto.flowType === 'string') {
-      dto.flowType = FLOW_TYPE_MAP[dto.flowType] ?? 0;
-    }
-    const result = await this.flowService.create(dto, user.id, user.nickName || 'System');
+  async create(
+    @Body() dto: FlowWriteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.flowService.create(
+      dto,
+      user.id,
+      user.nickName || 'System',
+    );
     return { errCode: 0, errMsg: '', data: result };
   }
 
   @Get('GetById')
-  async getById(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async getById(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.flowService.getById(BigInt(id), user.id);
     if (!result) return { errCode: 1, errMsg: `flow not found, ID: ${id}` };
     return { errCode: 0, errMsg: '', data: result };
@@ -52,14 +63,24 @@ export class FlowController {
   }
 
   @Post('Update')
-  async update(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
-    const result = await this.flowService.update(dto, user.id, user.nickName || 'System');
+  async update(
+    @Body() dto: FlowWriteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.flowService.update(
+      dto,
+      user.id,
+      user.nickName || 'System',
+    );
     if (!result) return { errCode: 1, errMsg: `flow not found, ID: ${dto.id}` };
     return { errCode: 0, errMsg: '', data: result };
   }
 
   @Post('Delete')
-  async delete(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async delete(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const result = await this.flowService.delete(BigInt(id), user.id);
     if (!result) return { errCode: 1, errMsg: `flow not found, ID: ${id}` };
     return { errCode: 0, errMsg: '', data: true };

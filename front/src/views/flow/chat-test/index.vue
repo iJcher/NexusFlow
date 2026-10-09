@@ -1,219 +1,27 @@
-<template>
-  <div :class="containerClass">
-    <aside :class="['chat-sidebar', { 'is-open': sidebarOpen || !isCompactLayout, 'is-collapsed': !sidebarOpen && !isCompactLayout }]">
-      <div class="sidebar-header">
-        <div class="top-btn-row">
-          <el-button :icon="Plus" text class="nf-top-btn" @click="startNewConversation">{{ t('flowChat.newConversation') || '新建会话' }}</el-button>
-          <el-button :icon="Refresh" text class="nf-top-btn" :loading="isConversationsLoading" @click="loadConversations(true)">{{ t('flowChat.refresh') || '刷新' }}</el-button>
-        </div>
-        <button class="sidebar-toggle-btn" type="button" @click="sidebarOpen = !sidebarOpen">
-          <el-icon :size="16"><Fold /></el-icon>
-        </button>
-      </div>
-
-      <el-scrollbar class="sidebar-scroll">
-        <div
-          v-for="(conv, index) in sortedConversations"
-          :key="conv.id || conv.title || index"
-          :class="['conv-item', { active: conv.id === conversationId }]"
-          @click="handleSelectConversation(conv)"
-        >
-          <span class="conv-title truncate">{{ conv.title || t('flowChat.untitledConversation') || '未命名会话' }}</span>
-          <el-dropdown
-            trigger="click"
-            placement="bottom-end"
-            @click.stop
-            @command="(command: string) => handleConversationCommand(command, conv)"
-          >
-            <button class="conv-more" @click.stop>
-              <el-icon :size="16"><MoreFilled /></el-icon>
-            </button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="pin">{{ conv.isTop ? t('flowChat.unpin') : t('flowChat.pin') }}</el-dropdown-item>
-                <el-dropdown-item command="rename">{{ t('flowChat.rename') }}</el-dropdown-item>
-                <el-dropdown-item command="delete" class="danger-dropdown-item">{{ t('flowChat.delete') }}</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-        <div v-if="!sortedConversations.length && !isConversationsLoading" class="text-center text-nf-text-secondary py-6">
-          {{ t('flowChat.noConversations') || '暂无会话，点击新建开始聊天' }}
-        </div>
-        <div v-if="hasMoreConversations" class="text-center py-2 pb-4">
-          <el-button text :loading="isConversationsLoading" @click="loadConversations(false)">
-            {{ t('flowChat.loadMore') || '加载更多' }}
-          </el-button>
-        </div>
-      </el-scrollbar>
-    </aside>
-    <div v-if="isCompactLayout && sidebarOpen" class="sidebar-mask" @click="sidebarOpen = false"></div>
-
-    <section class="chat-main">
-      <button
-        v-if="!sidebarOpen"
-        class="sidebar-expand-btn"
-        type="button"
-        @click="sidebarOpen = true"
-      >
-        <el-icon :size="16"><Expand /></el-icon>
-      </button>
-      <div class="chat-scroll-region">
-        <!-- 聊天内容区域 -->
-        <div class="chat-content" ref="chatContentRef" @scroll="updateMeteorScrollbar">
-          <div v-if="messagesHasMore" class="flex justify-center mb-2">
-            <el-button size="small" text :loading="isMessagesLoading" @click="loadMessages(false)">
-              {{ t('flowChat.loadMoreMessages') || '加载更多历史消息' }}
-            </el-button>
-          </div>
-
-          <!-- 欢迎消息 -->
-          <div v-if="messages.length === 0" class="welcome-panel text-center py-15 px-5 text-nf-text-secondary">
-            <img :src="botImage" alt="" class="welcome-bot" />
-            <h2 class="welcome-title">{{ t('flowChat.welcome') }}</h2>
-            <p class="text-3.5 text-nf-text-secondary">{{ t('flowChat.welcomeDesc') }}</p>
-          </div>
-
-          <!-- 消息列表 -->
-          <div v-for="(msg, index) in messages" :key="`msg-${index}-${msg.timestamp}`" class="message-row">
-            <!-- 用户消息 -->
-            <div v-if="msg.role === 'user'" class="message user-message">
-              <div class="user-bubble">
-                <div class="message-text">{{ msg.content }}</div>
-                <div v-if="msg.files && msg.files.length > 0" class="mt-2 flex flex-col gap-1">
-                  <div v-for="(file, idx) in msg.files" :key="idx" class="flex items-center gap-1.5 text-3 opacity-90">
-                    <el-icon :size="14"><Paperclip /></el-icon>
-                    <a :href="file.url" target="_blank" class="text-inherit underline truncate max-w-75 hover:opacity-80">
-                      {{ file.name || file.url }}
-                    </a>
-                  </div>
-                </div>
-              </div>
-              <div class="nf-avatar user-avatar-bg">
-                <img :src="defaultAvatarImage" alt="" class="user-avatar-img" />
-              </div>
-            </div>
-
-            <!-- AI消息 -->
-            <div v-else class="message ai-message">
-              <div class="nf-avatar ai-avatar-bg">
-                <img :src="botImage" alt="" class="ai-avatar-img" />
-              </div>
-              <div class="ai-bubble">
-                <div class="message-text" v-html="formatMarkdown(msg.content)"></div>
-                <div v-if="isLoading && index === messages.length - 1" class="inline-streaming-indicator">
-                  <span v-if="!msg.content.trim()" class="streaming-text">{{ t('flowChat.generating') || '正在生成' }}</span>
-                  <span class="streaming-dot"></span>
-                  <span class="streaming-dot"></span>
-                  <span class="streaming-dot"></span>
-                </div>
-                
-                <div v-if="msg.flowInstanceId" class="mt-2 flex gap-2">
-                  <a 
-                    :href="`/flow/logs/${flowId}/${msg.flowInstanceId}`" 
-                    target="_blank"
-                    class="log-link"
-                  >
-                    {{ t('flowChat.viewRunLog') }}
-                  </a>
-                </div>
-                
-                <div class="text-3 text-nf-text-secondary mt-1">{{ formatTime(msg.timestamp) }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-show="isMeteorScrollbarVisible" class="meteor-scrollbar">
-          <div class="meteor-scrollbar__thumb" :style="meteorThumbStyle"></div>
-        </div>
-      </div>
-
-      <!-- 输入区域 -->
-      <div class="composer-wrap">
-        <!-- 文件列表 -->
-        <div v-if="files.length > 0" class="flex flex-wrap gap-2 mb-3">
-          <div v-for="(file, index) in files" :key="index" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-nf-elevated border border-nf-border-light rounded-2 text-3.25 text-nf-text-secondary transition-all hover:bg-nf-border-light">
-            <el-icon :size="14"><Paperclip /></el-icon>
-            <span class="max-w-50 truncate">{{ file.name || file.url }}</span>
-            <el-icon 
-              :size="14" 
-              class="cursor-pointer text-nf-text-secondary transition-colors hover:text-red-500" 
-              @click="removeFile(index)"
-            >
-              <CloseBold />
-            </el-icon>
-          </div>
-        </div>
-        
-        <div class="composer-input">
-          <el-input
-            ref="inputRef"
-            v-model="inputMessage"
-            type="textarea"
-            :autosize="{ minRows: 2, maxRows: 12 }"
-            :placeholder="t('flowChat.inputPlaceholder')"
-            :disabled="isLoading"
-            @keydown.enter.exact.prevent="sendMessage"
-            class="composer-textarea"
-          />
-        </div>
-        <div class="composer-footer">
-          <div class="composer-tools">
-            <input
-              ref="fileInputRef"
-              class="file-input"
-              type="file"
-              multiple
-              @change="handleNativeFileChange"
-            />
-            <button class="tool-chip" type="button" :disabled="isLoading" @click="openFileDialog">
-              <el-icon :size="15"><Paperclip /></el-icon>
-              <span>{{ t('flowChat.addFile') }}</span>
-            </button>
-          </div>
-          <div class="composer-actions">
-            <el-button
-              type="primary"
-              :icon="Promotion"
-              :loading="isLoading"
-              :disabled="isLoading || !inputMessage.trim()"
-              @click="sendMessage"
-              class="send-btn"
-              circle
-            />
-          </div>
-        </div>
-        
-      </div>
-    </section>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { Promotion, Paperclip, Plus, CloseBold, Refresh, MoreFilled, Fold, Expand } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-
 import type { ChatMessage, FileItem } from '@/composables/useChatSSE'
+import { CloseBold, Expand, Fold, MoreFilled, Paperclip, Plus, Promotion, Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import { useRoute } from 'vue-router'
+import botImage from '@/assets/images/bot.png'
+import defaultAvatarImage from '@/assets/images/default.png'
 import { useChatSSE } from '@/composables/useChatSSE'
 import { useConversationList } from '@/composables/useConversationList'
 import { useMarkdownRenderer } from '@/composables/useMarkdownRenderer'
-import botImage from '@/assets/images/bot.png'
-import defaultAvatarImage from '@/assets/images/default.png'
 
+const props = withDefaults(defineProps<IFlowChatTestProps>(), {
+  flowId: '',
+  embedded: false,
+})
 const { t } = useI18n()
 const route = useRoute()
 interface IFlowChatTestProps {
   flowId?: string | number
   embedded?: boolean
 }
-
-const props = withDefaults(defineProps<IFlowChatTestProps>(), {
-  flowId: '',
-  embedded: false,
-})
 
 const flowId = computed(() => {
   if (props.flowId !== '') {
@@ -245,14 +53,16 @@ const isMeteorScrollbarVisible = ref(false)
 
 const files = ref<FileItem[]>([])
 
-const updateMeteorScrollbar = () => {
+function updateMeteorScrollbar() {
   const el = chatContentRef.value
-  if (!el) return
+  if (!el)
+    return
 
   const { clientHeight, scrollHeight, scrollTop } = el
   const isScrollable = scrollHeight > clientHeight + 1
   isMeteorScrollbarVisible.value = isScrollable
-  if (!isScrollable) return
+  if (!isScrollable)
+    return
 
   const thumbHeight = Math.max(42, Math.min(clientHeight * 0.36, (clientHeight / scrollHeight) * clientHeight))
   const maxScrollTop = scrollHeight - clientHeight
@@ -265,7 +75,7 @@ const updateMeteorScrollbar = () => {
   }
 }
 
-const scrollToBottom = () => {
+function scrollToBottom() {
   nextTick(() => {
     if (chatContentRef.value) {
       chatContentRef.value.scrollTop = chatContentRef.value.scrollHeight
@@ -297,14 +107,14 @@ const {
 const sendMessage = () => sseSend(inputMessage, files, inputRef)
 type IConversationItem = Parameters<typeof selectConversation>[0]
 
-const handleSelectConversation = async (conversation: IConversationItem) => {
+async function handleSelectConversation(conversation: IConversationItem) {
   await selectConversation(conversation)
   if (isCompactLayout.value) {
     sidebarOpen.value = false
   }
 }
 
-const handleConversationCommand = (command: string, conversation: IConversationItem) => {
+function handleConversationCommand(command: string, conversation: IConversationItem) {
   if (command === 'pin') {
     toggleConversationTop(conversation)
     return
@@ -318,14 +128,15 @@ const handleConversationCommand = (command: string, conversation: IConversationI
   }
 }
 
-const formatTime = (timestamp: number): string => {
+function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
-const handleNativeFileChange = (event: Event) => {
+function handleNativeFileChange(event: Event) {
   const target = event.target as HTMLInputElement
   const selectedFiles = Array.from(target.files ?? [])
-  if (!selectedFiles.length) return
+  if (!selectedFiles.length)
+    return
 
   files.value.push(...selectedFiles.map((file: File) => ({
     url: URL.createObjectURL(file),
@@ -337,14 +148,14 @@ const handleNativeFileChange = (event: Event) => {
   ElMessage.success(t('flowChat.fileAdded'))
 }
 
-const removeFile = (index: number) => {
+function removeFile(index: number) {
   files.value.splice(index, 1)
   ElMessage.success(t('flowChat.fileDeleted'))
 }
 
 const openFileDialog = () => fileInputRef.value?.click()
 
-const handleResize = () => {
+function handleResize() {
   viewportWidth.value = window.innerWidth
   if (!isCompactLayout.value) {
     sidebarOpen.value = true
@@ -368,6 +179,226 @@ onBeforeUnmount(() => {
 })
 </script>
 
+<template>
+  <div :class="containerClass">
+    <aside class="chat-sidebar" :class="[{ 'is-open': sidebarOpen || !isCompactLayout, 'is-collapsed': !sidebarOpen && !isCompactLayout }]">
+      <div class="sidebar-header">
+        <div class="top-btn-row">
+          <el-button :icon="Plus" text class="nf-top-btn" @click="startNewConversation">
+            {{ t('flowChat.newConversation') || '新建会话' }}
+          </el-button>
+          <el-button :icon="Refresh" text class="nf-top-btn" :loading="isConversationsLoading" @click="loadConversations(true)">
+            {{ t('flowChat.refresh') || '刷新' }}
+          </el-button>
+        </div>
+        <button class="sidebar-toggle-btn" type="button" @click="sidebarOpen = !sidebarOpen">
+          <el-icon :size="16">
+            <Fold />
+          </el-icon>
+        </button>
+      </div>
+
+      <el-scrollbar class="sidebar-scroll">
+        <div
+          v-for="(conv, index) in sortedConversations"
+          :key="conv.id || conv.title || index"
+          class="conv-item" :class="[{ active: conv.id === conversationId }]"
+          @click="handleSelectConversation(conv)"
+        >
+          <span class="conv-title truncate">{{ conv.title || t('flowChat.untitledConversation') || '未命名会话' }}</span>
+          <el-dropdown
+            trigger="click"
+            placement="bottom-end"
+            @click.stop
+            @command="(command: string) => handleConversationCommand(command, conv)"
+          >
+            <button class="conv-more" @click.stop>
+              <el-icon :size="16">
+                <MoreFilled />
+              </el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="pin">
+                  {{ conv.isTop ? t('flowChat.unpin') : t('flowChat.pin') }}
+                </el-dropdown-item>
+                <el-dropdown-item command="rename">
+                  {{ t('flowChat.rename') }}
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" class="danger-dropdown-item">
+                  {{ t('flowChat.delete') }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+        <div v-if="!sortedConversations.length && !isConversationsLoading" class="py-6 text-center text-nf-text-secondary">
+          {{ t('flowChat.noConversations') || '暂无会话，点击新建开始聊天' }}
+        </div>
+        <div v-if="hasMoreConversations" class="py-2 pb-4 text-center">
+          <el-button text :loading="isConversationsLoading" @click="loadConversations(false)">
+            {{ t('flowChat.loadMore') || '加载更多' }}
+          </el-button>
+        </div>
+      </el-scrollbar>
+    </aside>
+    <div v-if="isCompactLayout && sidebarOpen" class="sidebar-mask" @click="sidebarOpen = false" />
+
+    <section class="chat-main">
+      <button
+        v-if="!sidebarOpen"
+        class="sidebar-expand-btn"
+        type="button"
+        @click="sidebarOpen = true"
+      >
+        <el-icon :size="16">
+          <Expand />
+        </el-icon>
+      </button>
+      <div class="chat-scroll-region">
+        <!-- 聊天内容区域 -->
+        <div ref="chatContentRef" class="chat-content" @scroll="updateMeteorScrollbar">
+          <div v-if="messagesHasMore" class="mb-2 flex justify-center">
+            <el-button size="small" text :loading="isMessagesLoading" @click="loadMessages(false)">
+              {{ t('flowChat.loadMoreMessages') || '加载更多历史消息' }}
+            </el-button>
+          </div>
+
+          <!-- 欢迎消息 -->
+          <div v-if="messages.length === 0" class="welcome-panel px-5 py-15 text-center text-nf-text-secondary">
+            <img :src="botImage" alt="" class="welcome-bot">
+            <h2 class="welcome-title">
+              {{ t('flowChat.welcome') }}
+            </h2>
+            <p class="text-3.5 text-nf-text-secondary">
+              {{ t('flowChat.welcomeDesc') }}
+            </p>
+          </div>
+
+          <!-- 消息列表 -->
+          <div v-for="(msg, index) in messages" :key="`msg-${index}-${msg.timestamp}`" class="message-row">
+            <!-- 用户消息 -->
+            <div v-if="msg.role === 'user'" class="message user-message">
+              <div class="user-bubble">
+                <div class="message-text">
+                  {{ msg.content }}
+                </div>
+                <div v-if="msg.files && msg.files.length > 0" class="mt-2 flex flex-col gap-1">
+                  <div v-for="(file, idx) in msg.files" :key="idx" class="flex items-center gap-1.5 text-3 opacity-90">
+                    <el-icon :size="14">
+                      <Paperclip />
+                    </el-icon>
+                    <a :href="file.url" target="_blank" class="max-w-75 truncate text-inherit underline hover:opacity-80">
+                      {{ file.name || file.url }}
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="user-avatar-bg nf-avatar">
+                <img :src="defaultAvatarImage" alt="" class="user-avatar-img">
+              </div>
+            </div>
+
+            <!-- AI消息 -->
+            <div v-else class="message ai-message">
+              <div class="ai-avatar-bg nf-avatar">
+                <img :src="botImage" alt="" class="ai-avatar-img">
+              </div>
+              <div class="ai-bubble">
+                <div class="message-text" v-html="formatMarkdown(msg.content)" />
+                <div v-if="isLoading && index === messages.length - 1" class="inline-streaming-indicator">
+                  <span v-if="!msg.content.trim()" class="streaming-text">{{ t('flowChat.generating') || '正在生成' }}</span>
+                  <span class="streaming-dot" />
+                  <span class="streaming-dot" />
+                  <span class="streaming-dot" />
+                </div>
+
+                <div v-if="msg.flowInstanceId" class="mt-2 flex gap-2">
+                  <a
+                    :href="`/flow/logs/${flowId}/${msg.flowInstanceId}`"
+                    target="_blank"
+                    class="log-link"
+                  >
+                    {{ t('flowChat.viewRunLog') }}
+                  </a>
+                </div>
+
+                <div class="mt-1 text-3 text-nf-text-secondary">
+                  {{ formatTime(msg.timestamp) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-show="isMeteorScrollbarVisible" class="meteor-scrollbar">
+          <div class="meteor-scrollbar__thumb" :style="meteorThumbStyle" />
+        </div>
+      </div>
+
+      <!-- 输入区域 -->
+      <div class="composer-wrap">
+        <!-- 文件列表 -->
+        <div v-if="files.length > 0" class="mb-3 flex flex-wrap gap-2">
+          <div v-for="(file, index) in files" :key="index" class="inline-flex items-center gap-1.5 border border-nf-border-light rounded-2 bg-nf-elevated px-3 py-1.5 text-3.25 text-nf-text-secondary transition-all hover:bg-nf-border-light">
+            <el-icon :size="14">
+              <Paperclip />
+            </el-icon>
+            <span class="max-w-50 truncate">{{ file.name || file.url }}</span>
+            <el-icon
+              :size="14"
+              class="cursor-pointer text-nf-text-secondary transition-colors hover:text-red-500"
+              @click="removeFile(index)"
+            >
+              <CloseBold />
+            </el-icon>
+          </div>
+        </div>
+
+        <div class="composer-input">
+          <el-input
+            ref="inputRef"
+            v-model="inputMessage"
+            type="textarea"
+            :autosize="{ minRows: 2, maxRows: 12 }"
+            :placeholder="t('flowChat.inputPlaceholder')"
+            :disabled="isLoading"
+            class="composer-textarea"
+            @keydown.enter.exact.prevent="sendMessage"
+          />
+        </div>
+        <div class="composer-footer">
+          <div class="composer-tools">
+            <input
+              ref="fileInputRef"
+              class="file-input"
+              type="file"
+              multiple
+              @change="handleNativeFileChange"
+            >
+            <button class="tool-chip" type="button" :disabled="isLoading" @click="openFileDialog">
+              <el-icon :size="15">
+                <Paperclip />
+              </el-icon>
+              <span>{{ t('flowChat.addFile') }}</span>
+            </button>
+          </div>
+          <div class="composer-actions">
+            <el-button
+              type="primary"
+              :icon="Promotion"
+              :loading="isLoading"
+              :disabled="isLoading || !inputMessage.trim()"
+              class="send-btn"
+              circle
+              @click="sendMessage"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</template>
+
 <style scoped>
 .chat-shell {
   width: 100%;
@@ -381,7 +412,7 @@ onBeforeUnmount(() => {
 
 .chat-bg {
   background: var(--nf-bg-base, #020406);
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
 }
 
 .chat-sidebar {
@@ -418,7 +449,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #E6EDF3;
+  color: #e6edf3;
   font-weight: 500;
 }
 
@@ -456,18 +487,22 @@ onBeforeUnmount(() => {
   width: 100%;
   justify-content: flex-start !important;
   border: 1px solid transparent !important;
-  color: var(--nf-text-primary, #E6EDF3) !important;
+  color: var(--nf-text-primary, #e6edf3) !important;
   background: transparent !important;
   border-radius: 999px;
   padding: 5px 8px !important;
   font-size: 12px;
   font-weight: 400;
-  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .nf-top-btn:hover {
   border-color: rgba(255, 255, 255, 0.08) !important;
-  color: var(--nf-text-hover, #B0BEC5) !important;
+  color: var(--nf-text-hover, #b0bec5) !important;
   background: rgba(255, 255, 255, 0.04) !important;
   box-shadow: none;
 }
@@ -488,18 +523,21 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 999px;
   background: transparent;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .sidebar-toggle-btn:hover,
 .sidebar-expand-btn:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   background: rgba(255, 255, 255, 0.04);
 }
 
@@ -522,20 +560,23 @@ onBeforeUnmount(() => {
   padding: 0 6px 0 12px;
   margin-bottom: 2px;
   cursor: pointer;
-  color: var(--nf-text-body, #8B9DB0);
-  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  color: var(--nf-text-body, #8b9db0);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .conv-item:hover {
   border-color: transparent;
   background: rgba(255, 255, 255, 0.04);
-  color: var(--nf-text-hover, #B0BEC5);
+  color: var(--nf-text-hover, #b0bec5);
 }
 
 .conv-item.active {
   border-color: transparent;
   background: rgba(0, 255, 159, 0.12);
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   box-shadow: none;
 }
 
@@ -559,7 +600,10 @@ onBeforeUnmount(() => {
   justify-content: center;
   opacity: 0;
   cursor: pointer;
-  transition: opacity 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .conv-item:hover .conv-more,
@@ -618,8 +662,14 @@ onBeforeUnmount(() => {
 .meteor-scrollbar__thumb {
   width: 3px;
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, transparent 0%, rgba(0, 255, 159, 0.08) 18%, rgba(0, 255, 159, 0.34) 50%, rgba(0, 255, 159, 0.08) 82%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 255, 159, 0.08) 18%,
+    rgba(0, 255, 159, 0.34) 50%,
+    rgba(0, 255, 159, 0.08) 82%,
+    transparent 100%
+  );
   filter: drop-shadow(0 0 3px rgba(0, 255, 159, 0.16));
   opacity: 0.72;
   transition: opacity 0.18s ease;
@@ -631,9 +681,7 @@ onBeforeUnmount(() => {
   width: min(calc(100% - 40px), 840px);
   margin: auto;
   border-radius: 24px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(0, 255, 159, 0.06), transparent 46%),
-    rgba(8, 11, 16, 0.48);
+  background: radial-gradient(circle at 50% 0%, rgba(0, 255, 159, 0.06), transparent 46%), rgba(8, 11, 16, 0.48);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -648,7 +696,7 @@ onBeforeUnmount(() => {
 
 .welcome-title {
   margin: 0 0 10px;
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   font-size: 18px;
   font-weight: 500;
   line-height: 1.45;
@@ -669,12 +717,16 @@ onBeforeUnmount(() => {
   border-radius: 28px;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(14px);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .composer-wrap:focus-within {
   border-color: rgba(0, 255, 159, 0.35);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.36), 0 0 0 3px rgba(0, 255, 159, 0.05);
+  box-shadow:
+    0 18px 54px rgba(0, 0, 0, 0.36),
+    0 0 0 3px rgba(0, 255, 159, 0.05);
 }
 
 .composer-input {
@@ -720,15 +772,23 @@ onBeforeUnmount(() => {
 }
 
 @keyframes messageSlideIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.user-message { justify-content: flex-end; }
+.user-message {
+  justify-content: flex-end;
+}
 
 .user-bubble {
   background: rgba(22, 28, 38, 0.92);
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   border-radius: 22px 22px 6px 22px;
   padding: 10px 16px;
   max-width: min(72%, 620px);
@@ -763,7 +823,9 @@ onBeforeUnmount(() => {
   filter: drop-shadow(0 0 10px rgba(0, 255, 159, 0.12));
 }
 
-.ai-message { justify-content: flex-start; }
+.ai-message {
+  justify-content: flex-start;
+}
 
 .ai-bubble {
   width: 100%;
@@ -781,7 +843,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.02em;
   word-wrap: break-word;
   white-space: normal;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
 }
 
 .message-text :deep(*) {
@@ -806,7 +868,7 @@ onBeforeUnmount(() => {
 .message-text :deep(h3),
 .message-text :deep(h4) {
   margin: 16px 0 8px;
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   font-weight: 600;
   line-height: 1.45;
   letter-spacing: 0.04em;
@@ -819,13 +881,19 @@ onBeforeUnmount(() => {
   margin-top: 0;
 }
 
-.message-text :deep(h1) { font-size: 16px; }
-.message-text :deep(h2) { font-size: 15px; }
+.message-text :deep(h1) {
+  font-size: 16px;
+}
+.message-text :deep(h2) {
+  font-size: 15px;
+}
 .message-text :deep(h3),
-.message-text :deep(h4) { font-size: 14px; }
+.message-text :deep(h4) {
+  font-size: 14px;
+}
 
 .message-text :deep(strong) {
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   font-weight: 600;
 }
 
@@ -841,7 +909,7 @@ onBeforeUnmount(() => {
 }
 
 .message-text :deep(li::marker) {
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   font-weight: 600;
 }
 
@@ -850,14 +918,16 @@ onBeforeUnmount(() => {
 }
 
 .message-text :deep(a) {
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   text-decoration: none;
   border-bottom: 1px solid rgba(0, 255, 159, 0.35);
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .message-text :deep(a:hover) {
-  color: var(--nf-accent-hover, #33FFB3);
+  color: var(--nf-accent-hover, #33ffb3);
   border-bottom-color: rgba(0, 255, 159, 0.6);
 }
 
@@ -867,7 +937,7 @@ onBeforeUnmount(() => {
   border-left: 3px solid rgba(0, 255, 159, 0.45);
   border-radius: 6px;
   background: rgba(0, 255, 159, 0.04);
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
 }
 
 .message-text :deep(pre) {
@@ -883,7 +953,7 @@ onBeforeUnmount(() => {
 .message-text :deep(code) {
   background: rgba(0, 255, 159, 0.06);
   border: 1px solid rgba(0, 255, 159, 0.16);
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   padding: 2px 5px;
   border-radius: 4px;
   font-family: var(--nf-font-mono);
@@ -895,7 +965,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   font-size: 12px;
   line-height: 1.65;
 }
@@ -918,7 +988,7 @@ onBeforeUnmount(() => {
 }
 
 .message-text :deep(th) {
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   background: rgba(255, 255, 255, 0.03);
   font-weight: 600;
 }
@@ -949,7 +1019,10 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.message-text :deep(.thinking-icon) { font-size: 18px; line-height: 1; }
+.message-text :deep(.thinking-icon) {
+  font-size: 18px;
+  line-height: 1;
+}
 
 .message-text :deep(.thinking-title) {
   font-size: 12px;
@@ -966,8 +1039,13 @@ onBeforeUnmount(() => {
 }
 
 @keyframes thinkingPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .message-text :deep(.thinking-content) {
@@ -985,8 +1063,13 @@ onBeforeUnmount(() => {
 }
 
 @keyframes thinkingGlow {
-  0%, 100% { border-color: var(--nf-info-muted); }
-  50% { border-color: var(--nf-accent2); }
+  0%,
+  100% {
+    border-color: var(--nf-info-muted);
+  }
+  50% {
+    border-color: var(--nf-accent2);
+  }
 }
 
 .log-link {
@@ -1000,15 +1083,21 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-.log-link:hover { color: var(--nf-accent-hover); text-decoration: underline; }
-.log-link::before { content: '📋'; font-size: 14px; }
+.log-link:hover {
+  color: var(--nf-accent-hover);
+  text-decoration: underline;
+}
+.log-link::before {
+  content: '📋';
+  font-size: 14px;
+}
 
 .inline-streaming-indicator {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   margin-top: 8px;
-  color: var(--nf-text-secondary, #6B7D8E);
+  color: var(--nf-text-secondary, #6b7d8e);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1018,24 +1107,36 @@ onBeforeUnmount(() => {
 }
 
 .streaming-text {
-  color: var(--nf-text-secondary, #6B7D8E);
+  color: var(--nf-text-secondary, #6b7d8e);
 }
 
 .streaming-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--nf-accent, #00FF9F);
+  background: var(--nf-accent, #00ff9f);
   opacity: 0.45;
   animation: typing 1.2s infinite ease-in-out;
 }
 
-.streaming-dot:nth-last-child(2) { animation-delay: 0.16s; }
-.streaming-dot:nth-last-child(1) { animation-delay: 0.32s; }
+.streaming-dot:nth-last-child(2) {
+  animation-delay: 0.16s;
+}
+.streaming-dot:nth-last-child(1) {
+  animation-delay: 0.32s;
+}
 
 @keyframes typing {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-  30% { transform: translateY(-8px); opacity: 1; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
 }
 
 .tool-chip {
@@ -1047,21 +1148,24 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   font-size: 12px;
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .tool-chip:disabled {
-  color: var(--nf-text-disabled, #3A4A5C);
+  color: var(--nf-text-disabled, #3a4a5c);
   cursor: not-allowed;
 }
 
 .tool-chip:hover {
   border-color: rgba(0, 255, 159, 0.35);
   background: rgba(0, 255, 159, 0.06);
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
 }
 
 .send-btn {
@@ -1085,7 +1189,7 @@ onBeforeUnmount(() => {
 .send-btn.is-disabled,
 .send-btn.is-disabled:hover {
   border-color: rgba(255, 255, 255, 0.03) !important;
-  color: #3A4A5C !important;
+  color: #3a4a5c !important;
   background: transparent !important;
   box-shadow: none !important;
 }
@@ -1098,7 +1202,7 @@ onBeforeUnmount(() => {
   box-shadow: none !important;
   background: transparent !important;
   background-color: transparent !important;
-  color: var(--nf-text-input, #C0CDD8);
+  color: var(--nf-text-input, #c0cdd8);
   font-size: 13px;
   line-height: 1.65;
   resize: none;
@@ -1119,7 +1223,7 @@ onBeforeUnmount(() => {
 }
 
 .composer-wrap :deep(.el-textarea__inner::placeholder) {
-  color: var(--nf-text-tertiary, #4A5C6E);
+  color: var(--nf-text-tertiary, #4a5c6e);
 }
 
 @media (max-width: 1366px) {

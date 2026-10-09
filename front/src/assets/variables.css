@@ -2,8 +2,9 @@
 
 @font-face {
   font-family: 'DongFangDaKai';
-  src: url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff2') format('woff2'),
-       url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff') format('woff');
+  src:
+    url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff2') format('woff2'),
+    url('@/fonts/阿里妈妈东方大楷/AlimamaDongFangDaKai-Regular.woff') format('woff');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -15,97 +16,97 @@
    ============================================================ */
 :root {
   /* ── Surface 层次体系 ── */
-  --nf-bg-base:      #05070A;
-  --nf-bg-card:      #080B10;
-  --nf-bg-elevated:  #0E1218;
-  --nf-bg-muted:     #161B24;
+  --nf-bg-base: #05070a;
+  --nf-bg-card: #080b10;
+  --nf-bg-elevated: #0e1218;
+  --nf-bg-muted: #161b24;
 
   /* ── 半透明 Surface ── */
-  --nf-bg-base-alpha:     rgba(5, 7, 10, 0.85);
-  --nf-bg-card-alpha:     rgba(8, 11, 16, 0.85);
+  --nf-bg-base-alpha: rgba(5, 7, 10, 0.85);
+  --nf-bg-card-alpha: rgba(8, 11, 16, 0.85);
   --nf-bg-elevated-alpha: rgba(14, 18, 24, 0.8);
-  --nf-bg-muted-alpha:    rgba(22, 27, 36, 0.6);
+  --nf-bg-muted-alpha: rgba(22, 27, 36, 0.6);
 
   /* ── 边框 ── */
-  --nf-border:       #141A22;
-  --nf-border-light: #1E2733;
+  --nf-border: #141a22;
+  --nf-border-light: #1e2733;
   --nf-border-alpha: rgba(20, 26, 34, 0.5);
 
   /* ── 文字 ── */
-  --nf-text-primary:   #E6EDF3;
+  --nf-text-primary: #e6edf3;
   --nf-text-secondary: #a1a1aa;
-  --nf-text-muted:     #71717a;
+  --nf-text-muted: #71717a;
 
   /* ── 强调色（品牌色） ── */
-  --nf-accent:       #00FF9F;
-  --nf-accent-hover: #33FFB3;
+  --nf-accent: #00ff9f;
+  --nf-accent-hover: #33ffb3;
   --nf-accent-muted: rgba(0, 255, 159, 0.08);
-  --nf-accent2:      #00E5FF;
+  --nf-accent2: #00e5ff;
 
   /* ── FUI Glow tokens ── */
-  --nf-glow-sm:    0 0 6px rgba(0, 255, 159, 0.25);
-  --nf-glow-md:    0 0 12px rgba(0, 255, 159, 0.3);
-  --nf-glow-lg:    0 0 20px rgba(0, 255, 159, 0.2), 0 0 40px rgba(0, 255, 159, 0.08);
-  --nf-glow-text:  0 0 8px rgba(0, 255, 159, 0.5);
+  --nf-glow-sm: 0 0 6px rgba(0, 255, 159, 0.25);
+  --nf-glow-md: 0 0 12px rgba(0, 255, 159, 0.3);
+  --nf-glow-lg: 0 0 20px rgba(0, 255, 159, 0.2), 0 0 40px rgba(0, 255, 159, 0.08);
+  --nf-glow-text: 0 0 8px rgba(0, 255, 159, 0.5);
 
   /* ── Font stacks: Inter (Latin) + Noto Sans SC (CJK) ── */
   --nf-font-display: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
-  --nf-font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --nf-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
   /* ── Micro-grid overlay (used via background-image) ── */
   --nf-grid-color: rgba(0, 255, 159, 0.03);
-  --nf-grid-size:  32px;
+  --nf-grid-size: 32px;
 
   /* ── 语义色 ── */
-  --nf-danger:       #f87171;
+  --nf-danger: #f87171;
   --nf-danger-muted: rgba(248, 113, 113, 0.15);
-  --nf-warning:      #fbbf24;
+  --nf-warning: #fbbf24;
   --nf-warning-muted: rgba(251, 191, 36, 0.15);
-  --nf-success:      #34d399;
+  --nf-success: #34d399;
   --nf-success-muted: rgba(52, 211, 153, 0.15);
-  --nf-info:         #60a5fa;
-  --nf-info-muted:   rgba(96, 165, 250, 0.15);
+  --nf-info: #60a5fa;
+  --nf-info-muted: rgba(96, 165, 250, 0.15);
 
   /* ── 滚动条 ── */
-  --nf-scrollbar:       #1E2733;
-  --nf-scrollbar-hover: #2A3544;
+  --nf-scrollbar: #1e2733;
+  --nf-scrollbar-hover: #2a3544;
 
   /* ── 阴影（暗黑下用 subtle inward glow 替代投影） ── */
-  --nf-shadow:         0 2px 8px rgba(0, 0, 0, 0.25);
-  --nf-shadow-md:      0 4px 16px rgba(0, 0, 0, 0.35);
-  --nf-shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.45);
-  --nf-shadow-glow:    0 0 15px rgba(0, 255, 159, 0.15);
+  --nf-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --nf-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --nf-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --nf-shadow-glow: 0 0 15px rgba(0, 255, 159, 0.15);
 
   /* ── Landing page 专用 ── */
-  --nf-landing-bg:          linear-gradient(160deg, #03040A 0%, #05070A 25%, #070C14 55%, #05070A 100%);
-  --nf-landing-orb1:        radial-gradient(circle, rgba(0, 255, 159, 0.2) 0%, rgba(0, 255, 159, 0.06) 35%, transparent 65%);
-  --nf-landing-orb2:        radial-gradient(circle, rgba(0, 229, 255, 0.18) 0%, rgba(0, 229, 255, 0.05) 35%, transparent 65%);
-  --nf-landing-orb3:        radial-gradient(circle, rgba(0, 255, 159, 0.14) 0%, rgba(0, 255, 159, 0.04) 35%, transparent 65%);
-  --nf-landing-orb4:        radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, rgba(0, 229, 255, 0.03) 35%, transparent 65%);
-  --nf-landing-nav-bg:      rgba(5, 7, 10, 0.85);
-  --nf-landing-section-bg:  rgba(8, 11, 16, 0.5);
-  --nf-landing-card-bg:     rgba(8, 11, 16, 0.6);
-  --nf-landing-footer-bg:   rgba(8, 11, 16, 0.5);
+  --nf-landing-bg: linear-gradient(160deg, #03040a 0%, #05070a 25%, #070c14 55%, #05070a 100%);
+  --nf-landing-orb1: radial-gradient(circle, rgba(0, 255, 159, 0.2) 0%, rgba(0, 255, 159, 0.06) 35%, transparent 65%);
+  --nf-landing-orb2: radial-gradient(circle, rgba(0, 229, 255, 0.18) 0%, rgba(0, 229, 255, 0.05) 35%, transparent 65%);
+  --nf-landing-orb3: radial-gradient(circle, rgba(0, 255, 159, 0.14) 0%, rgba(0, 255, 159, 0.04) 35%, transparent 65%);
+  --nf-landing-orb4: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, rgba(0, 229, 255, 0.03) 35%, transparent 65%);
+  --nf-landing-nav-bg: rgba(5, 7, 10, 0.85);
+  --nf-landing-section-bg: rgba(8, 11, 16, 0.5);
+  --nf-landing-card-bg: rgba(8, 11, 16, 0.6);
+  --nf-landing-footer-bg: rgba(8, 11, 16, 0.5);
 
   /* ── Login 专用 ── */
-  --nf-login-brand-bg: linear-gradient(160deg, #05070A 0%, #081218 40%, #071422 70%, #05070A 100%);
-  --nf-login-orb1:     radial-gradient(circle, rgba(0, 255, 159, 0.18) 0%, transparent 65%);
-  --nf-login-orb2:     radial-gradient(circle, rgba(0, 229, 255, 0.14) 0%, transparent 65%);
+  --nf-login-brand-bg: linear-gradient(160deg, #05070a 0%, #081218 40%, #071422 70%, #05070a 100%);
+  --nf-login-orb1: radial-gradient(circle, rgba(0, 255, 159, 0.18) 0%, transparent 65%);
+  --nf-login-orb2: radial-gradient(circle, rgba(0, 229, 255, 0.14) 0%, transparent 65%);
 
   /* ── Brand text gradient ── */
   --nf-brand-nexus-gradient: linear-gradient(135deg, #fafafa, #d4d4d8);
-  --nf-brand-flow-gradient:  linear-gradient(135deg, #00FF9F, #00E5FF);
-  --nf-hero-title-gradient:  linear-gradient(135deg, #fafafa 0%, #00FF9F 60%, #00E5FF 100%);
-  --nf-hero-btn-gradient:    linear-gradient(135deg, #00FF9F, #00E5FF);
-  --nf-hero-btn-text:        #09090b;
-  --nf-hero-card-shadow:     0 20px 60px rgba(0, 0, 0, 0.4);
-  --nf-step-number-gradient: linear-gradient(135deg, #00FF9F, #00E5FF);
-  --nf-avatar-gradient:      linear-gradient(135deg, #00FF9F, #00E5FF);
-  --nf-avatar-text:          #09090b;
+  --nf-brand-flow-gradient: linear-gradient(135deg, #00ff9f, #00e5ff);
+  --nf-hero-title-gradient: linear-gradient(135deg, #fafafa 0%, #00ff9f 60%, #00e5ff 100%);
+  --nf-hero-btn-gradient: linear-gradient(135deg, #00ff9f, #00e5ff);
+  --nf-hero-btn-text: #09090b;
+  --nf-hero-card-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --nf-step-number-gradient: linear-gradient(135deg, #00ff9f, #00e5ff);
+  --nf-avatar-gradient: linear-gradient(135deg, #00ff9f, #00e5ff);
+  --nf-avatar-text: #09090b;
 
   /* ── Loading mask ── */
   --nf-loading-mask: rgba(5, 7, 10, 0.8);
-  --nf-overlay:      rgba(0, 0, 0, 0.6);
+  --nf-overlay: rgba(0, 0, 0, 0.6);
   --nf-overlay-blur: rgba(0, 0, 0, 0.3);
 
   /* ── Element Plus font ── */
@@ -119,16 +120,16 @@
  */
 html.dark {
   /* ── Backgrounds ── */
-  --el-bg-color: #080B10;
-  --el-bg-color-page: #05070A;
-  --el-bg-color-overlay: #0E1218;
-  --el-fill-color: #0E1218;
-  --el-fill-color-light: #161B24;
-  --el-fill-color-lighter: #1E2733;
-  --el-fill-color-extra-light: #0E1218;
+  --el-bg-color: #080b10;
+  --el-bg-color-page: #05070a;
+  --el-bg-color-overlay: #0e1218;
+  --el-fill-color: #0e1218;
+  --el-fill-color-light: #161b24;
+  --el-fill-color-lighter: #1e2733;
+  --el-fill-color-extra-light: #0e1218;
   --el-fill-color-dark: #71717a;
   --el-fill-color-darker: #a1a1aa;
-  --el-fill-color-blank: #080B10;
+  --el-fill-color-blank: #080b10;
 
   /* ── Text ── */
   --el-text-color-primary: #fafafa;
@@ -138,57 +139,57 @@ html.dark {
   --el-text-color-disabled: #52525b;
 
   /* ── Borders ── */
-  --el-border-color: #141A22;
-  --el-border-color-light: #1E2733;
-  --el-border-color-lighter: #1E2733;
-  --el-border-color-extra-light: #141A22;
-  --el-border-color-dark: #2A3544;
-  --el-border-color-darker: #3A4A5C;
+  --el-border-color: #141a22;
+  --el-border-color-light: #1e2733;
+  --el-border-color-lighter: #1e2733;
+  --el-border-color-extra-light: #141a22;
+  --el-border-color-dark: #2a3544;
+  --el-border-color-darker: #3a4a5c;
 
   /* ── Primary → Neon Mint Green ── */
-  --el-color-primary: #00FF9F;
-  --el-color-primary-light-3: #0D3D2A;
-  --el-color-primary-light-5: #0A2E20;
-  --el-color-primary-light-7: #071F16;
+  --el-color-primary: #00ff9f;
+  --el-color-primary-light-3: #0d3d2a;
+  --el-color-primary-light-5: #0a2e20;
+  --el-color-primary-light-7: #071f16;
   --el-color-primary-light-8: #051710;
-  --el-color-primary-light-9: #030F0A;
-  --el-color-primary-dark-2: #33FFB3;
+  --el-color-primary-light-9: #030f0a;
+  --el-color-primary-dark-2: #33ffb3;
 
   /* ── Success → green ── */
   --el-color-success: #34d399;
-  --el-color-success-light-3: #143D2D;
-  --el-color-success-light-5: #0F2E22;
-  --el-color-success-light-7: #0A1F17;
+  --el-color-success-light-3: #143d2d;
+  --el-color-success-light-5: #0f2e22;
+  --el-color-success-light-7: #0a1f17;
   --el-color-success-light-8: #081710;
-  --el-color-success-light-9: #050F0A;
-  --el-color-success-dark-2: #5EDCAD;
+  --el-color-success-light-9: #050f0a;
+  --el-color-success-dark-2: #5edcad;
 
   /* ── Warning ── */
   --el-color-warning: #fbbf24;
-  --el-color-warning-light-3: #3D3012;
-  --el-color-warning-light-5: #2E240D;
-  --el-color-warning-light-7: #1F1909;
+  --el-color-warning-light-3: #3d3012;
+  --el-color-warning-light-5: #2e240d;
+  --el-color-warning-light-7: #1f1909;
   --el-color-warning-light-8: #171307;
-  --el-color-warning-light-9: #0F0D05;
-  --el-color-warning-dark-2: #FCCC50;
+  --el-color-warning-light-9: #0f0d05;
+  --el-color-warning-dark-2: #fccc50;
 
   /* ── Danger ── */
   --el-color-danger: #f87171;
-  --el-color-danger-light-3: #3D1E1E;
-  --el-color-danger-light-5: #2E1717;
-  --el-color-danger-light-7: #1F1010;
-  --el-color-danger-light-8: #170C0C;
-  --el-color-danger-light-9: #0F0808;
-  --el-color-danger-dark-2: #F98D8D;
+  --el-color-danger-light-3: #3d1e1e;
+  --el-color-danger-light-5: #2e1717;
+  --el-color-danger-light-7: #1f1010;
+  --el-color-danger-light-8: #170c0c;
+  --el-color-danger-light-9: #0f0808;
+  --el-color-danger-dark-2: #f98d8d;
 
   /* ── Info ── */
-  --el-color-info: #6B7D8E;
-  --el-color-info-light-3: #1E2733;
-  --el-color-info-light-5: #161B24;
-  --el-color-info-light-7: #0E1218;
-  --el-color-info-light-8: #0A0D12;
-  --el-color-info-light-9: #07090C;
-  --el-color-info-dark-2: #8899A8;
+  --el-color-info: #6b7d8e;
+  --el-color-info-light-3: #1e2733;
+  --el-color-info-light-5: #161b24;
+  --el-color-info-light-7: #0e1218;
+  --el-color-info-light-8: #0a0d12;
+  --el-color-info-light-9: #07090c;
+  --el-color-info-dark-2: #8899a8;
 
   /* ── Masks & Shadows ── */
   --el-mask-color: rgba(0, 0, 0, 0.6);
@@ -199,9 +200,9 @@ html.dark {
   --el-box-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.55);
 
   /* ── Disabled ── */
-  --el-disabled-bg-color: #0E1218;
-  --el-disabled-text-color: #3A4A5C;
-  --el-disabled-border-color: #141A22;
+  --el-disabled-bg-color: #0e1218;
+  --el-disabled-text-color: #3a4a5c;
+  --el-disabled-border-color: #141a22;
 
   /* ── Overlay ── */
   --el-overlay-color: rgba(0, 0, 0, 0.6);

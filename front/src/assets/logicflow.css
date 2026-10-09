@@ -63,7 +63,9 @@
   overflow: hidden;
 }
 
-.node-info:last-child { margin-bottom: 0; }
+.node-info:last-child {
+  margin-bottom: 0;
+}
 
 .info-text {
   display: block;
@@ -73,23 +75,58 @@
   text-overflow: ellipsis;
 }
 
-.start-node { border-color: #2dd4bf; }
-.start-node .node-icon { background: linear-gradient(135deg, #2dd4bf, #06b6d4); color: white; }
+.start-node {
+  border-color: #2dd4bf;
+}
+.start-node .node-icon {
+  background: linear-gradient(135deg, #2dd4bf, #06b6d4);
+  color: white;
+}
 
-.reply-node { border-color: #0891b2; }
-.reply-node .node-icon { background: linear-gradient(135deg, #0891b2, #0e7490); color: white; }
+.reply-node {
+  border-color: #0891b2;
+}
+.reply-node .node-icon {
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  color: white;
+}
 
-.condition-node { border-color: #f59e0b; }
-.condition-node .node-icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+.condition-node {
+  border-color: #f59e0b;
+}
+.condition-node .node-icon {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
 
-.assign-variable-node { border-color: #38bdf8; }
-.assign-variable-node .node-icon { background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; }
+.assign-variable-node {
+  border-color: #38bdf8;
+}
+.assign-variable-node .node-icon {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  color: white;
+}
 
-.llm-node { border-color: #06b6d4; }
-.llm-node .node-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+.llm-node {
+  border-color: #06b6d4;
+}
+.llm-node .node-icon {
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
+  color: white;
+}
 
-.jscode-node { border-color: #f59e0b; }
-.jscode-node .node-icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+.jscode-node {
+  border-color: #f59e0b;
+}
+.jscode-node .node-icon {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
 
-.http-node { border-color: #818cf8; }
-.http-node .node-icon { background: linear-gradient(135deg, #818cf8, #6366f1); color: white; }
+.http-node {
+  border-color: #818cf8;
+}
+.http-node .node-icon {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  color: white;
+}

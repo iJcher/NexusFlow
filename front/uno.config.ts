@@ -1,8 +1,8 @@
 import {
   defineConfig,
-  presetUno,
   presetAttributify,
   presetIcons,
+  presetUno,
   transformerDirectives,
 } from 'unocss'
 
@@ -21,18 +21,18 @@ export default defineConfig({
   theme: {
     colors: {
       nf: {
-        base: 'var(--nf-bg-base)',
-        card: 'var(--nf-bg-card)',
-        elevated: 'var(--nf-bg-elevated)',
-        muted: 'var(--nf-bg-muted)',
-        border: 'var(--nf-border)',
+        'base': 'var(--nf-bg-base)',
+        'card': 'var(--nf-bg-card)',
+        'elevated': 'var(--nf-bg-elevated)',
+        'muted': 'var(--nf-bg-muted)',
+        'border': 'var(--nf-border)',
         'border-light': 'var(--nf-border-light)',
         'text-primary': 'var(--nf-text-primary)',
         'text-secondary': 'var(--nf-text-secondary)',
         'text-muted': 'var(--nf-text-muted)',
-        accent: 'var(--nf-accent)',
+        'accent': 'var(--nf-accent)',
         'accent-hover': 'var(--nf-accent-hover)',
-        accent2: 'var(--nf-accent2)',
+        'accent2': 'var(--nf-accent2)',
       },
     },
   },

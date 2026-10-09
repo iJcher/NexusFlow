@@ -9,7 +9,8 @@ export function useMarkdownRenderer() {
   const THINK_CLOSE = '</think>'
 
   const formatMarkdown = (text: string): string => {
-    if (!text) return ''
+    if (!text)
+      return ''
 
     let result = ''
     let remaining = text

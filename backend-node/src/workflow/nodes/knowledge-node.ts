@@ -1,6 +1,11 @@
 import { NodeConfig, FlowRuntimeContext, NodeExecuteResult } from '../types';
-import { createSuccessResult, createErrorResult, FlowRuntime } from './node-base';
+import {
+  createSuccessResult,
+  createErrorResult,
+  FlowRuntime,
+} from './node-base';
 import { replacePlaceholders } from '../expression/expression-helper';
+import type { KnowledgeService } from '../../knowledge/knowledge.service';
 
 /**
  * 知识库检索节点
@@ -21,14 +26,26 @@ export async function executeKnowledgeNode(
   searchFn: (
     knowledgeBaseIds: bigint[],
     query: string,
-    options: { topK?: number; threshold?: number; embeddingModel?: string; rerankEnabled?: boolean },
-  ) => Promise<any[]>,
+    options: {
+      topK?: number;
+      threshold?: number;
+      embeddingModel?: string;
+      rerankEnabled?: boolean;
+    },
+  ) => ReturnType<KnowledgeService['searchMultiple']>,
 ): Promise<NodeExecuteResult> {
   try {
     const knowledgeBaseIds: string[] = node.knowledgeBaseIds || [];
 
-    const queryText = node.queryExpression?.text || node.queryExpression?.Text || '{{sys.query}}';
-    const resolvedQuery = await replacePlaceholders(context, runtime, queryText);
+    const queryText =
+      node.queryExpression?.text ||
+      node.queryExpression?.Text ||
+      '{{sys.query}}';
+    const resolvedQuery = await replacePlaceholders(
+      context,
+      runtime,
+      queryText,
+    );
 
     if (!resolvedQuery?.trim()) {
       return createErrorResult(node.id, 'Empty query for knowledge retrieval');
@@ -80,7 +97,7 @@ export async function executeKnowledgeNode(
         content: r.content.substring(0, 200),
       })),
     });
-  } catch (e: any) {
-    return createErrorResult(node.id, `Knowledge node failed: ${e.message}`);
+  } catch {
+    return createErrorResult(node.id, 'KNOWLEDGE_NODE_FAILED');
   }
 }

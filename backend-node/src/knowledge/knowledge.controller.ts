@@ -6,11 +6,16 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KnowledgeService } from './knowledge.service';
+import { KnowledgeWriteDto, KnowledgeSearchDto } from './knowledge.dto';
 import { JsonResponse } from '../common/response';
-import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator';
 
 @Controller('Knowledge')
 export class KnowledgeController {
@@ -20,16 +25,22 @@ export class KnowledgeController {
 
   @Get('GetAvailableEmbeddingModels')
   async getAvailableEmbeddingModels(@CurrentUser() user: AuthenticatedUser) {
-    const options = await this.knowledgeService.getAvailableEmbeddingModels(user.id);
+    const options = await this.knowledgeService.getAvailableEmbeddingModels(
+      user.id,
+    );
     return JsonResponse.ok(options);
   }
 
   // ==================== 知识库 ====================
 
   @Post('Create')
-  async createKnowledgeBase(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+  async createKnowledgeBase(
+    @Body() dto: KnowledgeWriteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!dto.name) throw new BadRequestException('Knowledge name is required');
     const result = await this.knowledgeService.createKnowledgeBase(
-      dto,
+      { ...dto, name: dto.name },
       user.id,
       user.nickName || 'System',
     );
@@ -37,8 +48,14 @@ export class KnowledgeController {
   }
 
   @Get('GetById')
-  async getKnowledgeBaseById(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    const result = await this.knowledgeService.getKnowledgeBaseById(BigInt(id), user.id);
+  async getKnowledgeBaseById(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.knowledgeService.getKnowledgeBaseById(
+      BigInt(id),
+      user.id,
+    );
     if (!result) return JsonResponse.error('Knowledge base not found');
     return JsonResponse.ok(result);
   }
@@ -50,24 +67,41 @@ export class KnowledgeController {
     @Query('pageSize') pageSize?: string,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    const result = await this.knowledgeService.getKnowledgeBaseList({
-      keyword: keyword || undefined,
-      pageIndex: Number(pageIndex || 1),
-      pageSize: Number(pageSize || 20),
-    }, user!.id);
+    const result = await this.knowledgeService.getKnowledgeBaseList(
+      {
+        keyword: keyword || undefined,
+        pageIndex: Number(pageIndex || 1),
+        pageSize: Number(pageSize || 20),
+      },
+      user!.id,
+    );
     return JsonResponse.ok(result);
   }
 
   @Post('Update')
-  async updateKnowledgeBase(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
-    const result = await this.knowledgeService.updateKnowledgeBase(BigInt(dto.id), dto, user.id);
+  async updateKnowledgeBase(
+    @Body() dto: KnowledgeWriteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!dto.id) throw new BadRequestException('Knowledge ID is required');
+    const result = await this.knowledgeService.updateKnowledgeBase(
+      BigInt(dto.id),
+      dto,
+      user.id,
+    );
     if (!result) return JsonResponse.error('Knowledge base not found');
     return JsonResponse.ok(result);
   }
 
   @Post('Delete')
-  async deleteKnowledgeBase(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    const result = await this.knowledgeService.deleteKnowledgeBase(BigInt(id), user.id);
+  async deleteKnowledgeBase(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.knowledgeService.deleteKnowledgeBase(
+      BigInt(id),
+      user.id,
+    );
     if (!result) return JsonResponse.error('Knowledge base not found');
     return JsonResponse.ok(true);
   }
@@ -85,17 +119,28 @@ export class KnowledgeController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     if (!file) return JsonResponse.error('No file uploaded');
-    const result = await this.knowledgeService.uploadDocument(BigInt(knowledgeBaseId), file, user!.id, {
-      chunkSize: chunkSize ? Number(chunkSize) : undefined,
-      chunkOverlap: chunkOverlap ? Number(chunkOverlap) : undefined,
-      embeddingModel: embeddingModel || undefined,
-    });
+    const result = await this.knowledgeService.uploadDocument(
+      BigInt(knowledgeBaseId),
+      file,
+      user!.id,
+      {
+        chunkSize: chunkSize ? Number(chunkSize) : undefined,
+        chunkOverlap: chunkOverlap ? Number(chunkOverlap) : undefined,
+        embeddingModel: embeddingModel || undefined,
+      },
+    );
     return JsonResponse.ok(result);
   }
 
   @Get('GetDocumentChunks')
-  async getDocumentChunks(@Query('documentId') documentId: string, @CurrentUser() user: AuthenticatedUser) {
-    const chunks = await this.knowledgeService.getDocumentChunks(BigInt(documentId), user.id);
+  async getDocumentChunks(
+    @Query('documentId') documentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const chunks = await this.knowledgeService.getDocumentChunks(
+      BigInt(documentId),
+      user.id,
+    );
     const result = chunks.map((c) => ({
       id: c.id.toString(),
       chunkIndex: c.chunkIndex,
@@ -106,8 +151,14 @@ export class KnowledgeController {
   }
 
   @Post('DeleteDocument')
-  async deleteDocument(@Query('documentId') documentId: string, @CurrentUser() user: AuthenticatedUser) {
-    const result = await this.knowledgeService.deleteDocument(BigInt(documentId), user.id);
+  async deleteDocument(
+    @Query('documentId') documentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.knowledgeService.deleteDocument(
+      BigInt(documentId),
+      user.id,
+    );
     if (!result) return JsonResponse.error('Document not found');
     return JsonResponse.ok(true);
   }
@@ -115,12 +166,20 @@ export class KnowledgeController {
   // ==================== RAG 检索 ====================
 
   @Post('Search')
-  async search(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
-    const results = await this.knowledgeService.searchSimilar(BigInt(dto.knowledgeBaseId), dto.query, user.id, {
-      topK: dto.topK,
-      threshold: dto.threshold,
-      embeddingModel: dto.embeddingModel,
-    });
+  async search(
+    @Body() dto: KnowledgeSearchDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const results = await this.knowledgeService.searchSimilar(
+      BigInt(dto.knowledgeBaseId),
+      dto.query,
+      user.id,
+      {
+        topK: dto.topK,
+        threshold: dto.threshold,
+        embeddingModel: dto.embeddingModel,
+      },
+    );
     return JsonResponse.ok(results);
   }
 }

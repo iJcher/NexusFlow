@@ -1,3 +1,10 @@
+<script setup lang="ts">
+import { Moon, Sunny } from '@element-plus/icons-vue'
+import { useTheme } from '@/composables/useTheme'
+
+const { isDark, toggleTheme } = useTheme()
+</script>
+
 <template>
   <el-button text class="theme-toggle" @click="toggleTheme">
     <el-icon :size="18">
@@ -6,13 +13,6 @@
     </el-icon>
   </el-button>
 </template>
-
-<script setup lang="ts">
-import { Moon, Sunny } from '@element-plus/icons-vue'
-import { useTheme } from '@/composables/useTheme'
-
-const { isDark, toggleTheme } = useTheme()
-</script>
 
 <style scoped>
 .theme-toggle {

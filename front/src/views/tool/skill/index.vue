@@ -1,4 +1,16 @@
 <script setup lang="ts">
+import type { IMcpServerDto } from '@/services/mcp.service'
+import type { ISkillDto } from '@/services/skill.service'
+import {
+  Connection,
+  Delete,
+  Document,
+  Download,
+  MagicStick,
+  Refresh,
+  Tools,
+} from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 /**
  * Tool / Skill Center —— 列表页。
  *
@@ -11,12 +23,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Connection, Delete, Document, Download, MagicStick, Refresh, Tools,
-} from '@element-plus/icons-vue'
-import { SkillService, type ISkillDto } from '@/services/skill.service'
-import { McpService, type IMcpServerDto } from '@/services/mcp.service'
+import { McpService } from '@/services/mcp.service'
+import { SkillService } from '@/services/skill.service'
 
 const router = useRouter()
 const activeTab = ref<'skills' | 'mcp'>('skills')
@@ -32,20 +40,23 @@ const totalFiles = computed<number>(() =>
 const usedModels = computed<number>(() => {
   const set = new Set<string>()
   for (const s of skills.value) {
-    if (s.modelName) set.add(s.modelName)
+    if (s.modelName)
+      set.add(s.modelName)
   }
   return set.size
 })
 
-const loadData = async (): Promise<void> => {
+async function loadData(): Promise<void> {
   loading.value = true
   try {
     const [skillRes, mcpRes] = await Promise.all([
       SkillService.getList(),
       McpService.getList(),
     ])
-    if (skillRes.errCode === 0 && skillRes.data) skills.value = skillRes.data
-    if (mcpRes.errCode === 0 && mcpRes.data) mcpServers.value = mcpRes.data
+    if (skillRes.errCode === 0 && skillRes.data)
+      skills.value = skillRes.data
+    if (mcpRes.errCode === 0 && mcpRes.data)
+      mcpServers.value = mcpRes.data
   }
   catch (error) {
     console.error('Failed to load tool center:', error)
@@ -56,11 +67,11 @@ const loadData = async (): Promise<void> => {
   }
 }
 
-const openSkillDetail = (skill: ISkillDto): void => {
+function openSkillDetail(skill: ISkillDto): void {
   router.push(`/tool/skill/${skill.id}`)
 }
 
-const downloadSkill = async (skill: ISkillDto): Promise<void> => {
+async function downloadSkill(skill: ISkillDto): Promise<void> {
   try {
     await SkillService.downloadAsZip(skill)
     ElMessage.success('下载已开始')
@@ -71,7 +82,7 @@ const downloadSkill = async (skill: ISkillDto): Promise<void> => {
   }
 }
 
-const deleteSkill = async (skill: ISkillDto): Promise<void> => {
+async function deleteSkill(skill: ISkillDto): Promise<void> {
   await ElMessageBox.confirm(
     `确认删除 Skill「${skill.name}」？`,
     '删除 Skill',
@@ -84,7 +95,7 @@ const deleteSkill = async (skill: ISkillDto): Promise<void> => {
   }
 }
 
-const deleteMcp = async (server: IMcpServerDto): Promise<void> => {
+async function deleteMcp(server: IMcpServerDto): Promise<void> {
   await ElMessageBox.confirm(
     `确认删除 MCP Server「${server.name}」？`,
     '删除 MCP',
@@ -97,12 +108,13 @@ const deleteMcp = async (server: IMcpServerDto): Promise<void> => {
   }
 }
 
-const goToStudio = (): void => {
+function goToStudio(): void {
   router.push('/studio')
 }
 
-const formatTime = (iso?: string | null): string => {
-  if (!iso) return '-'
+function formatTime(iso?: string | null): string {
+  if (!iso)
+    return '-'
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
@@ -116,8 +128,12 @@ onMounted(loadData)
     <!-- ═════════ Hero ═════════ -->
     <section class="hero">
       <div class="hero-text">
-        <p class="hero-eyebrow">TOOL / SKILL CENTER</p>
-        <h1 class="hero-title">工具与 Skill 能力中心</h1>
+        <p class="hero-eyebrow">
+          TOOL / SKILL CENTER
+        </p>
+        <h1 class="hero-title">
+          工具与 Skill 能力中心
+        </h1>
         <p class="hero-desc">
           统一管理 MCP Provider、远程工具 Schema，以及由工作流炼化生成的 Agent Skill。
         </p>
@@ -142,7 +158,9 @@ onMounted(loadData)
           </div>
         </div>
         <button class="fui-btn fui-btn--ghost" @click="loadData">
-          <el-icon :size="14"><Refresh /></el-icon>
+          <el-icon :size="14">
+            <Refresh />
+          </el-icon>
           刷新
         </button>
       </div>
@@ -150,13 +168,17 @@ onMounted(loadData)
 
     <!-- ═════════ Tabs ═════════ -->
     <nav class="tabs">
-      <button :class="['tab-btn', { active: activeTab === 'skills' }]" @click="activeTab = 'skills'">
-        <el-icon :size="14"><Tools /></el-icon>
+      <button class="tab-btn" :class="[{ active: activeTab === 'skills' }]" @click="activeTab = 'skills'">
+        <el-icon :size="14">
+          <Tools />
+        </el-icon>
         <span>SKILLS</span>
         <span class="tab-count">{{ skillCount }}</span>
       </button>
-      <button :class="['tab-btn', { active: activeTab === 'mcp' }]" @click="activeTab = 'mcp'">
-        <el-icon :size="14"><Connection /></el-icon>
+      <button class="tab-btn" :class="[{ active: activeTab === 'mcp' }]" @click="activeTab = 'mcp'">
+        <el-icon :size="14">
+          <Connection />
+        </el-icon>
         <span>MCP SERVERS</span>
         <span class="tab-count">{{ mcpCount }}</span>
       </button>
@@ -184,20 +206,28 @@ onMounted(loadData)
                 title="下载 ZIP"
                 @click.stop="downloadSkill(skill)"
               >
-                <el-icon :size="14"><Download /></el-icon>
+                <el-icon :size="14">
+                  <Download />
+                </el-icon>
               </button>
               <button
                 class="icon-btn icon-btn--danger"
                 title="删除"
                 @click.stop="deleteSkill(skill)"
               >
-                <el-icon :size="14"><Delete /></el-icon>
+                <el-icon :size="14">
+                  <Delete />
+                </el-icon>
               </button>
             </div>
           </div>
 
-          <h3 class="skill-card__name">{{ skill.name }}</h3>
-          <p class="skill-card__desc">{{ skill.description || '暂无描述' }}</p>
+          <h3 class="skill-card__name">
+            {{ skill.name }}
+          </h3>
+          <p class="skill-card__desc">
+            {{ skill.description || '暂无描述' }}
+          </p>
 
           <div class="skill-card__footer">
             <span class="footer-stat">
@@ -211,9 +241,13 @@ onMounted(loadData)
 
       <div v-else class="empty-panel">
         <div class="empty-icon-ring">
-          <el-icon :size="22"><MagicStick /></el-icon>
+          <el-icon :size="22">
+            <MagicStick />
+          </el-icon>
         </div>
-        <p class="empty-title">No Skills Yet</p>
+        <p class="empty-title">
+          No Skills Yet
+        </p>
         <p class="empty-desc">
           在 Studio 工作流卡片中点击「生成 Skill」即可炼化出一个可复用的 Agent Skill。
         </p>
@@ -236,12 +270,18 @@ onMounted(loadData)
                 title="删除"
                 @click.stop="deleteMcp(server)"
               >
-                <el-icon :size="14"><Delete /></el-icon>
+                <el-icon :size="14">
+                  <Delete />
+                </el-icon>
               </button>
             </div>
           </div>
-          <h3 class="skill-card__name">{{ server.name }}</h3>
-          <p class="skill-card__desc">{{ server.endpoint || server.command || '未配置连接地址' }}</p>
+          <h3 class="skill-card__name">
+            {{ server.name }}
+          </h3>
+          <p class="skill-card__desc">
+            {{ server.endpoint || server.command || '未配置连接地址' }}
+          </p>
           <div class="skill-card__footer">
             <span class="footer-stat">{{ server.status }}</span>
             <span class="footer-time">{{ server.tools?.length || 0 }} tools</span>
@@ -251,9 +291,13 @@ onMounted(loadData)
 
       <div v-else class="empty-panel">
         <div class="empty-icon-ring">
-          <el-icon :size="22"><Connection /></el-icon>
+          <el-icon :size="22">
+            <Connection />
+          </el-icon>
         </div>
-        <p class="empty-title">No MCP Server</p>
+        <p class="empty-title">
+          No MCP Server
+        </p>
         <p class="empty-desc">
           后续将在这里提供 MCP Server 连接配置入口，可接入任意符合 MCP 协议的远程工具。
         </p>
@@ -269,9 +313,7 @@ onMounted(loadData)
 .tool-skill-page {
   min-height: 100%;
   padding: 28px 32px;
-  background:
-    radial-gradient(circle, var(--nf-grid-color) 0.5px, transparent 0.5px),
-    var(--nf-bg-base);
+  background: radial-gradient(circle, var(--nf-grid-color) 0.5px, transparent 0.5px), var(--nf-bg-base);
   background-size: var(--nf-grid-size) var(--nf-grid-size);
   font-family: var(--nf-font-display);
   display: flex;
@@ -391,7 +433,11 @@ onMounted(loadData)
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .fui-btn--ghost {
@@ -400,7 +446,7 @@ onMounted(loadData)
 
   &:hover {
     border-color: rgba(0, 255, 159, 0.35);
-    color: #B0BEC5;
+    color: #b0bec5;
   }
 }
 
@@ -442,10 +488,13 @@ onMounted(loadData)
   cursor: pointer;
   position: relative;
   bottom: -1px;
-  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
-    color: #B0BEC5;
+    color: #b0bec5;
     box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.08);
   }
 
@@ -494,7 +543,9 @@ onMounted(loadData)
   border-radius: 10px;
   background: var(--nf-bg-card-alpha);
   cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
     border-color: rgba(0, 255, 159, 0.3);
@@ -589,7 +640,9 @@ onMounted(loadData)
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .fui-tag--accent {
@@ -611,7 +664,7 @@ onMounted(loadData)
 
   &:hover {
     border-color: rgba(255, 255, 255, 0.18);
-    color: #B0BEC5;
+    color: #b0bec5;
   }
 }
 
@@ -629,7 +682,10 @@ onMounted(loadData)
   background: transparent;
   color: var(--nf-text-secondary);
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 
   &:hover {
     border-color: rgba(0, 255, 159, 0.35);

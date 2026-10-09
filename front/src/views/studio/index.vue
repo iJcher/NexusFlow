@@ -1,212 +1,16 @@
-<template>
-  <div class="studio-page">
-    <!-- HUD sidebar -->
-    <aside class="studio-sidebar">
-      <div class="sidebar-label">SYSTEM FILTERS</div>
-      <button
-        v-for="filter in filters"
-        :key="filter.value"
-        :class="['filter-item', { active: activeFilter === filter.value }]"
-        @click="activeFilter = filter.value"
-      >
-        <el-icon :size="14"><component :is="filter.icon" /></el-icon>
-        <span>{{ filter.label }}</span>
-        <span class="filter-count">{{ getFilterCount(filter.value) }}</span>
-      </button>
-    </aside>
-
-    <div class="studio-main">
-      <div class="studio-header">
-        <div>
-          <h2 class="page-title">WORKFLOWS</h2>
-          <p class="page-subtitle">{{ t('studio.subtitle') }}</p>
-        </div>
-        <div class="header-actions">
-          <el-input
-            v-model="searchQuery"
-            :placeholder="t('studio.searchPlaceholder')"
-            :prefix-icon="Search"
-            clearable
-            class="search-input"
-          />
-          <button class="fui-btn fui-btn--primary" @click="showCreateDialog">
-            <span class="fui-btn-icon">+</span>
-            {{ t('studio.createWorkflow') }}
-          </button>
-        </div>
-      </div>
-
-      <div class="card-grid" v-loading="loading">
-        <div class="workflow-card create-card" @click="showCreateDialog">
-          <div class="create-icon-ring">
-            <el-icon :size="28"><Plus /></el-icon>
-          </div>
-          <span class="create-label">CREATE NEW WORKFLOW</span>
-        </div>
-
-        <div
-          v-for="flow in filteredFlows"
-          :key="flow.id ?? flow.displayName ?? flow.lastModified ?? 'workflow-card'"
-          class="workflow-card"
-          @click="openDesigner(flow)"
-        >
-          <div class="card-top">
-            <span class="fui-tag" :class="'fui-tag--' + getDesignerRoute(flow.flowType)">
-              {{ getFlowTypeLabel(flow.flowType) }}
-            </span>
-            <el-dropdown trigger="click" @command="(cmd: string) => handleCardAction(cmd, flow)">
-              <el-icon class="card-more" :size="25" @click.stop><MoreFilled /></el-icon>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">
-                    <el-icon><Edit /></el-icon>{{ t('studio.card.edit') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="copy">
-                    <el-icon><DocumentCopy /></el-icon>{{ t('studio.card.copy') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="saveTemplate">
-                    <el-icon><Files /></el-icon>{{ t('studio.saveAsTemplate') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="generateSkill">
-                    <el-icon><MagicStick /></el-icon>生成 Skill
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <el-icon><Delete /></el-icon>{{ t('studio.card.delete') }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-
-          <h3 class="card-name">{{ flow.displayName || t('flowList.unnamedFlow') }}</h3>
-          <p class="card-desc">{{ flow.description || t('flowList.noDescription') }}</p>
-          <div class="card-footer">
-            <span class="card-time">{{ formatDateTime(flow.lastModified) }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="!loading && filteredFlows.length === 0" class="empty-state">
-        <el-empty :description="t('studio.emptyTitle')">
-          <template #description>
-            <p>{{ t('studio.emptyDesc') }}</p>
-          </template>
-        </el-empty>
-      </div>
-    </div>
-
-    <!-- Create / Edit Dialog -->
-    <el-dialog v-model="dialogVisible" :title="editingFlow ? t('flowList.editTitle', { type: '' }) : t('studio.createDialog.title')" width="520px" destroy-on-close class="fui-dialog">
-      <div v-if="!editingFlow" class="create-source-tabs">
-        <button type="button" :class="['source-tab', { active: createMode === 'blank' }]" @click="createMode = 'blank'">
-          {{ t('studio.createDialog.fromBlank') }}
-        </button>
-        <button type="button" :class="['source-tab', { active: createMode === 'template' }]" @click="createMode = 'template'">
-          {{ t('studio.createDialog.fromTemplate') }}
-        </button>
-      </div>
-
-      <div v-if="createMode === 'blank' || editingFlow">
-        <el-form :model="formData" label-position="top">
-          <el-form-item v-if="!editingFlow" :label="t('studio.createDialog.selectType')">
-            <div class="flow-type-selector">
-              <button
-                v-for="ft in flowTypes"
-                :key="ft.value"
-                type="button"
-                :class="['type-btn', { active: formData.flowType === ft.value }]"
-                @click="formData.flowType = ft.value"
-              >
-                <el-icon :size="18"><component :is="ft.icon" /></el-icon>
-                {{ ft.label }}
-              </button>
-            </div>
-          </el-form-item>
-          <el-form-item :label="t('studio.createDialog.name')" required>
-            <el-input v-model="formData.name" :placeholder="t('studio.createDialog.namePlaceholder')" />
-          </el-form-item>
-          <el-form-item :label="t('studio.createDialog.description')">
-            <el-input v-model="formData.description" type="textarea" :rows="3" :placeholder="t('studio.createDialog.descPlaceholder')" />
-          </el-form-item>
-        </el-form>
-      </div>
-
-      <div v-if="createMode === 'template' && !editingFlow" v-loading="templateLoading" class="template-list">
-        <div
-          v-for="tpl in availableTemplates"
-          :key="tpl.id"
-          :class="['template-card', { selected: selectedTemplateId === tpl.id }]"
-          @click="selectTemplate(tpl)"
-        >
-          <span class="fui-tag" :class="'fui-tag--' + getDesignerRoute(tpl.flowType)">{{ getFlowTypeLabel(tpl.flowType) }}</span>
-          <h4>{{ tpl.name }}</h4>
-          <p>{{ tpl.description }}</p>
-        </div>
-        <el-empty v-if="availableTemplates.length === 0" :description="t('templates.emptyOfficial')" class="template-empty" />
-      </div>
-
-      <template #footer>
-        <div class="fui-dialog-footer">
-          <button class="fui-btn fui-btn--ghost" @click="dialogVisible = false">{{ t('common.cancel') }}</button>
-          <button class="fui-btn fui-btn--primary" @click="saveFlow">{{ t('common.confirm') }}</button>
-        </div>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="skillDialogVisible" title="生成 Agent Skill" width="520px" destroy-on-close class="fui-dialog">
-      <el-form :model="skillForm" label-position="top">
-        <el-form-item label="Skill 名称" required>
-          <el-input v-model="skillForm.name" placeholder="例如 rag-customer-support" />
-        </el-form-item>
-        <el-form-item label="Skill 描述">
-          <el-input v-model="skillForm.description" type="textarea" :rows="3" placeholder="描述这个 Skill 适合处理什么任务" />
-        </el-form-item>
-        <el-form-item label="生成模型" required>
-          <el-select
-            v-model="skillForm.modelKey"
-            placeholder="请选择生成 Skill 所用的模型"
-            class="w-full"
-            :loading="skillModelsLoading"
-            :no-data-text="skillModelsLoading ? '加载中…' : '暂无可用模型，请先到「模型」页面配置'"
-          >
-            <el-option
-              v-for="opt in skillModelOptions"
-              :key="opt.key"
-              :label="opt.label + (opt.isDefault ? '（推荐）' : '')"
-              :value="opt.key"
-            />
-          </el-select>
-          <div v-if="skillModelOptions.length === 0 && !skillModelsLoading" class="skill-model-tip">
-            没有可用模型，请到「模型」页面添加自己的 LLM Provider，或联系管理员开启系统默认免费模型。
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="fui-dialog-footer">
-          <button class="fui-btn fui-btn--ghost" @click="skillDialogVisible = false">{{ t('common.cancel') }}</button>
-          <button
-            class="fui-btn fui-btn--primary"
-            :disabled="skillGenerating || !skillForm.modelKey"
-            @click="generateSkill"
-          >
-            {{ skillGenerating ? t('common.loading') : '生成 Skill' }}
-          </button>
-        </div>
-      </template>
-    </el-dialog>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, markRaw } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import type { ISkillModelOption } from '@/services/skill.service'
+import type { ITemplateDto } from '@/services/template.service'
+import type { IFlowDto } from '@/types/flow.types'
+import { CircleCheck, Delete, DocumentCopy, Edit, Files, Grid, MagicStick, MoreFilled, Plus, Search, Share } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, DocumentCopy, Files, MoreFilled, Grid, MagicStick, Share, CircleCheck } from '@element-plus/icons-vue'
+import { computed, markRaw, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { FlowService } from '@/services/flow.service'
-import { FlowType, type IFlowDto } from '@/types/flow.types'
-import { TemplateService, type ITemplateDto } from '@/services/template.service'
-import { SkillService, type ISkillModelOption } from '@/services/skill.service'
+import { SkillService } from '@/services/skill.service'
+import { TemplateService } from '@/services/template.service'
+import { FlowType } from '@/types/flow.types'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -228,7 +32,7 @@ const selectedTemplateId = ref<string | null>(null)
 const formData = ref({
   name: '',
   description: '',
-  flowType: FlowType.AIFlow
+  flowType: FlowType.AIFlow,
 })
 
 const skillForm = ref({
@@ -240,26 +44,31 @@ const skillForm = ref({
 const skillModelOptions = ref<ISkillModelOption[]>([])
 const skillModelsLoading = ref(false)
 
-const loadSkillModels = async () => {
+async function loadSkillModels() {
   try {
     skillModelsLoading.value = true
     const response = await SkillService.getAvailableModels()
     if (response.errCode === 0 && response.data) {
       skillModelOptions.value = response.data
-    } else {
+    }
+    else {
       skillModelOptions.value = []
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to load skill models:', error)
     skillModelOptions.value = []
-  } finally {
+  }
+  finally {
     skillModelsLoading.value = false
   }
 }
 
-const normalizeFlowType = (ft: any): FlowType => {
-  if (ft === FlowType.AIFlow || ft === 'AIFlow' || ft === 1) return FlowType.AIFlow
-  if (ft === FlowType.ApprovalFlow || ft === 'ApprovalFlow' || ft === 2) return FlowType.ApprovalFlow
+function normalizeFlowType(ft: any): FlowType {
+  if (ft === FlowType.AIFlow || ft === 'AIFlow' || ft === 1)
+    return FlowType.AIFlow
+  if (ft === FlowType.ApprovalFlow || ft === 'ApprovalFlow' || ft === 2)
+    return FlowType.ApprovalFlow
   return FlowType.LogicFlow
 }
 
@@ -292,15 +101,16 @@ const filteredFlows = computed(() => {
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter(f =>
-      (f.displayName || '').toLowerCase().includes(q) ||
-      (f.description || '').toLowerCase().includes(q)
+      (f.displayName || '').toLowerCase().includes(q)
+      || (f.description || '').toLowerCase().includes(q),
     )
   }
   return list
 })
 
-const getFilterCount = (filter: string) => {
-  if (filter === 'all') return allFlows.value.length
+function getFilterCount(filter: string) {
+  if (filter === 'all')
+    return allFlows.value.length
   const typeMap: Record<string, FlowType> = {
     ai: FlowType.AIFlow,
     logic: FlowType.LogicFlow,
@@ -310,43 +120,51 @@ const getFilterCount = (filter: string) => {
   return allFlows.value.filter(f => normalizeFlowType(f.flowType) === target).length
 }
 
-const getTagType = (flowType?: FlowType | any) => {
+function _getTagType(flowType?: FlowType | any) {
   const ft = normalizeFlowType(flowType)
-  if (ft === FlowType.AIFlow) return 'warning'
-  if (ft === FlowType.ApprovalFlow) return 'success'
+  if (ft === FlowType.AIFlow)
+    return 'warning'
+  if (ft === FlowType.ApprovalFlow)
+    return 'success'
   return '' as const
 }
 
-const getFlowTypeLabel = (flowType?: FlowType | any) => {
+function getFlowTypeLabel(flowType?: FlowType | any) {
   const ft = normalizeFlowType(flowType)
-  if (ft === FlowType.AIFlow) return t('nav.aiFlow')
-  if (ft === FlowType.ApprovalFlow) return t('nav.approvalFlow')
+  if (ft === FlowType.AIFlow)
+    return t('nav.aiFlow')
+  if (ft === FlowType.ApprovalFlow)
+    return t('nav.approvalFlow')
   return t('nav.logicFlow')
 }
 
-const getDesignerRoute = (flowType?: FlowType | any) => {
+function getDesignerRoute(flowType?: FlowType | any) {
   const ft = normalizeFlowType(flowType)
-  if (ft === FlowType.AIFlow) return 'ai'
-  if (ft === FlowType.ApprovalFlow) return 'approval'
+  if (ft === FlowType.AIFlow)
+    return 'ai'
+  if (ft === FlowType.ApprovalFlow)
+    return 'approval'
   return 'logic'
 }
 
-const loadAllFlows = async () => {
+async function loadAllFlows() {
   try {
     loading.value = true
     const response = await FlowService.getFlowList({ pageIndex: 1, pageSize: 999 })
     if (response.errCode === 0 && response.data) {
       allFlows.value = response.data
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to load flows:', error)
     ElMessage.error(t('flowList.loadFailed', { type: '' }))
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
-const loadTemplates = async () => {
+async function loadTemplates() {
   try {
     templateLoading.value = true
     const response = await TemplateService.getList({ pageIndex: 1, pageSize: 100 })
@@ -366,7 +184,7 @@ const loadTemplates = async () => {
   }
 }
 
-const showCreateDialog = () => {
+function showCreateDialog() {
   editingFlow.value = null
   createMode.value = 'blank'
   selectedTemplateId.value = null
@@ -375,20 +193,22 @@ const showCreateDialog = () => {
   loadTemplates()
 }
 
-const toFlowType = (flowType: number | FlowType | undefined): FlowType => {
-  if (flowType === FlowType.AIFlow || flowType === 1) return FlowType.AIFlow
-  if (flowType === FlowType.ApprovalFlow || flowType === 2) return FlowType.ApprovalFlow
+function toFlowType(flowType: number | FlowType | undefined): FlowType {
+  if (flowType === FlowType.AIFlow || flowType === 1)
+    return FlowType.AIFlow
+  if (flowType === FlowType.ApprovalFlow || flowType === 2)
+    return FlowType.ApprovalFlow
   return FlowType.LogicFlow
 }
 
-const selectTemplate = (tpl: ITemplateDto) => {
+function selectTemplate(tpl: ITemplateDto) {
   selectedTemplateId.value = tpl.id
   formData.value.name = tpl.name
   formData.value.description = tpl.description
   formData.value.flowType = toFlowType(tpl.flowType)
 }
 
-const saveFlow = async () => {
+async function saveFlow() {
   if (!formData.value.name) {
     ElMessage.warning(t('studio.createDialog.nameRequired'))
     return
@@ -403,11 +223,13 @@ const saveFlow = async () => {
       if (response.errCode === 0) {
         ElMessage.success(t('flowList.updateSuccess', { type: '' }))
         await loadAllFlows()
-      } else {
+      }
+      else {
         ElMessage.error(response.errMsg || t('flowList.updateFailed', { type: '' }))
         return
       }
-    } else {
+    }
+    else {
       const selectedTpl = createMode.value === 'template'
         ? availableTemplates.value.find(t => t.id === selectedTemplateId.value)
         : null
@@ -427,24 +249,27 @@ const saveFlow = async () => {
       if (response.errCode === 0) {
         ElMessage.success(t('flowList.createSuccess', { type: '' }))
         await loadAllFlows()
-      } else {
+      }
+      else {
         ElMessage.error(response.errMsg || t('flowList.createFailed', { type: '' }))
         return
       }
     }
     dialogVisible.value = false
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to save flow:', error)
     ElMessage.error(t('flowList.createFailed', { type: '' }))
   }
 }
 
-const openDesigner = (flow: IFlowDto) => {
-  if (!flow.id) return
+function openDesigner(flow: IFlowDto) {
+  if (!flow.id)
+    return
   router.push(`/designer/${getDesignerRoute(flow.flowType)}/${flow.id}`)
 }
 
-const handleCardAction = async (cmd: string, flow: IFlowDto) => {
+async function handleCardAction(cmd: string, flow: IFlowDto) {
   if (cmd === 'edit') {
     editingFlow.value = flow
     createMode.value = 'blank'
@@ -454,7 +279,8 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
       flowType: flow.flowType || FlowType.AIFlow,
     }
     dialogVisible.value = true
-  } else if (cmd === 'copy') {
+  }
+  else if (cmd === 'copy') {
     try {
       const response = await FlowService.createFlow({
         displayName: `${flow.displayName || t('flowList.unnamedFlow')} - ${t('flowList.copySuffix')}`,
@@ -467,39 +293,46 @@ const handleCardAction = async (cmd: string, flow: IFlowDto) => {
         ElMessage.success(t('flowList.copySuccess', { type: '' }))
         await loadAllFlows()
       }
-    } catch {
+    }
+    catch {
       ElMessage.error(t('flowList.copyFailed', { type: '' }))
     }
-  } else if (cmd === 'saveTemplate') {
+  }
+  else if (cmd === 'saveTemplate') {
     saveAsTemplate(flow)
-  } else if (cmd === 'generateSkill') {
+  }
+  else if (cmd === 'generateSkill') {
     showGenerateSkillDialog(flow)
-  } else if (cmd === 'delete') {
+  }
+  else if (cmd === 'delete') {
     ElMessageBox.confirm(
       t('flowList.deleteConfirm', { name: flow.displayName }),
       t('flowList.deleteHint'),
-      { type: 'warning' }
+      { type: 'warning' },
     ).then(async () => {
-      if (!flow.id) return
+      if (!flow.id)
+        return
       try {
         const response = await FlowService.deleteFlow(flow.id)
         if (response.errCode === 0) {
           ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
           await loadAllFlows()
         }
-      } catch {
+      }
+      catch {
         ElMessage.error(t('flowList.deleteFailed', { type: '' }))
       }
     }).catch(() => {})
   }
 }
 
-const showGenerateSkillDialog = async (flow: IFlowDto) => {
-  if (!flow.id) return
+async function showGenerateSkillDialog(flow: IFlowDto) {
+  if (!flow.id)
+    return
   skillTargetFlow.value = flow
   const baseName = (flow.displayName || 'nexus-workflow')
     .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
+    .replace(/[^a-z0-9\u4E00-\u9FFF]+/g, '-')
     .replace(/^-+|-+$/g, '')
   skillForm.value = {
     name: baseName || 'nexus-workflow-skill',
@@ -513,7 +346,7 @@ const showGenerateSkillDialog = async (flow: IFlowDto) => {
   }
 }
 
-const generateSkill = async () => {
+async function generateSkill() {
   if (!skillTargetFlow.value?.id || !skillForm.value.name.trim()) {
     ElMessage.warning('请填写 Skill 名称')
     return
@@ -563,7 +396,7 @@ const generateSkill = async () => {
  * Skill 失败信息往往包含模型校验细节、行号、原始片段，
  * 用 ElMessage 几秒就消失看不清，这里用 alert 让用户必须点确认才关闭。
  */
-const showSkillError = (rawMsg: string) => {
+function showSkillError(rawMsg: string) {
   const message = rawMsg.length > 1500 ? `${rawMsg.slice(0, 1500)}…(truncated)` : rawMsg
   ElMessageBox.alert(message, 'Skill 生成失败', {
     confirmButtonText: '我知道了',
@@ -573,8 +406,9 @@ const showSkillError = (rawMsg: string) => {
   }).catch(() => {})
 }
 
-const saveAsTemplate = async (flow: IFlowDto) => {
-  if (!flow.id) return
+async function saveAsTemplate(flow: IFlowDto) {
+  if (!flow.id)
+    return
   try {
     const response = await TemplateService.createFromFlow({
       flowId: String(flow.id),
@@ -596,8 +430,9 @@ const saveAsTemplate = async (flow: IFlowDto) => {
   }
 }
 
-const formatDateTime = (dateStr?: string | null) => {
-  if (!dateStr) return '-'
+function formatDateTime(dateStr?: string | null) {
+  if (!dateStr)
+    return '-'
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
@@ -608,13 +443,234 @@ onMounted(() => {
 })
 </script>
 
+<template>
+  <div class="studio-page">
+    <!-- HUD sidebar -->
+    <aside class="studio-sidebar">
+      <div class="sidebar-label">
+        SYSTEM FILTERS
+      </div>
+      <button
+        v-for="filter in filters"
+        :key="filter.value"
+        class="filter-item" :class="[{ active: activeFilter === filter.value }]"
+        @click="activeFilter = filter.value"
+      >
+        <el-icon :size="14">
+          <component :is="filter.icon" />
+        </el-icon>
+        <span>{{ filter.label }}</span>
+        <span class="filter-count">{{ getFilterCount(filter.value) }}</span>
+      </button>
+    </aside>
+
+    <div class="studio-main">
+      <div class="studio-header">
+        <div>
+          <h2 class="page-title">
+            WORKFLOWS
+          </h2>
+          <p class="page-subtitle">
+            {{ t('studio.subtitle') }}
+          </p>
+        </div>
+        <div class="header-actions">
+          <el-input
+            v-model="searchQuery"
+            :placeholder="t('studio.searchPlaceholder')"
+            :prefix-icon="Search"
+            clearable
+            class="search-input"
+          />
+          <button class="fui-btn fui-btn--primary" @click="showCreateDialog">
+            <span class="fui-btn-icon">+</span>
+            {{ t('studio.createWorkflow') }}
+          </button>
+        </div>
+      </div>
+
+      <div v-loading="loading" class="card-grid">
+        <div class="workflow-card create-card" @click="showCreateDialog">
+          <div class="create-icon-ring">
+            <el-icon :size="28">
+              <Plus />
+            </el-icon>
+          </div>
+          <span class="create-label">CREATE NEW WORKFLOW</span>
+        </div>
+
+        <div
+          v-for="flow in filteredFlows"
+          :key="flow.id ?? flow.displayName ?? flow.lastModified ?? 'workflow-card'"
+          class="workflow-card"
+          @click="openDesigner(flow)"
+        >
+          <div class="card-top">
+            <span class="fui-tag" :class="`fui-tag--${getDesignerRoute(flow.flowType)}`">
+              {{ getFlowTypeLabel(flow.flowType) }}
+            </span>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleCardAction(cmd, flow)">
+              <el-icon class="card-more" :size="25" @click.stop>
+                <MoreFilled />
+              </el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">
+                    <el-icon><Edit /></el-icon>{{ t('studio.card.edit') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="copy">
+                    <el-icon><DocumentCopy /></el-icon>{{ t('studio.card.copy') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="saveTemplate">
+                    <el-icon><Files /></el-icon>{{ t('studio.saveAsTemplate') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="generateSkill">
+                    <el-icon><MagicStick /></el-icon>生成 Skill
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <el-icon><Delete /></el-icon>{{ t('studio.card.delete') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+
+          <h3 class="card-name">
+            {{ flow.displayName || t('flowList.unnamedFlow') }}
+          </h3>
+          <p class="card-desc">
+            {{ flow.description || t('flowList.noDescription') }}
+          </p>
+          <div class="card-footer">
+            <span class="card-time">{{ formatDateTime(flow.lastModified) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!loading && filteredFlows.length === 0" class="empty-state">
+        <el-empty :description="t('studio.emptyTitle')">
+          <template #description>
+            <p>{{ t('studio.emptyDesc') }}</p>
+          </template>
+        </el-empty>
+      </div>
+    </div>
+
+    <!-- Create / Edit Dialog -->
+    <el-dialog v-model="dialogVisible" :title="editingFlow ? t('flowList.editTitle', { type: '' }) : t('studio.createDialog.title')" width="520px" destroy-on-close class="fui-dialog">
+      <div v-if="!editingFlow" class="create-source-tabs">
+        <button type="button" class="source-tab" :class="[{ active: createMode === 'blank' }]" @click="createMode = 'blank'">
+          {{ t('studio.createDialog.fromBlank') }}
+        </button>
+        <button type="button" class="source-tab" :class="[{ active: createMode === 'template' }]" @click="createMode = 'template'">
+          {{ t('studio.createDialog.fromTemplate') }}
+        </button>
+      </div>
+
+      <div v-if="createMode === 'blank' || editingFlow">
+        <el-form :model="formData" label-position="top">
+          <el-form-item v-if="!editingFlow" :label="t('studio.createDialog.selectType')">
+            <div class="flow-type-selector">
+              <button
+                v-for="ft in flowTypes"
+                :key="ft.value"
+                type="button"
+                class="type-btn" :class="[{ active: formData.flowType === ft.value }]"
+                @click="formData.flowType = ft.value"
+              >
+                <el-icon :size="18">
+                  <component :is="ft.icon" />
+                </el-icon>
+                {{ ft.label }}
+              </button>
+            </div>
+          </el-form-item>
+          <el-form-item :label="t('studio.createDialog.name')" required>
+            <el-input v-model="formData.name" :placeholder="t('studio.createDialog.namePlaceholder')" />
+          </el-form-item>
+          <el-form-item :label="t('studio.createDialog.description')">
+            <el-input v-model="formData.description" type="textarea" :rows="3" :placeholder="t('studio.createDialog.descPlaceholder')" />
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <div v-if="createMode === 'template' && !editingFlow" v-loading="templateLoading" class="template-list">
+        <div
+          v-for="tpl in availableTemplates"
+          :key="tpl.id"
+          class="template-card" :class="[{ selected: selectedTemplateId === tpl.id }]"
+          @click="selectTemplate(tpl)"
+        >
+          <span class="fui-tag" :class="`fui-tag--${getDesignerRoute(tpl.flowType)}`">{{ getFlowTypeLabel(tpl.flowType) }}</span>
+          <h4>{{ tpl.name }}</h4>
+          <p>{{ tpl.description }}</p>
+        </div>
+        <el-empty v-if="availableTemplates.length === 0" :description="t('templates.emptyOfficial')" class="template-empty" />
+      </div>
+
+      <template #footer>
+        <div class="fui-dialog-footer">
+          <button class="fui-btn fui-btn--ghost" @click="dialogVisible = false">
+            {{ t('common.cancel') }}
+          </button>
+          <button class="fui-btn fui-btn--primary" @click="saveFlow">
+            {{ t('common.confirm') }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="skillDialogVisible" title="生成 Agent Skill" width="520px" destroy-on-close class="fui-dialog">
+      <el-form :model="skillForm" label-position="top">
+        <el-form-item label="Skill 名称" required>
+          <el-input v-model="skillForm.name" placeholder="例如 rag-customer-support" />
+        </el-form-item>
+        <el-form-item label="Skill 描述">
+          <el-input v-model="skillForm.description" type="textarea" :rows="3" placeholder="描述这个 Skill 适合处理什么任务" />
+        </el-form-item>
+        <el-form-item label="生成模型" required>
+          <el-select
+            v-model="skillForm.modelKey"
+            placeholder="请选择生成 Skill 所用的模型"
+            class="w-full"
+            :loading="skillModelsLoading"
+            :no-data-text="skillModelsLoading ? '加载中…' : '暂无可用模型，请先到「模型」页面配置'"
+          >
+            <el-option
+              v-for="opt in skillModelOptions"
+              :key="opt.key"
+              :label="opt.label + (opt.isDefault ? '（推荐）' : '')"
+              :value="opt.key"
+            />
+          </el-select>
+          <div v-if="skillModelOptions.length === 0 && !skillModelsLoading" class="skill-model-tip">
+            没有可用模型，请到「模型」页面添加自己的 LLM Provider，或联系管理员开启系统默认免费模型。
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="fui-dialog-footer">
+          <button class="fui-btn fui-btn--ghost" @click="skillDialogVisible = false">
+            {{ t('common.cancel') }}
+          </button>
+          <button
+            class="fui-btn fui-btn--primary"
+            :disabled="skillGenerating || !skillForm.modelKey"
+            @click="generateSkill"
+          >
+            {{ skillGenerating ? t('common.loading') : '生成 Skill' }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
 <style scoped>
 .studio-page {
   display: flex;
   height: 100%;
-  background:
-    radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px),
-    #05070A;
+  background: radial-gradient(circle, rgba(0, 255, 159, 0.03) 0.5px, transparent 0.5px), #05070a;
   background-size: 20px 20px;
   font-family: var(--nf-font-display);
 }
@@ -627,7 +683,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 2px;
   padding: 32px 12px;
-  border-right: 1px solid #141A22;
+  border-right: 1px solid #141a22;
   background: rgba(8, 11, 16, 0.6);
 }
 
@@ -639,7 +695,7 @@ onMounted(() => {
   color: rgba(0, 255, 159, 0.35);
   padding: 0 12px 16px;
   margin-bottom: 8px;
-  border-bottom: 1px solid #141A22;
+  border-bottom: 1px solid #141a22;
   text-transform: uppercase;
 }
 
@@ -651,7 +707,7 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #6B7D8E;
+  color: #6b7d8e;
   font-family: var(--nf-font-display);
   font-size: 13px;
   font-weight: 500;
@@ -677,7 +733,7 @@ onMounted(() => {
 }
 
 .filter-item:hover {
-  color: #B0BEC5;
+  color: #b0bec5;
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -695,7 +751,7 @@ onMounted(() => {
   margin-left: auto;
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #3A4E5E;
+  color: #3a4e5e;
   min-width: 20px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -726,14 +782,14 @@ onMounted(() => {
   font-size: 24px;
   font-weight: 700;
   margin: 0 0 6px;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.08em;
 }
 
 .page-subtitle {
   font-family: var(--nf-font-display);
   font-size: 13px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   margin: 0;
   font-weight: 400;
   letter-spacing: 0.04em;
@@ -779,13 +835,13 @@ onMounted(() => {
 
 .fui-btn--ghost {
   background: transparent;
-  color: #6B7D8E;
-  border: 1px solid #1E2733;
+  color: #6b7d8e;
+  border: 1px solid #1e2733;
 }
 
 .fui-btn--ghost:hover {
   border-color: rgba(0, 255, 159, 0.2);
-  color: #B0BEC5;
+  color: #b0bec5;
 }
 
 .fui-btn-icon {
@@ -802,7 +858,7 @@ onMounted(() => {
 
 .workflow-card {
   background: rgba(8, 11, 16, 0.5);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
@@ -815,7 +871,9 @@ onMounted(() => {
 
 .workflow-card:hover {
   border-color: rgba(0, 255, 159, 0.4);
-  box-shadow: 0 0 16px rgba(0, 255, 159, 0.12), 0 0 32px rgba(0, 255, 159, 0.04);
+  box-shadow:
+    0 0 16px rgba(0, 255, 159, 0.12),
+    0 0 32px rgba(0, 255, 159, 0.04);
 }
 
 /* ── Create card ── */
@@ -824,7 +882,7 @@ onMounted(() => {
   justify-content: center;
   gap: 16px;
   border-style: dashed;
-  border-color: #1A2030;
+  border-color: #1a2030;
   background: transparent;
 }
 
@@ -837,11 +895,11 @@ onMounted(() => {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4A5C6E;
+  color: #4a5c6e;
   transition: all 0.3s;
 }
 
@@ -855,7 +913,7 @@ onMounted(() => {
   font-family: var(--nf-font-display);
   font-size: 12px;
   font-weight: 500;
-  color: #4A5C6E;
+  color: #4a5c6e;
   letter-spacing: 0.06em;
 }
 
@@ -904,7 +962,9 @@ onMounted(() => {
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .card-more:hover {
@@ -917,7 +977,7 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 600;
   margin: 0 0 8px;
-  color: #E6EDF3;
+  color: #e6edf3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -927,7 +987,7 @@ onMounted(() => {
 .card-desc {
   font-family: var(--nf-font-display);
   font-size: 13px;
-  color: #7A8B9C;
+  color: #7a8b9c;
   margin: 0 0 auto;
   line-height: 1.7;
   letter-spacing: 0.02em;
@@ -940,7 +1000,7 @@ onMounted(() => {
 .card-footer {
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #141A22;
+  border-top: 1px solid #141a22;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -949,7 +1009,7 @@ onMounted(() => {
 .card-time {
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
@@ -959,7 +1019,7 @@ onMounted(() => {
   display: flex;
   gap: 0;
   margin-bottom: 20px;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -973,7 +1033,7 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  color: #6B7D8E;
+  color: #6b7d8e;
   transition: all 0.2s;
   letter-spacing: 0.03em;
 }
@@ -984,7 +1044,7 @@ onMounted(() => {
 }
 
 .source-tab:not(:last-child) {
-  border-right: 1px solid #1E2733;
+  border-right: 1px solid #1e2733;
 }
 
 .flow-type-selector {
@@ -1000,10 +1060,10 @@ onMounted(() => {
   justify-content: center;
   gap: 6px;
   padding: 10px 12px;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   background: transparent;
-  color: #6B7D8E;
+  color: #6b7d8e;
   font-family: var(--nf-font-display);
   font-size: 13px;
   font-weight: 500;
@@ -1014,7 +1074,7 @@ onMounted(() => {
 
 .type-btn:hover {
   border-color: rgba(0, 255, 159, 0.25);
-  color: #B0BEC5;
+  color: #b0bec5;
 }
 
 .type-btn.active {
@@ -1034,7 +1094,7 @@ onMounted(() => {
 
 .template-card {
   padding: 16px;
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1055,7 +1115,7 @@ onMounted(() => {
   font-family: var(--nf-font-display);
   font-size: 14px;
   font-weight: 600;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.04em;
 }
 
@@ -1063,7 +1123,7 @@ onMounted(() => {
   margin: 0;
   font-family: var(--nf-font-display);
   font-size: 12px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   line-height: 1.6;
   letter-spacing: 0.02em;
 }
@@ -1114,14 +1174,14 @@ onMounted(() => {
 /* ── Element Plus overrides ── */
 :deep(.el-input__wrapper) {
   background: transparent;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 4px;
   box-shadow: none !important;
   transition: border-color 0.2s;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #2A3544;
+  border-color: #2a3544;
 }
 
 :deep(.el-input__wrapper.is-focus) {
@@ -1132,19 +1192,19 @@ onMounted(() => {
 :deep(.el-input__inner) {
   font-family: var(--nf-font-display);
   font-size: 13px;
-  color: #C0CDD8;
+  color: #c0cdd8;
   letter-spacing: 0.02em;
 }
 
 :deep(.el-textarea__inner) {
   font-family: var(--nf-font-display);
   font-size: 13px;
-  color: #C0CDD8;
+  color: #c0cdd8;
   letter-spacing: 0.02em;
 }
 
 :deep(.el-input__inner::placeholder) {
-  color: #4A5C6E;
+  color: #4a5c6e;
 }
 
 :deep(.el-form-item__label) {
@@ -1152,27 +1212,27 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: #6B7D8E !important;
+  color: #6b7d8e !important;
 }
 
 /* Dialog overrides */
 :deep(.fui-dialog.el-dialog) {
-  background: #080B10;
-  border: 1px solid #1E2733;
+  background: #080b10;
+  border: 1px solid #1e2733;
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 :deep(.fui-dialog .el-dialog__header) {
   padding: 18px 24px;
-  border-bottom: 1px solid #141A22;
+  border-bottom: 1px solid #141a22;
 }
 
 :deep(.fui-dialog .el-dialog__title) {
   font-family: var(--nf-font-display);
   font-size: 16px;
   font-weight: 700;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.06em;
 }
 
@@ -1188,10 +1248,10 @@ onMounted(() => {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1E2733;
+  background: #1e2733;
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2A3544;
+  background: #2a3544;
 }
 </style>

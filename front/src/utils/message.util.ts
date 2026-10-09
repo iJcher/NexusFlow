@@ -1,9 +1,9 @@
+import type { TApiResponse } from '@/types/ApiResponse{T}'
 /**
  * 统一消息提示工具
  * 封装 Element Plus 的消息组件，提供统一的API
  */
 import { ElMessage } from 'element-plus'
-import type { TApiResponse } from '@/types/ApiResponse{T}'
 
 export const MessageUtil = {
   /**
@@ -14,7 +14,7 @@ export const MessageUtil = {
     ElMessage({
       message,
       type: 'success',
-      duration: 3000
+      duration: 3000,
     })
   },
 
@@ -26,7 +26,7 @@ export const MessageUtil = {
     ElMessage({
       message,
       type: 'error',
-      duration: 5000
+      duration: 5000,
     })
   },
 
@@ -40,5 +40,5 @@ export const MessageUtil = {
     if (response.errCode === 0 && successMsg) {
       this.success(successMsg)
     }
-  }
+  },
 }

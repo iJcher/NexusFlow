@@ -30,6 +30,23 @@ export default {
   },
 
   login: {
+    email: 'Email',
+    code: 'Verification code',
+    emailPlaceholder: 'name{\'@\'}example.com',
+    emailRequired: 'Enter your email',
+    emailInvalid: 'Enter a valid email address',
+    codePlaceholder: 'Enter the 6-digit code from your email',
+    codeRequired: 'Enter the verification code',
+    codeInvalid: 'The code must contain 6 digits',
+    sendCode: 'Send code',
+    sendingCode: 'Sending…',
+    resendAfter: 'Resend in {seconds}s',
+    codeSent: 'Code sent. Check your inbox and spam folder.',
+    rememberEmail: 'Remember email',
+    emailSubtitle: 'Sign in securely with an email code. No password needed.',
+    emailHint: 'Your account is created after verification. Codes are single-use.',
+    requestCodeFirst: 'Request a code first',
+    requestFailed: 'Request failed. Please try again later.',
     phonePlaceholder: 'Enter phone number',
     passwordPlaceholder: 'Enter password',
     phoneRequired: 'Please enter phone number',
@@ -46,7 +63,7 @@ export default {
     rememberMe: 'Remember me',
     forgotPassword: 'Forgot password?',
     orContinueWith: 'or continue with',
-    noAccount: "Don't have an account?",
+    noAccount: 'Don\'t have an account?',
     register: 'Sign up',
     brandTagline: 'Visual workflow orchestration platform for seamless AI & business logic',
     feature1: 'Visual drag-and-drop flow design',
@@ -65,7 +82,7 @@ export default {
     knowledge: 'Knowledge',
     models: 'Models',
     llmProvider: 'LLM Provider',
-    toolSkill: 'Tools & Skills'
+    toolSkill: 'Tools & Skills',
   },
 
   // Fields
@@ -85,7 +102,7 @@ export default {
     nodeName: 'Node Name',
     message: 'Message',
     canvas: 'Canvas',
-    flowId: 'Flow ID'
+    flowId: 'Flow ID',
   },
 
   // Flow Designer
@@ -112,7 +129,7 @@ export default {
     inputParameters: 'Input Parameters',
     sessionVariables: 'Session Variables',
     variables: 'Variables',
-    unnamedFlow: 'Unnamed Flow'
+    unnamedFlow: 'Unnamed Flow',
   },
 
   // Chat Test
@@ -130,7 +147,7 @@ export default {
     sendFailed: 'Failed to send message, please check network connection',
     noResponse: 'Unable to get response stream',
     workflowStarted: 'Workflow started',
-    workflowFinished: 'Workflow finished'
+    workflowFinished: 'Workflow finished',
   },
 
   // Errors
@@ -151,7 +168,7 @@ export default {
     saveFailed: 'Save failed',
     deleteFailed: 'Delete failed',
     operationFailed: 'Operation failed',
-    httpError: 'HTTP error! status: {status}'
+    httpError: 'HTTP error! status: {status}',
   },
 
   // Success
@@ -161,7 +178,7 @@ export default {
     deleted: '{count} item(s) deleted',
     saved: 'Saved successfully',
     copied: 'Copied to clipboard',
-    operationSuccess: 'Operation successful'
+    operationSuccess: 'Operation successful',
   },
 
   // Confirm
@@ -169,7 +186,7 @@ export default {
     delete: 'Are you sure to delete {name}?',
     deleteMultiple: 'Are you sure to delete the selected {count} item(s)?',
     unsavedChanges: 'There are unsaved changes, are you sure to leave?',
-    clear: 'Are you sure to clear?'
+    clear: 'Are you sure to clear?',
   },
 
   // Node Types
@@ -182,7 +199,7 @@ export default {
     llm: 'LLM',
     jsCode: 'JS Code',
     httpRequest: 'HTTP Request',
-    end: 'End'
+    end: 'End',
   },
 
   // Home
@@ -221,7 +238,7 @@ export default {
     step3_title: 'Test & Run',
     step3_desc: 'One-click chat testing to see your AI workflow in action with real-time execution logs.',
     footerDesc: 'Open Source Intelligent Workflow Orchestration Platform',
-    items: 'items'
+    items: 'items',
   },
 
   // Dashboard
@@ -232,7 +249,7 @@ export default {
     logicFlowDesc: 'Create and manage complex business logic flows, supporting conditional logic, loops and other control structures',
     aiFlowDesc: 'Build intelligent AI dialogue flows, integrating large language models for smart interactions',
     approvalFlowDesc: 'Design multi-level approval flows, supporting serial, parallel and other approval modes',
-    items: 'items'
+    items: 'items',
   },
 
   // Layout
@@ -242,7 +259,7 @@ export default {
     logout: 'Logout',
     modelManagement: 'Model Management',
     about: 'About',
-    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.'
+    copyright: '© 2025 NexusFlow by Jcher. All rights reserved.',
   },
 
   // Studio
@@ -272,7 +289,7 @@ export default {
       edit: 'Edit Info',
       copy: 'Copy',
       delete: 'Delete',
-    }
+    },
   },
 
   // Templates
@@ -397,7 +414,7 @@ export default {
     invalidFlowId: 'Invalid flow ID',
     unnamedFlow: 'Unnamed Flow',
     copySuffix: 'Copy',
-    subtitle: 'Manage and orchestrate your workflows'
+    subtitle: 'Manage and orchestrate your workflows',
   },
 
   // Flow Designer
@@ -544,7 +561,7 @@ export default {
     noResponse: 'Unable to get response stream',
     workflowStarted: 'Workflow started',
     workflowFinished: 'Workflow finished',
-    thinkingProcess: 'Deep Thinking Process'
+    thinkingProcess: 'Deep Thinking Process',
   },
 
   // Flow Execution Log
@@ -565,7 +582,7 @@ export default {
     user: 'User',
     system: 'System',
     noLogs: 'No execution logs',
-    unnamedInstance: 'Unnamed Instance'
+    unnamedInstance: 'Unnamed Instance',
   },
 
   // Execution Log Dropdown
@@ -577,7 +594,7 @@ export default {
     failure: 'Failure',
     duration: 'Duration',
     user: 'User',
-    system: 'System'
+    system: 'System',
   },
 
   // Flow Components
@@ -587,7 +604,7 @@ export default {
     zoomOut: 'Zoom Out',
     zoomIn: 'Zoom In',
     fitCanvas: 'Fit Canvas',
-    
+
     // Variable Manager
     variableManagement: 'Variable Management',
     inputParameterManagement: 'Input Parameter Management',
@@ -635,7 +652,7 @@ export default {
     noDefault: '-',
     edit: 'Edit',
     delete: 'Delete',
-    
+
     // Variable Selector
     selectVariable: 'Select Variable',
     searchVariable: 'Search Variable',
@@ -644,7 +661,7 @@ export default {
     sessionVariables: 'Session Variables',
     systemVariables: 'System Variables',
     noVariableFound: 'No related variables found',
-    
+
     // Node Properties Panel
     nodeProperties: 'Node Properties',
     basicProperties: 'Basic Properties',
@@ -685,7 +702,7 @@ export default {
     outputType: 'Output Type',
     selectOutputType: 'Please select output type',
     property: 'Property',
-    
+
     // Variable Types
     string: 'String',
     number: 'Number',
@@ -695,7 +712,7 @@ export default {
     object: 'Object',
     array: 'Array',
     unknown: 'Unknown',
-    
+
     // Context Menu
     addComment: 'Add Comment',
     comingSoon: 'Coming Soon',
@@ -703,7 +720,7 @@ export default {
     copy: 'Copy',
     node: 'Node',
     edge: 'Edge',
-    
+
     // Node Properties Panel
     conditionDescription: 'Condition Description',
     deleteCondition: 'Delete Condition',
@@ -711,7 +728,7 @@ export default {
     addCondition: 'Add Condition',
     selectModel: 'Please select model',
     unknownPlatform: 'Unknown Platform',
-    
+
     // Node-specific Properties
     replyMessage: 'Reply Message',
     enterReplyMessage: 'Enter reply message content, use double braces to reference variables',
@@ -747,7 +764,7 @@ export default {
     jsCode: 'JS Code',
     enterJSCode: 'Enter JavaScript code',
     jsCodeDesc: 'Write JavaScript code, can use variables',
-    
+
     // Node Property Fields
     enableMemory: 'Enable Memory',
     memoryRounds: 'Memory Rounds:',
@@ -758,7 +775,7 @@ export default {
     condition: 'Condition',
     atLeastOneCondition: 'At least one condition branch must be kept',
     atLeastOneAssignment: 'At least one assignment must be kept',
-    
+
     // Expression Unit Editor
     jsExpression: 'JS Expression',
     expressionMode: 'Expression Mode',
@@ -795,7 +812,7 @@ export default {
     conditionOpStartsWith: 'Starts with',
     conditionOpEndsWith: 'Ends with',
     conditionOpEmpty: 'Is empty',
-    conditionOpNotEmpty: 'Is not empty'
+    conditionOpNotEmpty: 'Is not empty',
   },
 
   // LLM Provider Management
@@ -844,6 +861,6 @@ export default {
     loadFailed: 'Failed to load LLM provider list',
     saveFailed: 'Failed to save LLM provider',
     invalidProviderId: 'Invalid provider ID',
-    copyApiKey: 'Copy API Key'
-  }
+    copyApiKey: 'Copy API Key',
+  },
 }

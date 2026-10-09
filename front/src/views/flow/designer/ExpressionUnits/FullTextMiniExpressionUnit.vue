@@ -1,3 +1,66 @@
+<script setup lang="ts">
+import type { FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import CodeMirrorEditor from '../components/CodeMirrorEditor.vue'
+import VariableSelector from '../components/VariableSelector.vue'
+
+interface Props {
+  modelValue: FullTextMiniExpressionUnit
+  placeholder?: string
+  disabled?: boolean
+  readonly?: boolean
+}
+
+interface Emits {
+  (e: 'update:modelValue', value: FullTextMiniExpressionUnit): void
+  (e: 'change', value: FullTextMiniExpressionUnit): void
+  (e: 'blur'): void
+  (e: 'focus'): void
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  placeholder: '',
+  disabled: false,
+  readonly: false,
+})
+
+const emit = defineEmits<Emits>()
+const { t } = useI18n()
+
+const editorRef = ref()
+const variableSelectorVisible = ref(false)
+
+const resolvedPlaceholder = computed(() => props.placeholder || t('flowComponents.enterText'))
+
+const localValue = computed({
+  get: () => props.modelValue.Text || '',
+  set: (_value: string) => {
+    // handled by handleInput to keep change event consistent
+  },
+})
+
+function handleInput(value: string) {
+  const updatedValue: FullTextMiniExpressionUnit = {
+    ...props.modelValue,
+    Text: value,
+  }
+  emit('update:modelValue', updatedValue)
+  emit('change', updatedValue)
+}
+
+function showVariableSelectorDialog() {
+  variableSelectorVisible.value = true
+}
+
+function handleVariableSelect(variable: VariableItem) {
+  if (!editorRef.value)
+    return
+  editorRef.value.insertAtCursor(`{{${variable.key}}}`)
+}
+</script>
+
 <template>
   <div class="fulltext-mini-expression-unit">
     <div class="inline-editor">
@@ -15,8 +78,8 @@
           size="small"
           text
           class="variable-btn"
-          @click="showVariableSelectorDialog"
           :disabled="disabled || readonly"
+          @click="showVariableSelectorDialog"
         >
           {x}
         </el-button>
@@ -29,68 +92,6 @@
     />
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import CodeMirrorEditor from '../components/CodeMirrorEditor.vue';
-import VariableSelector from '../components/VariableSelector.vue';
-import type { VariableItem } from '@/types/flow-designer/variableSelector.types';
-import type { FullTextMiniExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-
-interface Props {
-  modelValue: FullTextMiniExpressionUnit;
-  placeholder?: string;
-  disabled?: boolean;
-  readonly?: boolean;
-}
-
-interface Emits {
-  (e: 'update:modelValue', value: FullTextMiniExpressionUnit): void;
-  (e: 'change', value: FullTextMiniExpressionUnit): void;
-  (e: 'blur'): void;
-  (e: 'focus'): void;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  placeholder: '',
-  disabled: false,
-  readonly: false
-});
-
-const emit = defineEmits<Emits>();
-const { t } = useI18n();
-
-const editorRef = ref();
-const variableSelectorVisible = ref(false);
-
-const resolvedPlaceholder = computed(() => props.placeholder || t('flowComponents.enterText'));
-
-const localValue = computed({
-  get: () => props.modelValue.Text || '',
-  set: (value: string) => {
-    // handled by handleInput to keep change event consistent
-  }
-});
-
-const handleInput = (value: string) => {
-  const updatedValue: FullTextMiniExpressionUnit = {
-    ...props.modelValue,
-    Text: value
-  };
-  emit('update:modelValue', updatedValue);
-  emit('change', updatedValue);
-};
-
-const showVariableSelectorDialog = () => {
-  variableSelectorVisible.value = true;
-};
-
-const handleVariableSelect = (variable: VariableItem) => {
-  if (!editorRef.value) return;
-  editorRef.value.insertAtCursor(`{{${variable.key}}}`);
-};
-</script>
 
 <style scoped>
 .fulltext-mini-expression-unit {
@@ -121,7 +122,7 @@ const handleVariableSelect = (variable: VariableItem) => {
   font-size: 13px;
   font-weight: 600;
   padding: 4px 8px;
-  color: #6B7D8E;
+  color: #6b7d8e;
 }
 
 .variable-btn:hover {

@@ -1,8 +1,8 @@
 {
   "name": "nexus",
+  "type": "module",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",
@@ -10,7 +10,9 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:auth": "vitest run src/views/login/__tests__ src/stores/__tests__/auth.spec.ts src/utils/__tests__/auth-session.spec.ts"
   },
   "dependencies": {
     "@arms/rum-browser": "^0.1.8",
@@ -45,21 +47,26 @@
     "@fontsource/noto-sans-sc": "^5.2.9",
     "@iconify-json/ep": "^1.2.4",
     "@tsconfig/node22": "^22.0.0",
-    "@types/node": "^22.10.2",
+    "@types/node": "22.20.5",
+    "@unocss/eslint-plugin": "66.10.5",
     "@unocss/preset-attributify": "^66.6.6",
     "@unocss/preset-icons": "^66.6.6",
     "@unocss/preset-uno": "^66.6.6",
     "@unocss/transformer-directives": "^66.6.6",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "2.5.1",
     "@vue/tsconfig": "^0.7.0",
     "eslint": "^10.2.0",
+    "eslint-plugin-format": "2.0.1",
+    "jsdom": "^26.1.0",
     "npm-run-all2": "^7.0.2",
-    "sass-embedded": "^1.83.0",
+    "sass-embedded": "1.105.1",
     "typescript": "~5.6.3",
     "unocss": "^66.6.6",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-vue-components": "^32.0.0",
-    "vite": "^6.0.5",
+    "vite": "6.4.4",
+    "vitest": "^3.2.7",
     "vue-tsc": "^2.1.10"
   }
 }

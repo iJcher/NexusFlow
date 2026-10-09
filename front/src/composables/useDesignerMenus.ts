@@ -1,12 +1,12 @@
-import { ref } from 'vue'
 import type LogicFlow from '@logicflow/core'
 import { ElMessage } from 'element-plus'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useFlowDesignerStore } from '@/stores/flowDesigner'
 
 export function useDesignerMenus() {
   const { t } = useI18n()
-  const flowStore = useFlowDesignerStore()
+  const _flowStore = useFlowDesignerStore()
 
   const contextMenuVisible = ref(false)
   const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -16,7 +16,6 @@ export function useDesignerMenus() {
   const nodeContextMenuPosition = ref({ x: 0, y: 0 })
   const contextMenuTargetType = ref<'node' | 'edge' | null>(null)
   const contextMenuTargetId = ref<string | null>(null)
-
 
   const closeContextMenu = (rightMenuRef?: { closeSelector: () => void } | null) => {
     contextMenuVisible.value = false
@@ -36,7 +35,8 @@ export function useDesignerMenus() {
 
   const handleCanvasContextMenu = (event: MouseEvent, lf: LogicFlow | null) => {
     const target = event.target as HTMLElement
-    if (target.closest('.lf-node') || target.closest('.lf-edge')) return
+    if (target.closest('.lf-node') || target.closest('.lf-edge'))
+      return
 
     contextMenuPosition.value = { x: event.clientX, y: event.clientY }
 
@@ -53,7 +53,8 @@ export function useDesignerMenus() {
   }
 
   const handleDeleteTarget = (targetType: 'node' | 'edge', targetId: string, lf: LogicFlow | null) => {
-    if (!lf) return
+    if (!lf)
+      return
 
     if (targetType === 'node') {
       lf.deleteNode(targetId)

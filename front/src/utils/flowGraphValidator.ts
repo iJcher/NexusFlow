@@ -77,7 +77,7 @@ function validateEdges(
   nodeMap: Map<string, FlowNode>,
   issues: IFlowValidationIssue[],
 ) {
-  const previousEdges: Array<{ source: string; target: string; sourceHandle?: string }> = []
+  const previousEdges: Array<{ source: string, target: string, sourceHandle?: string }> = []
 
   edges.forEach((edge) => {
     const sourceNode = nodeMap.get(edge.sourceNodeId)
@@ -113,7 +113,8 @@ function validateEdges(
 
   nodes.forEach((node) => {
     const nodeType = getNodeType(node)
-    if (nodeType === 'StartNode') return
+    if (nodeType === 'StartNode')
+      return
 
     const hasIncoming = edges.some(edge => edge.targetNodeId === node.id)
     if (!hasIncoming) {
@@ -133,7 +134,8 @@ function validateReachability(
   issues: IFlowValidationIssue[],
 ) {
   const startNode = nodes.find(node => getNodeType(node) === 'StartNode')
-  if (!startNode) return
+  if (!startNode)
+    return
 
   const nextMap = new Map<string, string[]>()
   edges.forEach((edge) => {
@@ -146,7 +148,8 @@ function validateReachability(
   const stack = [startNode.id]
   while (stack.length > 0) {
     const nodeId = stack.pop()
-    if (!nodeId || reachable.has(nodeId)) continue
+    if (!nodeId || reachable.has(nodeId))
+      continue
     reachable.add(nodeId)
     stack.push(...(nextMap.get(nodeId) || []))
   }
@@ -233,7 +236,8 @@ function isConditionBranchConnected(
   branch: IConditionRule | IElseRule | undefined,
   edges: FlowEdge[],
 ): boolean {
-  if (!branch) return false
+  if (!branch)
+    return false
   return edges.some(edge =>
     edge.sourceNodeId === nodeId
     && (
@@ -245,7 +249,7 @@ function isConditionBranchConnected(
 
 function validateAssignNode(node: FlowNode, issues: IFlowValidationIssue[]) {
   const assignments = Array.isArray(node.properties.assignments)
-    ? node.properties.assignments as Array<{ targetVariableName?: string; expressionUnit?: unknown }>
+    ? node.properties.assignments as Array<{ targetVariableName?: string, expressionUnit?: unknown }>
     : []
 
   if (assignments.length === 0) {
@@ -269,8 +273,10 @@ function hasText(value: unknown): boolean {
 }
 
 function hasExpressionText(value: unknown): boolean {
-  if (typeof value === 'string') return hasText(value)
-  if (!value || typeof value !== 'object') return false
+  if (typeof value === 'string')
+    return hasText(value)
+  if (!value || typeof value !== 'object')
+    return false
 
   const unit = value as Record<string, unknown>
   return hasText(unit.text)

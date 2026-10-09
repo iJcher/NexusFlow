@@ -1,3 +1,174 @@
+<script setup lang="ts">
+import type { IDocChunkDto, IKnowledgeBaseDto, IKnowledgeDocDto, ISearchResultDto } from '@/services/knowledge.service'
+import { Document, Grid, Search, Upload } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import {
+
+  KnowledgeService,
+} from '@/services/knowledge.service'
+
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const kbId = route.params.id as string
+
+const kb = ref<IKnowledgeBaseDto | null>(null)
+const documents = ref<IKnowledgeDocDto[]>([])
+const activeTab = ref('documents')
+const docLoading = ref(false)
+const uploading = ref(false)
+
+// Chunk preview
+const chunkDrawerVisible = ref(false)
+const chunkLoading = ref(false)
+const chunks = ref<IDocChunkDto[]>([])
+
+// Search test
+const searchQuery = ref('')
+const searching = ref(false)
+const searchDone = ref(false)
+const searchResults = ref<ISearchResultDto[]>([])
+const searchParams = ref({ topK: 5, threshold: 0.3 })
+
+async function loadDetail() {
+  docLoading.value = true
+  try {
+    const res = await KnowledgeService.getById(kbId)
+    if (res.errCode === 0 && res.data) {
+      kb.value = res.data
+      documents.value = res.data.documents || []
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.loadFailed'))
+  }
+  finally {
+    docLoading.value = false
+  }
+}
+
+async function handleUpload(file: File) {
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('File size exceeds 10MB limit')
+    return false
+  }
+
+  uploading.value = true
+  try {
+    const res = await KnowledgeService.uploadDocument(kbId, file)
+    if (res.errCode === 0) {
+      ElMessage.success(t('success.operationSuccess'))
+      setTimeout(loadDetail, 1000)
+    }
+    else {
+      ElMessage.error(res.errMsg || t('errors.operationFailed'))
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.operationFailed'))
+  }
+  finally {
+    uploading.value = false
+  }
+  return false
+}
+
+async function viewChunks(documentId: string) {
+  chunkDrawerVisible.value = true
+  chunkLoading.value = true
+  try {
+    const res = await KnowledgeService.getDocumentChunks(documentId)
+    if (res.errCode === 0) {
+      chunks.value = res.data || []
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.loadFailed'))
+  }
+  finally {
+    chunkLoading.value = false
+  }
+}
+
+function deleteDoc(documentId: string) {
+  const doc = documents.value.find(item => item.id === documentId)
+  if (!doc)
+    return
+  ElMessageBox.confirm(
+    t('knowledge.deleteDocConfirm', { name: doc.fileName }),
+    t('flowList.deleteHint'),
+    { type: 'warning' },
+  ).then(async () => {
+    const res = await KnowledgeService.deleteDocument(doc.id)
+    if (res.errCode === 0) {
+      ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
+      loadDetail()
+    }
+  }).catch(() => {})
+}
+
+async function doSearch() {
+  if (!searchQuery.value.trim())
+    return
+  searching.value = true
+  searchDone.value = false
+  try {
+    const res = await KnowledgeService.search({
+      knowledgeBaseId: kbId,
+      query: searchQuery.value,
+      topK: searchParams.value.topK,
+      threshold: searchParams.value.threshold,
+    })
+    if (res.errCode === 0) {
+      searchResults.value = res.data || []
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.operationFailed'))
+  }
+  finally {
+    searching.value = false
+    searchDone.value = true
+  }
+}
+
+function getStatusType(status: string) {
+  const map: Record<string, string> = {
+    completed: 'success',
+    processing: 'warning',
+    pending: 'info',
+    error: 'danger',
+  }
+  return (map[status] || 'info') as any
+}
+
+function getStatusLabel(status: string) {
+  const key = `knowledge.${status}` as any
+  return t(key) || status
+}
+
+function formatSize(bytes: number) {
+  if (bytes < 1024)
+    return `${bytes} B`
+  if (bytes < 1024 * 1024)
+    return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatDate(dateStr: string) {
+  if (!dateStr)
+    return ''
+  return new Date(dateStr).toLocaleString()
+}
+
+onMounted(() => {
+  loadDetail()
+})
+</script>
+
 <template>
   <div class="kb-detail-page">
     <!-- Header -->
@@ -43,7 +214,7 @@
           <span class="upload-hint">{{ t('knowledge.uploadHint') }}</span>
         </div>
 
-        <el-table :data="documents" v-loading="docLoading" class="doc-table">
+        <el-table v-loading="docLoading" :data="documents" class="doc-table">
           <el-table-column prop="fileName" :label="t('fields.flowName')" min-width="200" />
           <el-table-column :label="t('common.status')" width="120">
             <template #default="{ row }">
@@ -57,13 +228,19 @@
             </template>
           </el-table-column>
           <el-table-column :label="t('knowledge.chunkCount', { count: '' })" width="100">
-            <template #default="{ row }">{{ row.chunkCount }}</template>
+            <template #default="{ row }">
+              {{ row.chunkCount }}
+            </template>
           </el-table-column>
           <el-table-column prop="fileSize" label="Size" width="100">
-            <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
+            <template #default="{ row }">
+              {{ formatSize(row.fileSize) }}
+            </template>
           </el-table-column>
           <el-table-column :label="t('common.createdTime')" width="160">
-            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
           </el-table-column>
           <el-table-column :label="t('common.actions')" width="180" fixed="right">
             <template #default="{ row }">
@@ -72,11 +249,11 @@
                 type="primary"
                 size="small"
                 :disabled="row.status !== 'completed'"
-                @click="viewChunks(row)"
+                @click="viewChunks(row.id)"
               >
                 {{ t('knowledge.viewChunks') }}
               </el-button>
-              <el-button text type="danger" size="small" @click="deleteDoc(row)">
+              <el-button text type="danger" size="small" @click="deleteDoc(row.id)">
                 {{ t('common.delete') }}
               </el-button>
             </template>
@@ -123,7 +300,9 @@
                   {{ t('knowledge.source') }}: {{ result.fileName }} · {{ t('knowledge.chunkIndex', { index: result.chunkIndex + 1 }) }}
                 </span>
               </div>
-              <p class="result-content">{{ result.content }}</p>
+              <p class="result-content">
+                {{ result.content }}
+              </p>
             </div>
           </div>
 
@@ -145,170 +324,15 @@
               {{ t('knowledge.tokens', { count: chunk.tokenCount }) }}
             </el-tag>
           </div>
-          <p class="chunk-content">{{ chunk.content }}</p>
+          <p class="chunk-content">
+            {{ chunk.content }}
+          </p>
         </div>
         <el-empty v-if="!chunkLoading && chunks.length === 0" />
       </div>
     </el-drawer>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Grid, Upload, Search } from '@element-plus/icons-vue'
-import {
-  KnowledgeService,
-  type IKnowledgeBaseDto,
-  type IKnowledgeDocDto,
-  type IDocChunkDto,
-  type ISearchResultDto,
-} from '@/services/knowledge.service'
-
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const kbId = route.params.id as string
-
-const kb = ref<IKnowledgeBaseDto | null>(null)
-const documents = ref<IKnowledgeDocDto[]>([])
-const activeTab = ref('documents')
-const docLoading = ref(false)
-const uploading = ref(false)
-
-// Chunk preview
-const chunkDrawerVisible = ref(false)
-const chunkLoading = ref(false)
-const chunks = ref<IDocChunkDto[]>([])
-
-// Search test
-const searchQuery = ref('')
-const searching = ref(false)
-const searchDone = ref(false)
-const searchResults = ref<ISearchResultDto[]>([])
-const searchParams = ref({ topK: 5, threshold: 0.3 })
-
-const loadDetail = async () => {
-  docLoading.value = true
-  try {
-    const res = await KnowledgeService.getById(kbId)
-    if (res.errCode === 0 && res.data) {
-      kb.value = res.data
-      documents.value = res.data.documents || []
-    }
-  } catch {
-    ElMessage.error(t('errors.loadFailed'))
-  } finally {
-    docLoading.value = false
-  }
-}
-
-const handleUpload = async (file: File) => {
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('File size exceeds 10MB limit')
-    return false
-  }
-
-  uploading.value = true
-  try {
-    const res = await KnowledgeService.uploadDocument(kbId, file)
-    if (res.errCode === 0) {
-      ElMessage.success(t('success.operationSuccess'))
-      setTimeout(() => loadDetail(), 1000)
-    } else {
-      ElMessage.error(res.errMsg || t('errors.operationFailed'))
-    }
-  } catch {
-    ElMessage.error(t('errors.operationFailed'))
-  } finally {
-    uploading.value = false
-  }
-  return false
-}
-
-const viewChunks = async (doc: IKnowledgeDocDto) => {
-  chunkDrawerVisible.value = true
-  chunkLoading.value = true
-  try {
-    const res = await KnowledgeService.getDocumentChunks(doc.id)
-    if (res.errCode === 0) {
-      chunks.value = res.data || []
-    }
-  } catch {
-    ElMessage.error(t('errors.loadFailed'))
-  } finally {
-    chunkLoading.value = false
-  }
-}
-
-const deleteDoc = (doc: IKnowledgeDocDto) => {
-  ElMessageBox.confirm(
-    t('knowledge.deleteDocConfirm', { name: doc.fileName }),
-    t('flowList.deleteHint'),
-    { type: 'warning' },
-  ).then(async () => {
-    const res = await KnowledgeService.deleteDocument(doc.id)
-    if (res.errCode === 0) {
-      ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
-      loadDetail()
-    }
-  }).catch(() => {})
-}
-
-const doSearch = async () => {
-  if (!searchQuery.value.trim()) return
-  searching.value = true
-  searchDone.value = false
-  try {
-    const res = await KnowledgeService.search({
-      knowledgeBaseId: kbId,
-      query: searchQuery.value,
-      topK: searchParams.value.topK,
-      threshold: searchParams.value.threshold,
-    })
-    if (res.errCode === 0) {
-      searchResults.value = res.data || []
-    }
-  } catch {
-    ElMessage.error(t('errors.operationFailed'))
-  } finally {
-    searching.value = false
-    searchDone.value = true
-  }
-}
-
-const getStatusType = (status: string) => {
-  const map: Record<string, string> = {
-    completed: 'success',
-    processing: 'warning',
-    pending: 'info',
-    error: 'danger',
-  }
-  return (map[status] || 'info') as any
-}
-
-const getStatusLabel = (status: string) => {
-  const key = `knowledge.${status}` as any
-  return t(key) || status
-}
-
-const formatSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleString()
-}
-
-onMounted(() => {
-  loadDetail()
-})
-</script>
 
 <style scoped>
 .kb-detail-page {
@@ -352,24 +376,24 @@ onMounted(() => {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--nf-text-body, #8B9DB0);
+  color: var(--nf-text-body, #8b9db0);
   font: inherit;
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-link:hover {
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
 }
 
 .breadcrumb-separator {
-  color: var(--nf-text-tertiary, #4A5C6E);
+  color: var(--nf-text-tertiary, #4a5c6e);
   font-size: 12px;
 }
 
 .breadcrumb-current {
   min-width: 0;
-  color: var(--nf-text-primary, #E6EDF3);
+  color: var(--nf-text-primary, #e6edf3);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -387,11 +411,11 @@ onMounted(() => {
   gap: 6px;
   padding: 8px 16px;
   background: rgba(8, 11, 16, 0.5);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 6px;
   font-family: var(--nf-font-mono);
   font-size: 12px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   font-variant-numeric: tabular-nums;
 }
 
@@ -408,7 +432,7 @@ onMounted(() => {
 
 .upload-hint {
   font-size: 12px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   letter-spacing: 0.02em;
 }
 
@@ -437,7 +461,7 @@ onMounted(() => {
 
 .result-card {
   background: rgba(8, 11, 16, 0.5);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 8px;
   padding: 16px;
   transition: all 0.3s ease;
@@ -464,14 +488,14 @@ onMounted(() => {
 .result-source {
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   margin-left: auto;
 }
 
 .result-content {
   font-size: 13px;
   line-height: 1.7;
-  color: #7A8B9C;
+  color: #7a8b9c;
   margin: 0;
   white-space: pre-wrap;
   letter-spacing: 0.02em;
@@ -506,7 +530,7 @@ onMounted(() => {
 .chunk-content {
   font-size: 13px;
   line-height: 1.7;
-  color: #7A8B9C;
+  color: #7a8b9c;
   margin: 0;
   white-space: pre-wrap;
   letter-spacing: 0.02em;

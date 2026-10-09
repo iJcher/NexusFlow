@@ -1,8 +1,147 @@
+<script setup lang="ts">
+import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import { Close, FullScreen, QuestionFilled } from '@element-plus/icons-vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import CodeMirrorEditor from '../components/CodeMirrorEditor.vue'
+
+const props = withDefaults(defineProps<Props>(), {
+  placeholder: '',
+  disabled: false,
+  readonly: false,
+  rows: 8,
+  lockMode: false,
+})
+
+const emit = defineEmits<Emits>()
+
+const { t } = useI18n()
+
+// 组件属性
+interface Props {
+  modelValue: JSExpressionUnit
+  placeholder?: string
+  disabled?: boolean
+  readonly?: boolean
+  rows?: number
+  lockMode?: boolean // 是否锁定模式，禁用模式切换
+}
+
+// 组件事件
+interface Emits {
+  (e: 'update:modelValue', value: JSExpressionUnit): void
+  (e: 'change', value: JSExpressionUnit): void
+  (e: 'blur'): void
+  (e: 'focus'): void
+}
+
+// 组件状态
+const editorRef = ref()
+const isFullscreen = ref(false)
+
+// 当前模式
+const currentMode = ref<'expression' | 'function'>(
+  props.modelValue.isFunctionMode ? 'function' : 'expression',
+)
+
+// 当前代码（基于模式动态获取对应字段）
+const localCode = computed({
+  get: () => {
+    return currentMode.value === 'function'
+      ? props.modelValue.functionCode || ''
+      : props.modelValue.expressionCode || ''
+  },
+  set: (_value: string) => {
+    // 通过 emitUpdate 函数来处理更新
+  },
+})
+
+// 默认模板
+const expressionTemplate = ''
+const functionTemplate = `function main() {
+  // 可以使用变量，例如：{{age}} > 18
+  return true;
+}`
+
+// 当前占位符
+const currentPlaceholder = computed(() => {
+  return props.placeholder || (
+    currentMode.value === 'expression'
+      ? t('flowComponents.enterJSExpression')
+      : t('flowComponents.enterJSFunction')
+  )
+})
+
+// 初始化：如果代码为空，使用默认模板
+onMounted(() => {
+  const currentCode = currentMode.value === 'function'
+    ? props.modelValue.functionCode
+    : props.modelValue.expressionCode
+
+  if (!currentCode) {
+    const defaultCode = currentMode.value === 'expression' ? expressionTemplate : functionTemplate
+    emitUpdate(defaultCode)
+  }
+})
+
+// 监听外部值变化
+watch(() => props.modelValue, (newValue) => {
+  currentMode.value = newValue.isFunctionMode ? 'function' : 'expression'
+}, { deep: true })
+
+// 处理模式切换
+function handleModeChange(mode: string | number) {
+  const isFunctionMode = mode === 'function'
+
+  // 获取切换后模式的代码
+  const targetCode = isFunctionMode
+    ? props.modelValue.functionCode
+    : props.modelValue.expressionCode
+
+  // 如果目标模式的代码为空，填充默认模板
+  const codeToUse = targetCode || (isFunctionMode ? functionTemplate : expressionTemplate)
+
+  emitUpdate(codeToUse, isFunctionMode)
+}
+
+// 发送更新事件
+function emitUpdate(code: string, isFunctionMode?: boolean) {
+  const isFunction = isFunctionMode !== undefined ? isFunctionMode : currentMode.value === 'function'
+
+  const updatedValue: JSExpressionUnit = {
+    ...props.modelValue,
+    functionCode: isFunction ? code : props.modelValue.functionCode,
+    expressionCode: isFunction ? props.modelValue.expressionCode : code,
+    isFunctionMode: isFunction,
+  }
+  emit('update:modelValue', updatedValue)
+  emit('change', updatedValue)
+}
+
+// 事件处理
+function handleInput(value: string) {
+  emitUpdate(value)
+}
+
+function _handleBlur() {
+  emit('blur')
+}
+
+function _handleFocus() {
+  emit('focus')
+}
+
+// 切换全屏模式
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+}
+</script>
+
 <template>
   <!-- 全屏遮罩 -->
-  <div v-if="isFullscreen" class="fullscreen-backdrop" @click="toggleFullscreen"></div>
-  
-  <div :class="['js-expression-unit-editor', { 'is-fullscreen': isFullscreen }]">
+  <div v-if="isFullscreen" class="fullscreen-backdrop" @click="toggleFullscreen" />
+
+  <div class="js-expression-unit-editor" :class="[{ 'is-fullscreen': isFullscreen }]">
     <!-- 代码编辑区域 -->
     <div class="editor-container" :class="{ 'is-fullscreen': isFullscreen }">
       <CodeMirrorEditor
@@ -17,15 +156,19 @@
     <!-- 底部工具栏 -->
     <div class="editor-toolbar">
       <div class="toolbar-left">
-        <el-radio-group 
+        <el-radio-group
           v-if="!lockMode"
-          v-model="currentMode" 
+          v-model="currentMode"
           size="small"
-          @change="handleModeChange"
           class="mode-switch"
+          @change="handleModeChange"
         >
-          <el-radio-button label="expression">{{ t('flowComponents.expressionMode') }}</el-radio-button>
-          <el-radio-button label="function">{{ t('flowComponents.functionMode') }}</el-radio-button>
+          <el-radio-button label="expression">
+            {{ t('flowComponents.expressionMode') }}
+          </el-radio-button>
+          <el-radio-button label="function">
+            {{ t('flowComponents.functionMode') }}
+          </el-radio-button>
         </el-radio-group>
         <span v-else class="mode-locked">
           {{ currentMode === 'function' ? t('flowComponents.functionMode') : t('flowComponents.expressionMode') }}
@@ -35,174 +178,51 @@
         <span class="at-hint">@ 插入变量</span>
         <el-popover placement="top-start" :width="360" trigger="hover">
           <template #reference>
-            <button type="button" class="toolbar-btn"><el-icon><QuestionFilled /></el-icon></button>
+            <button type="button" class="toolbar-btn">
+              <el-icon><QuestionFilled /></el-icon>
+            </button>
           </template>
           <div class="help-content">
             <div class="help-section">
-              <div class="help-title">{{ t('flowComponents.expressionMode') }}</div>
-              <div class="help-text">{{ t('flowComponents.expressionModeHelp') }}</div>
+              <div class="help-title">
+                {{ t('flowComponents.expressionMode') }}
+              </div>
+              <div class="help-text">
+                {{ t('flowComponents.expressionModeHelp') }}
+              </div>
             </div>
             <div class="help-section">
-              <div class="help-title">{{ t('flowComponents.functionMode') }}</div>
-              <div class="help-text">{{ t('flowComponents.functionModeHelp') }}</div>
+              <div class="help-title">
+                {{ t('flowComponents.functionMode') }}
+              </div>
+              <div class="help-text">
+                {{ t('flowComponents.functionModeHelp') }}
+              </div>
             </div>
             <div class="help-section">
-              <div class="help-title">{{ t('flowComponents.variableUsage') }}</div>
-              <div class="help-text">{{ t('flowComponents.variableUsageHelp') }}</div>
+              <div class="help-title">
+                {{ t('flowComponents.variableUsage') }}
+              </div>
+              <div class="help-text">
+                {{ t('flowComponents.variableUsageHelp') }}
+              </div>
             </div>
           </div>
         </el-popover>
         <el-tooltip :content="isFullscreen ? t('flowComponents.exitFullscreen') : t('flowComponents.fullscreenEdit')" placement="top">
           <button type="button" class="toolbar-btn" @click="toggleFullscreen">
-            <el-icon v-if="!isFullscreen"><FullScreen /></el-icon>
-            <el-icon v-else><Close /></el-icon>
+            <el-icon v-if="!isFullscreen">
+              <FullScreen />
+            </el-icon>
+            <el-icon v-else>
+              <Close />
+            </el-icon>
           </button>
         </el-tooltip>
       </div>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { FullScreen, Close, QuestionFilled } from '@element-plus/icons-vue';
-import type { JSExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase';
-import CodeMirrorEditor from '../components/CodeMirrorEditor.vue';
-
-const { t } = useI18n();
-
-// 组件属性
-interface Props {
-  modelValue: JSExpressionUnit;
-  placeholder?: string;
-  disabled?: boolean;
-  readonly?: boolean;
-  rows?: number;
-  lockMode?: boolean; // 是否锁定模式，禁用模式切换
-}
-
-// 组件事件
-interface Emits {
-  (e: 'update:modelValue', value: JSExpressionUnit): void;
-  (e: 'change', value: JSExpressionUnit): void;
-  (e: 'blur'): void;
-  (e: 'focus'): void;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  placeholder: '',
-  disabled: false,
-  readonly: false,
-  rows: 8,
-  lockMode: false
-});
-
-const emit = defineEmits<Emits>();
-
-
-// 组件状态
-const editorRef = ref();
-const isFullscreen = ref(false);
-
-// 当前模式
-const currentMode = ref<'expression' | 'function'>(
-  props.modelValue.isFunctionMode ? 'function' : 'expression'
-);
-
-// 当前代码（基于模式动态获取对应字段）
-const localCode = computed({
-  get: () => {
-    return currentMode.value === 'function' 
-      ? props.modelValue.functionCode || ''
-      : props.modelValue.expressionCode || '';
-  },
-  set: (value: string) => {
-    // 通过 emitUpdate 函数来处理更新
-  }
-});
-
-// 默认模板
-const expressionTemplate = '';
-const functionTemplate = `function main() {
-  // 可以使用变量，例如：{{age}} > 18
-  return true;
-}`;
-
-// 当前占位符
-const currentPlaceholder = computed(() => {
-  return props.placeholder || (
-    currentMode.value === 'expression' 
-      ? t('flowComponents.enterJSExpression')
-      : t('flowComponents.enterJSFunction')
-  );
-});
-
-
-// 初始化：如果代码为空，使用默认模板
-onMounted(() => {
-  const currentCode = currentMode.value === 'function' 
-    ? props.modelValue.functionCode 
-    : props.modelValue.expressionCode;
-  
-  if (!currentCode) {
-    const defaultCode = currentMode.value === 'expression' ? expressionTemplate : functionTemplate;
-    emitUpdate(defaultCode);
-  }
-});
-
-// 监听外部值变化
-watch(() => props.modelValue, (newValue) => {
-  currentMode.value = newValue.isFunctionMode ? 'function' : 'expression';
-}, { deep: true });
-
-// 处理模式切换
-const handleModeChange = (mode: string | number) => {
-  const isFunctionMode = mode === 'function';
-  
-  // 获取切换后模式的代码
-  const targetCode = isFunctionMode 
-    ? props.modelValue.functionCode 
-    : props.modelValue.expressionCode;
-  
-  // 如果目标模式的代码为空，填充默认模板
-  const codeToUse = targetCode || (isFunctionMode ? functionTemplate : expressionTemplate);
-  
-  emitUpdate(codeToUse, isFunctionMode);
-};
-
-// 发送更新事件
-const emitUpdate = (code: string, isFunctionMode?: boolean) => {
-  const isFunction = isFunctionMode !== undefined ? isFunctionMode : currentMode.value === 'function';
-  
-  const updatedValue: JSExpressionUnit = {
-    ...props.modelValue,
-    functionCode: isFunction ? code : props.modelValue.functionCode,
-    expressionCode: isFunction ? props.modelValue.expressionCode : code,
-    isFunctionMode: isFunction
-  };
-  emit('update:modelValue', updatedValue);
-  emit('change', updatedValue);
-};
-
-// 事件处理
-const handleInput = (value: string) => {
-  emitUpdate(value);
-};
-
-const handleBlur = () => {
-  emit('blur');
-};
-
-const handleFocus = () => {
-  emit('focus');
-};
-
-// 切换全屏模式
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value;
-};
-</script>
 
 <style scoped lang="scss">
 .fullscreen-backdrop {
@@ -216,7 +236,9 @@ const toggleFullscreen = () => {
   border: 1px solid var(--nf-border);
   border-radius: 8px;
   overflow: hidden;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   background: var(--nf-bg-card);
 
   &:focus-within {
@@ -299,7 +321,9 @@ const toggleFullscreen = () => {
       background: transparent;
       color: var(--nf-text-muted);
       cursor: pointer;
-      transition: color 0.15s ease, background-color 0.15s ease;
+      transition:
+        color 0.15s ease,
+        background-color 0.15s ease;
       padding: 0;
 
       &:hover {
@@ -307,7 +331,9 @@ const toggleFullscreen = () => {
         background: var(--nf-bg-muted);
       }
 
-      .el-icon { font-size: 13px; }
+      .el-icon {
+        font-size: 13px;
+      }
     }
 
     .mode-locked {
@@ -335,10 +361,14 @@ const toggleFullscreen = () => {
         font-size: 11px;
         padding: 3px 10px;
         box-shadow: none;
-        transition: color 0.15s ease, background-color 0.15s ease;
+        transition:
+          color 0.15s ease,
+          background-color 0.15s ease;
         font-weight: 500;
 
-        &:hover { color: var(--nf-text-primary); }
+        &:hover {
+          color: var(--nf-text-primary);
+        }
       }
 
       :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {

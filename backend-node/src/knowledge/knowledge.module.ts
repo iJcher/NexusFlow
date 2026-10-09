@@ -9,7 +9,12 @@ import { LlmProviderModule } from '../llm-provider/llm-provider.module';
 @Module({
   imports: [LlmProviderModule],
   controllers: [KnowledgeController],
-  providers: [KnowledgeService, EmbeddingService, ChunkingService, RerankService],
+  providers: [
+    KnowledgeService,
+    EmbeddingService,
+    ChunkingService,
+    RerankService,
+  ],
   exports: [KnowledgeService, EmbeddingService, RerankService],
 })
 export class KnowledgeModule {}

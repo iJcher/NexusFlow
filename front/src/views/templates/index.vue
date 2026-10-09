@@ -1,9 +1,149 @@
+<script setup lang="ts">
+import type { ITemplateDto } from '@/services/template.service'
+import { Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { FlowService } from '@/services/flow.service'
+import { TemplateService } from '@/services/template.service'
+
+const { t } = useI18n()
+const router = useRouter()
+
+const activeTab = ref<'all' | 'official' | 'my'>('all')
+const searchKeyword = ref('')
+const selectedCategory = ref('')
+const loading = ref(false)
+const templates = ref<ITemplateDto[]>([])
+
+const categories = [
+  { value: '', label: t('templates.all') },
+  { value: 'custom', label: t('templates.categoryCustom') },
+  { value: 'customer-service', label: t('templates.categoryCs') },
+  { value: 'content', label: t('templates.categoryContent') },
+  { value: 'data', label: t('templates.categoryData') },
+  { value: 'rag', label: t('templates.categoryRag') },
+]
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function debouncedSearch() {
+  if (searchTimer)
+    clearTimeout(searchTimer)
+  searchTimer = setTimeout(loadTemplates, 300)
+}
+
+function switchTab(tab: 'all' | 'official' | 'my') {
+  activeTab.value = tab
+  loadTemplates()
+}
+
+function filterByCategory(cat: string) {
+  selectedCategory.value = selectedCategory.value === cat ? '' : cat
+  loadTemplates()
+}
+
+async function loadTemplates() {
+  loading.value = true
+  try {
+    const params: any = {
+      keyword: searchKeyword.value || undefined,
+      category: selectedCategory.value || undefined,
+      pageSize: 50,
+    }
+    if (activeTab.value === 'official')
+      params.isOfficial = true
+    if (activeTab.value === 'my')
+      params.isOfficial = false
+
+    const res = await TemplateService.getList(params)
+    if (res.errCode === 0) {
+      templates.value = res.data?.items || []
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.loadFailed'))
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+function getTagType(flowType?: number): 'warning' | 'success' | 'info' {
+  if (flowType === 1)
+    return 'warning'
+  if (flowType === 2)
+    return 'success'
+  return 'info'
+}
+
+function getFlowTypeLabel(flowType?: number) {
+  if (flowType === 1)
+    return t('nav.aiFlow')
+  if (flowType === 2)
+    return t('nav.approvalFlow')
+  return t('nav.logicFlow')
+}
+
+function formatDate(dateStr: string) {
+  if (!dateStr)
+    return ''
+  return new Date(dateStr).toLocaleDateString()
+}
+
+async function useTemplate(tpl: ITemplateDto) {
+  try {
+    const response = await FlowService.createFlow({
+      displayName: tpl.name,
+      flowType: tpl.flowType as any,
+      description: tpl.description,
+      configInfoForRun: tpl.configInfoForRun ?? undefined,
+      configInfoForWeb: tpl.configInfoForWeb ?? undefined,
+    })
+    if (response.errCode === 0) {
+      ElMessage.success(t('templates.templateUsed'))
+      router.push('/studio')
+    }
+    else {
+      ElMessage.error(response.errMsg || t('errors.operationFailed'))
+    }
+  }
+  catch {
+    ElMessage.error(t('errors.operationFailed'))
+  }
+}
+
+function deleteTemplate(tpl: ITemplateDto) {
+  ElMessageBox.confirm(
+    t('templates.deleteConfirm', { name: tpl.name }),
+    t('flowList.deleteHint'),
+    { type: 'warning' },
+  )
+    .then(async () => {
+      const res = await TemplateService.delete(tpl.id)
+      if (res.errCode === 0) {
+        ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
+        loadTemplates()
+      }
+    })
+    .catch(() => {})
+}
+
+onMounted(() => {
+  loadTemplates()
+})
+</script>
+
 <template>
   <div class="templates-page">
     <div class="page-header">
       <div>
-        <h2 class="page-title">{{ t('templates.title') }}</h2>
-        <p class="page-subtitle">{{ t('templates.subtitle') }}</p>
+        <h2 class="page-title">
+          {{ t('templates.title') }}
+        </h2>
+        <p class="page-subtitle">
+          {{ t('templates.subtitle') }}
+        </p>
       </div>
       <div class="header-actions">
         <el-input
@@ -18,13 +158,13 @@
     </div>
 
     <div class="tab-bar">
-      <button :class="['tab-btn', { active: activeTab === 'all' }]" @click="switchTab('all')">
+      <button class="tab-btn" :class="[{ active: activeTab === 'all' }]" @click="switchTab('all')">
         {{ t('templates.all') }}
       </button>
-      <button :class="['tab-btn', { active: activeTab === 'official' }]" @click="switchTab('official')">
+      <button class="tab-btn" :class="[{ active: activeTab === 'official' }]" @click="switchTab('official')">
         {{ t('templates.official') }}
       </button>
-      <button :class="['tab-btn', { active: activeTab === 'my' }]" @click="switchTab('my')">
+      <button class="tab-btn" :class="[{ active: activeTab === 'my' }]" @click="switchTab('my')">
         {{ t('templates.myTemplates') }}
       </button>
     </div>
@@ -35,7 +175,7 @@
         :key="cat.value"
         :type="selectedCategory === cat.value ? 'primary' : 'info'"
         effect="plain"
-        :class="['category-tag', { 'is-selected': selectedCategory === cat.value }]"
+        class="category-tag" :class="[{ 'is-selected': selectedCategory === cat.value }]"
         @click="filterByCategory(cat.value)"
       >
         {{ cat.label }}
@@ -48,10 +188,16 @@
           <el-tag :type="getTagType(tpl.flowType)" size="small" effect="plain">
             {{ getFlowTypeLabel(tpl.flowType) }}
           </el-tag>
-          <el-tag v-if="tpl.isOfficial" type="warning" size="small" effect="dark">官方</el-tag>
+          <el-tag v-if="tpl.isOfficial" type="warning" size="small" effect="dark">
+            官方
+          </el-tag>
         </div>
-        <h3 class="tpl-name">{{ tpl.name }}</h3>
-        <p class="tpl-desc">{{ tpl.description }}</p>
+        <h3 class="tpl-name">
+          {{ tpl.name }}
+        </h3>
+        <p class="tpl-desc">
+          {{ tpl.description }}
+        </p>
         <div v-if="tpl.tags?.length" class="tpl-tags">
           <el-tag v-for="tag in tpl.tags" :key="tag" size="small" type="info" effect="plain">
             {{ tag }}
@@ -85,129 +231,6 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
-import { FlowService } from '@/services/flow.service'
-import { TemplateService, type ITemplateDto } from '@/services/template.service'
-
-const { t } = useI18n()
-const router = useRouter()
-
-const activeTab = ref<'all' | 'official' | 'my'>('all')
-const searchKeyword = ref('')
-const selectedCategory = ref('')
-const loading = ref(false)
-const templates = ref<ITemplateDto[]>([])
-
-const categories = [
-  { value: '', label: t('templates.all') },
-  { value: 'custom', label: t('templates.categoryCustom') },
-  { value: 'customer-service', label: t('templates.categoryCs') },
-  { value: 'content', label: t('templates.categoryContent') },
-  { value: 'data', label: t('templates.categoryData') },
-  { value: 'rag', label: t('templates.categoryRag') },
-]
-
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-const debouncedSearch = () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => loadTemplates(), 300)
-}
-
-const switchTab = (tab: 'all' | 'official' | 'my') => {
-  activeTab.value = tab
-  loadTemplates()
-}
-
-const filterByCategory = (cat: string) => {
-  selectedCategory.value = selectedCategory.value === cat ? '' : cat
-  loadTemplates()
-}
-
-const loadTemplates = async () => {
-  loading.value = true
-  try {
-    const params: any = {
-      keyword: searchKeyword.value || undefined,
-      category: selectedCategory.value || undefined,
-      pageSize: 50,
-    }
-    if (activeTab.value === 'official') params.isOfficial = true
-    if (activeTab.value === 'my') params.isOfficial = false
-
-    const res = await TemplateService.getList(params)
-    if (res.errCode === 0) {
-      templates.value = res.data?.items || []
-    }
-  } catch {
-    ElMessage.error(t('errors.loadFailed'))
-  } finally {
-    loading.value = false
-  }
-}
-
-const getTagType = (flowType?: number): 'warning' | 'success' | 'info' => {
-  if (flowType === 1) return 'warning'
-  if (flowType === 2) return 'success'
-  return 'info'
-}
-
-const getFlowTypeLabel = (flowType?: number) => {
-  if (flowType === 1) return t('nav.aiFlow')
-  if (flowType === 2) return t('nav.approvalFlow')
-  return t('nav.logicFlow')
-}
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString()
-}
-
-const useTemplate = async (tpl: ITemplateDto) => {
-  try {
-    const response = await FlowService.createFlow({
-      displayName: tpl.name,
-      flowType: tpl.flowType as any,
-      description: tpl.description,
-      configInfoForRun: tpl.configInfoForRun ?? undefined,
-      configInfoForWeb: tpl.configInfoForWeb ?? undefined,
-    })
-    if (response.errCode === 0) {
-      ElMessage.success(t('templates.templateUsed'))
-      router.push('/studio')
-    } else {
-      ElMessage.error(response.errMsg || t('errors.operationFailed'))
-    }
-  } catch {
-    ElMessage.error(t('errors.operationFailed'))
-  }
-}
-
-const deleteTemplate = (tpl: ITemplateDto) => {
-  ElMessageBox.confirm(
-    t('templates.deleteConfirm', { name: tpl.name }),
-    t('flowList.deleteHint'),
-    { type: 'warning' },
-  )
-    .then(async () => {
-      const res = await TemplateService.delete(tpl.id)
-      if (res.errCode === 0) {
-        ElMessage.success(t('flowList.deleteSuccess', { type: '' }))
-        loadTemplates()
-      }
-    })
-    .catch(() => {})
-}
-
-onMounted(() => {
-  loadTemplates()
-})
-</script>
-
 <style scoped>
 .templates-page {
   padding: 24px 32px;
@@ -227,13 +250,13 @@ onMounted(() => {
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 4px;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.06em;
 }
 
 .page-subtitle {
   font-size: 13px;
-  color: #6B7D8E;
+  color: #6b7d8e;
   margin: 0;
   letter-spacing: 0.04em;
 }
@@ -246,7 +269,7 @@ onMounted(() => {
   display: flex;
   gap: 0;
   margin-bottom: 16px;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 6px;
   overflow: hidden;
   width: fit-content;
@@ -261,7 +284,7 @@ onMounted(() => {
   font-weight: 500;
   letter-spacing: 0.03em;
   cursor: pointer;
-  color: #6B7D8E;
+  color: #6b7d8e;
   transition: all 0.15s;
 }
 
@@ -270,7 +293,7 @@ onMounted(() => {
 }
 
 .tab-btn:hover {
-  color: #B0BEC5;
+  color: #b0bec5;
 }
 
 .tab-btn.active {
@@ -305,7 +328,7 @@ onMounted(() => {
 
 .template-card {
   background: rgba(8, 11, 16, 0.5);
-  border: 1px solid #1A2030;
+  border: 1px solid #1a2030;
   border-radius: 8px;
   padding: 20px;
   transition: all 0.3s ease;
@@ -315,7 +338,9 @@ onMounted(() => {
 
 .template-card:hover {
   border-color: rgba(0, 255, 159, 0.4);
-  box-shadow: 0 0 16px rgba(0, 255, 159, 0.12), 0 0 32px rgba(0, 255, 159, 0.04);
+  box-shadow:
+    0 0 16px rgba(0, 255, 159, 0.12),
+    0 0 32px rgba(0, 255, 159, 0.04);
 }
 
 .card-header {
@@ -328,13 +353,13 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 600;
   margin: 10px 0 6px;
-  color: #E6EDF3;
+  color: #e6edf3;
   letter-spacing: 0.06em;
 }
 
 .tpl-desc {
   font-size: 13px;
-  color: #7A8B9C;
+  color: #7a8b9c;
   line-height: 1.7;
   letter-spacing: 0.02em;
   margin: 0 0 10px;
@@ -354,7 +379,7 @@ onMounted(() => {
   margin-bottom: 12px;
   font-family: var(--nf-font-mono);
   font-size: 11px;
-  color: #4A5C6E;
+  color: #4a5c6e;
   font-variant-numeric: tabular-nums;
 }
 

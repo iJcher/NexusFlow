@@ -5,7 +5,7 @@ type ArmsEnvName = 'prod' | 'gray' | 'pre' | 'daily' | 'local'
 const ARMS_ENV_VALUES: readonly ArmsEnvName[] = ['prod', 'gray', 'pre', 'daily', 'local']
 
 function resolveArmsEnv(value: string | undefined, fallback: ArmsEnvName): ArmsEnvName {
-  return ARMS_ENV_VALUES.find((item) => item === value) ?? fallback
+  return ARMS_ENV_VALUES.find(item => item === value) ?? fallback
 }
 
 interface ArmsEnv {
@@ -20,9 +20,12 @@ let initialized = false
 export function setupArmsMonitoring(
   env: ArmsEnv = import.meta.env as unknown as ArmsEnv,
 ): void {
-  if (env.VITE_ARMS_ENABLED !== 'true') return
-  if (!env.VITE_ARMS_ENDPOINT) return
-  if (typeof window === 'undefined' || initialized) return
+  if (env.VITE_ARMS_ENABLED !== 'true')
+    return
+  if (!env.VITE_ARMS_ENDPOINT)
+    return
+  if (typeof window === 'undefined' || initialized)
+    return
 
   initialized = true
 

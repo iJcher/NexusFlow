@@ -1,11 +1,11 @@
-import { ref, computed } from 'vue'
 import type { Ref } from 'vue'
+import type { ChatMessage } from './useChatSSE'
+import type { AIFileRequest } from '@/types/flow.types'
+import type { LocalConversation, LocalMessage } from '@/types/flowConversation.types'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FlowConversationService } from '@/services/flowConversation.service'
-import type { LocalConversation, LocalMessage } from '@/types/flowConversation.types'
-import type { AIFileRequest } from '@/types/flow.types'
-import type { ChatMessage } from './useChatSSE'
 
 export function useConversationList(
   flowId: Ref<string>,
@@ -26,7 +26,8 @@ export function useConversationList(
 
   const sortedConversations = computed(() => {
     return [...conversations.value].sort((a, b) => {
-      if (a.isTop !== b.isTop) return a.isTop ? -1 : 1
+      if (a.isTop !== b.isTop)
+        return a.isTop ? -1 : 1
       const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0
       const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0
       return bTime - aTime
@@ -51,7 +52,8 @@ export function useConversationList(
   }
 
   const loadMessages = async (reset = true) => {
-    if (!conversationId.value || isMessagesLoading.value) return
+    if (!conversationId.value || isMessagesLoading.value)
+      return
     isMessagesLoading.value = true
 
     try {
@@ -82,7 +84,8 @@ export function useConversationList(
   }
 
   const loadConversations = async (reset = true) => {
-    if (isConversationsLoading.value) return
+    if (isConversationsLoading.value)
+      return
     isConversationsLoading.value = true
 
     try {
@@ -112,7 +115,8 @@ export function useConversationList(
   }
 
   const selectConversation = async (conv: LocalConversation) => {
-    if (!conv.id) return
+    if (!conv.id)
+      return
     conversationId.value = conv.id
     messageCursor.value = undefined
     messagesHasMore.value = false
@@ -127,7 +131,8 @@ export function useConversationList(
   }
 
   const toggleConversationTop = async (conv: LocalConversation) => {
-    if (!conv.id) return
+    if (!conv.id)
+      return
     try {
       await FlowConversationService.toggleConversationTop(flowId.value, conv.id)
       await loadConversations(true)
@@ -139,7 +144,8 @@ export function useConversationList(
   }
 
   const renameConversation = async (conv: LocalConversation) => {
-    if (!conv.id) return
+    if (!conv.id)
+      return
     try {
       const { value } = await ElMessageBox.prompt(t('flowChat.renamePrompt'), t('flowChat.renameConversation'), {
         inputValue: conv.title || '',
@@ -158,7 +164,8 @@ export function useConversationList(
   }
 
   const deleteConversation = async (conv: LocalConversation) => {
-    if (!conv.id) return
+    if (!conv.id)
+      return
     try {
       await ElMessageBox.confirm(t('flowChat.deleteConfirm'), t('flowChat.deleteConversation'), {
         confirmButtonText: t('flowChat.delete'),
@@ -166,7 +173,8 @@ export function useConversationList(
         type: 'warning',
       })
       await FlowConversationService.deleteConversation(flowId.value, conv.id)
-      if (conversationId.value === conv.id) startNewConversation()
+      if (conversationId.value === conv.id)
+        startNewConversation()
       await loadConversations(true)
     }
     catch (error) {

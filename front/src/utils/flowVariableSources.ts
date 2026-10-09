@@ -1,6 +1,6 @@
 import type { FlowEdge, FlowNode } from '@/stores/flowDesigner'
-import { VariableItemType } from '@/types/flow-designer/Parameters/Variable'
 import type { NodeOutputItem } from '@/types/flow-designer/NodeBase'
+import { VariableItemType } from '@/types/flow-designer/Parameters/Variable'
 
 export interface INodeOutputGroup {
   nodeId: string
@@ -51,7 +51,8 @@ export function getNodeOutputSchema(node: FlowNode): NodeOutputItem[] {
 }
 
 export function getBeforeNodes(currentNodeId: string | undefined, nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
-  if (!currentNodeId) return nodes
+  if (!currentNodeId)
+    return nodes
 
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   const prevMap = new Map<string, string[]>()
@@ -67,11 +68,13 @@ export function getBeforeNodes(currentNodeId: string | undefined, nodes: FlowNod
 
   while (stack.length > 0) {
     const nodeId = stack.pop()
-    if (!nodeId || visited.has(nodeId)) continue
+    if (!nodeId || visited.has(nodeId))
+      continue
     visited.add(nodeId)
 
     const node = nodeMap.get(nodeId)
-    if (node) result.push(node)
+    if (node)
+      result.push(node)
 
     stack.push(...(prevMap.get(nodeId) || []))
   }

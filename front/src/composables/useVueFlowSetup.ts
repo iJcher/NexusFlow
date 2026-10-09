@@ -1,15 +1,16 @@
-import { ref, watch, computed } from 'vue'
+import type { Connection, Edge, GraphNode, Node } from '@vue-flow/core'
 import type { Ref } from 'vue'
-import { useVueFlow, ConnectionMode, type Node, type Edge, type Connection, MarkerType, type GraphNode } from '@vue-flow/core'
-import { ElMessage } from 'element-plus'
-import { useI18n } from 'vue-i18n'
-import { getAvailableNodes } from '@/types/flow-designer/nodeConfig'
-import type { FlowTypeKey, NodeConfig } from '@/types/flow-designer/nodeConfig'
-import { generateNodeId } from '@/utils/uuid'
-import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
+import type { FlowTypeKey, NodeConfig } from '@/types/flow-designer/nodeConfig'
+import { ConnectionMode, MarkerType, useVueFlow } from '@vue-flow/core'
+import { ElMessage } from 'element-plus'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import { getAvailableNodes } from '@/types/flow-designer/nodeConfig'
 import { validateFlowConnection } from '@/utils/flowNodeRules'
+import { generateNodeId } from '@/utils/uuid'
 
 const NODE_TYPE_MAP: Record<string, string> = {
   StartNode: 'start',
@@ -34,8 +35,9 @@ interface IConditionBranch extends Record<string, unknown> {
   lineId?: string
 }
 
-const createConditionBranchId = (prefix: 'condition' | 'else'): string =>
-  `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+function createConditionBranchId(prefix: 'condition' | 'else'): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
 
 function createDefaultNodeData(nodeType: string, nodeConfig: NodeConfig, nodeId: string): IDefaultNodeData {
   const baseData: IDefaultNodeData = {
@@ -99,7 +101,8 @@ function toVueFlowType(typeName: string): string {
 
 function toLogicFlowType(vfType: string): string {
   for (const [lfType, vf] of Object.entries(NODE_TYPE_MAP)) {
-    if (vf === vfType) return lfType
+    if (vf === vfType)
+      return lfType
   }
   return vfType
 }
@@ -133,8 +136,8 @@ export function useVueFlowSetup(
     setEdges,
     removeEdges,
     onConnect,
-    onNodesChange,
-    onEdgesChange,
+    onNodesChange: _onNodesChange,
+    onEdgesChange: _onEdgesChange,
     onNodeDragStop,
     onPaneClick,
     project,
@@ -144,9 +147,9 @@ export function useVueFlowSetup(
     setViewport,
     getViewport,
     onNodeClick,
-    onEdgeClick,
+    onEdgeClick: _onEdgeClick,
     toObject,
-    fromObject,
+    fromObject: _fromObject,
     getSelectedNodes,
   } = useVueFlow({
     id: 'nexusflow-canvas',
@@ -184,11 +187,13 @@ export function useVueFlowSetup(
   })
 
   onConnect((connection: Connection) => {
-    if (!connection.source || !connection.target) return
+    if (!connection.source || !connection.target)
+      return
 
     const sourceNode = nodes.value.find(n => n.id === connection.source)
     const targetNode = nodes.value.find(n => n.id === connection.target)
-    if (!sourceNode || !targetNode) return
+    if (!sourceNode || !targetNode)
+      return
 
     const validation = validateFlowConnection({
       sourceId: connection.source,
@@ -261,7 +266,8 @@ export function useVueFlowSetup(
 
   const createWorkflowNode = (nodeType: string, position: { x: number, y: number }): Node | null => {
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
-    if (!nodeConfig) return null
+    if (!nodeConfig)
+      return null
 
     const nodeId = generateNodeId(nodeType)
     const data = createDefaultNodeData(nodeType, nodeConfig, nodeId)
@@ -273,22 +279,25 @@ export function useVueFlowSetup(
     }
   }
 
-  const resolveLogicNodeType = (node: Node): string => {
+  function resolveLogicNodeType(node: Node): string {
     return String(node.data?.typeName || toLogicFlowType(node.type || ''))
   }
 
   const resolveDefaultSourceHandle = (node: Node): string => {
-    if (resolveLogicNodeType(node) !== 'ConditionNode') return `${node.id}_right`
+    if (resolveLogicNodeType(node) !== 'ConditionNode')
+      return `${node.id}_right`
 
     const conditions = Array.isArray(node.data?.conditions) ? node.data.conditions as IConditionBranch[] : []
     return conditions[0]?.id || `${node.id}_right`
   }
 
-  const syncConditionBranchLine = (nodeId: string, sourceHandle: string | undefined, lineId?: string) => {
-    if (!sourceHandle) return
+  function syncConditionBranchLine(nodeId: string, sourceHandle: string | undefined, lineId?: string) {
+    if (!sourceHandle)
+      return
 
     const node = nodes.value.find(n => n.id === nodeId)
-    if (!node || resolveLogicNodeType(node) !== 'ConditionNode') return
+    if (!node || resolveLogicNodeType(node) !== 'ConditionNode')
+      return
 
     const conditions = Array.isArray(node.data?.conditions)
       ? (node.data.conditions as IConditionBranch[]).map(condition => (
@@ -343,12 +352,13 @@ export function useVueFlowSetup(
     })
   }
 
-  const createDefaultAiWorkflow = () => {
+  const _createDefaultAiWorkflow = () => {
     const startNode = createWorkflowNode('StartNode', { x: 120, y: 180 })
     const knowledgeNode = createWorkflowNode('KnowledgeNode', { x: 440, y: 150 })
     const llmNode = createWorkflowNode('LLMNode', { x: 780, y: 150 })
     const replyNode = createWorkflowNode('ReplyNode', { x: 1140, y: 180 })
-    if (!startNode || !knowledgeNode || !llmNode || !replyNode) return
+    if (!startNode || !knowledgeNode || !llmNode || !replyNode)
+      return
 
     const starterNodes = [startNode, knowledgeNode, llmNode, replyNode]
     const starterEdges = [
@@ -364,24 +374,28 @@ export function useVueFlowSetup(
     ElMessage.success(t('flowDesigner.emptyCanvasInitialized') || '已生成默认 AI 工作流')
   }
 
-  const upgradeSimpleAiWorkflowToRag = () => {
+  const _upgradeSimpleAiWorkflowToRag = () => {
     const hasKnowledgeNode = nodes.value.some(node => node.data?.typeName === 'KnowledgeNode')
-    if (hasKnowledgeNode || nodes.value.length !== 3) return
+    if (hasKnowledgeNode || nodes.value.length !== 3)
+      return
 
     const startNode = nodes.value.find(node => node.data?.typeName === 'StartNode')
     const llmNode = nodes.value.find(node => node.data?.typeName === 'LLMNode')
     const replyNode = nodes.value.find(node => node.data?.typeName === 'ReplyNode')
-    if (!startNode || !llmNode || !replyNode) return
+    if (!startNode || !llmNode || !replyNode)
+      return
 
     const startToLlmEdge = edges.value.find(edge => edge.source === startNode.id && edge.target === llmNode.id)
     const llmToReplyEdge = edges.value.find(edge => edge.source === llmNode.id && edge.target === replyNode.id)
-    if (!startToLlmEdge || !llmToReplyEdge || edges.value.length !== 2) return
+    if (!startToLlmEdge || !llmToReplyEdge || edges.value.length !== 2)
+      return
 
     const knowledgeNode = createWorkflowNode('KnowledgeNode', {
       x: (startNode.position.x + llmNode.position.x) / 2,
       y: Math.min(startNode.position.y, llmNode.position.y) - 30,
     })
-    if (!knowledgeNode) return
+    if (!knowledgeNode)
+      return
 
     removeEdges([startToLlmEdge.id])
     flowStore.removeEdge(startToLlmEdge.id)
@@ -398,7 +412,8 @@ export function useVueFlowSetup(
 
   const addNodeAtCenter = (nodeType: string, position?: { x: number, y: number }) => {
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
-    if (!nodeConfig) return
+    if (!nodeConfig)
+      return
 
     const nodeId = generateNodeId(nodeType)
     const pos = position || { x: 300 + Math.random() * 200, y: 200 + Math.random() * 150 }
@@ -429,10 +444,12 @@ export function useVueFlowSetup(
 
   const addNodeAndConnect = (sourceNodeId: string, sourceHandleId: string, nodeType: string) => {
     const sourceNode = nodes.value.find(n => n.id === sourceNodeId)
-    if (!sourceNode) return
+    if (!sourceNode)
+      return
 
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
-    if (!nodeConfig) return
+    if (!nodeConfig)
+      return
 
     const validation = validateFlowConnection({
       sourceId: sourceNodeId,
@@ -482,7 +499,7 @@ export function useVueFlowSetup(
     }])
     flowStore.addEdge({
       id: edgeId,
-      sourceNodeId: sourceNodeId,
+      sourceNodeId,
       targetNodeId: nodeId,
       sourceAnchorId: sourceHandleId,
       targetAnchorId: `${nodeId}_left`,
@@ -494,10 +511,12 @@ export function useVueFlowSetup(
 
   const addNodeBeforeAndConnect = (targetNodeId: string, targetHandleId: string, nodeType: string) => {
     const targetNode = nodes.value.find(n => n.id === targetNodeId)
-    if (!targetNode) return
+    if (!targetNode)
+      return
 
     const nodeConfig = availableNodes.value.find(n => n.typeName === nodeType)
-    if (!nodeConfig) return
+    if (!nodeConfig)
+      return
 
     const validation = validateFlowConnection({
       sourceId: `${nodeType}_preview`,
@@ -676,16 +695,18 @@ export function useVueFlowSetup(
     isGroupSelecting.value = false
   }
 
-  const deleteGroup = (groupId: string) => {
+  function deleteGroup(groupId: string) {
     const groupNode = nodes.value.find(n => n.id === groupId)
-    if (!groupNode || groupNode.type !== 'group') return
+    if (!groupNode || groupNode.type !== 'group')
+      return
 
     const groupPos = groupNode.position
 
     const updatedNodes = nodes.value
       .filter(n => n.id !== groupId)
-      .map(n => {
-        if (n.parentNode !== groupId) return n
+      .map((n) => {
+        if (n.parentNode !== groupId)
+          return n
         return {
           ...n,
           parentNode: undefined,
@@ -706,7 +727,7 @@ export function useVueFlowSetup(
   }
 
   const renderGraphData = (graphData: { nodes: any[], edges: any[] }) => {
-    const vfNodes: Node[] = graphData.nodes.map(n => {
+    const vfNodes: Node[] = graphData.nodes.map((n) => {
       const nodeType = n.type || n.properties?.typeName || ''
       const vfType = nodeType === 'group' ? 'group' : toVueFlowType(nodeType)
       const node: Node = {
@@ -715,8 +736,10 @@ export function useVueFlowSetup(
         position: { x: n.x ?? n.position?.x ?? 0, y: n.y ?? n.position?.y ?? 0 },
         data: n.properties || n.data || {},
       }
-      if (n.parentNode) node.parentNode = n.parentNode
-      if (n.zIndex != null) node.zIndex = n.zIndex
+      if (n.parentNode)
+        node.parentNode = n.parentNode
+      if (n.zIndex != null)
+        node.zIndex = n.zIndex
       if (vfType === 'group' && node.data) {
         node.style = {
           width: `${node.data.width || 300}px`,
@@ -729,10 +752,12 @@ export function useVueFlowSetup(
     vfNodes.sort((a, b) => {
       const aRoot = !a.parentNode
       const bRoot = !b.parentNode
-      if (aRoot !== bRoot) return aRoot ? -1 : 1
+      if (aRoot !== bRoot)
+        return aRoot ? -1 : 1
       const aGroup = a.type === 'group'
       const bGroup = b.type === 'group'
-      if (aGroup !== bGroup) return aGroup ? -1 : 1
+      if (aGroup !== bGroup)
+        return aGroup ? -1 : 1
       return 0
     })
 

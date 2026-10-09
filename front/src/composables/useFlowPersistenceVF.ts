@@ -1,12 +1,12 @@
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { useI18n } from 'vue-i18n'
+import type { Edge, Node } from '@vue-flow/core'
 import type { Ref } from 'vue'
-import type { Node, Edge } from '@vue-flow/core'
-import { FlowService } from '@/services/flow.service'
-import { useFlowDesignerStore } from '@/stores/flowDesigner'
-import type { IFlowConfigInfo, IUpdateFlowRequest } from '@/types/flow.types'
 import type { NodeBase } from '@/types/flow-designer/NodeBase'
 import type { NodeLine } from '@/types/flow-designer/NodeLine'
+import type { IFlowConfigInfo } from '@/types/flow.types'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
+import { FlowService } from '@/services/flow.service'
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
 import { validateFlowGraph } from '@/utils/flowGraphValidator'
 
 const LOCAL_STORAGE_PREFIX = 'nf_flow_web_'
@@ -14,13 +14,15 @@ const LOCAL_STORAGE_PREFIX = 'nf_flow_web_'
 function saveToLocal(flowId: number | string, webConfigJson: string) {
   try {
     localStorage.setItem(`${LOCAL_STORAGE_PREFIX}${flowId}`, webConfigJson)
-  } catch { /* quota exceeded */ }
+  }
+  catch { /* quota exceeded */ }
 }
 
 function loadFromLocal(flowId: number | string): string | null {
   try {
     return localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${flowId}`)
-  } catch { return null }
+  }
+  catch { return null }
 }
 
 function formatValidationMessages(
@@ -37,12 +39,14 @@ function formatValidationMessages(
 
 function syncConditionLineIds(flowStore: ReturnType<typeof useFlowDesignerStore>) {
   flowStore.currentNodes.forEach((node) => {
-    if (node.properties.typeName !== 'ConditionNode') return
+    if (node.properties.typeName !== 'ConditionNode')
+      return
 
     const outgoingEdges = flowStore.currentEdges.filter(edge => edge.sourceNodeId === node.id)
     const conditions = Array.isArray(node.properties.conditions)
       ? node.properties.conditions.map((condition) => {
-          if (!condition || typeof condition !== 'object') return condition
+          if (!condition || typeof condition !== 'object')
+            return condition
           const item = condition as Record<string, unknown>
           const matchedEdge = outgoingEdges.find(edge =>
             edge.sourceAnchorId === item.id || edge.id === item.lineId,
@@ -94,7 +98,8 @@ export function useFlowPersistenceVF(
         nodes: webConfig.vueFlowData.nodes || [],
         edges: webConfig.vueFlowData.edges || [],
       })
-    } else if (webConfig.logicFlowData) {
+    }
+    else if (webConfig.logicFlowData) {
       renderGraphData({
         nodes: webConfig.logicFlowData.nodes || [],
         edges: webConfig.logicFlowData.edges || [],
@@ -134,7 +139,8 @@ export function useFlowPersistenceVF(
 
         if (flowData.configInfoForWeb) {
           webConfigSource = flowData.configInfoForWeb
-        } else {
+        }
+        else {
           webConfigSource = loadFromLocal(id)
           if (webConfigSource) {
             console.warn('[FlowPersistence] Using localStorage fallback')
@@ -266,7 +272,8 @@ export function useFlowPersistenceVF(
    */
   const saveFlow = async (options?: { silent?: boolean }): Promise<boolean> => {
     if (!flowId.value) {
-      if (!options?.silent) ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
+      if (!options?.silent)
+        ElMessage.error(t('flowDesigner.cannotSaveWithoutFlowId'))
       return false
     }
 
@@ -285,7 +292,8 @@ export function useFlowPersistenceVF(
       })
 
       if (response.errCode === 0) {
-        if (!options?.silent) ElMessage.success(t('flowDesigner.flowSaveSuccess'))
+        if (!options?.silent)
+          ElMessage.success(t('flowDesigner.flowSaveSuccess'))
         return true
       }
       else {
@@ -339,7 +347,7 @@ export function useFlowPersistenceVF(
   }
 
   /** 将 Vue Flow 画布数据同步到 Pinia store */
-  const syncGraphToStore = () => {
+  function syncGraphToStore() {
     const graphData = getGraphData()
 
     const storeNodes = graphData.nodes.map(vfNode => ({

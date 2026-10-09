@@ -14,11 +14,15 @@ import { FlowAIController } from './workflow/flow-ai.controller';
 import { HealthController } from './health.controller';
 import { SkillModule } from './skill/skill.module';
 import { McpModule } from './mcp/mcp.module';
+import { RunsModule } from './runs/runs.module';
+import { SecurityModule } from './security/security.module';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    SecurityModule,
     AuthModule,
     FlowModule,
     LlmProviderModule,
@@ -28,6 +32,8 @@ import { McpModule } from './mcp/mcp.module';
     KnowledgeModule,
     SkillModule,
     McpModule,
+    RunsModule,
+    WorkspaceModule,
   ],
   controllers: [FlowAIController, HealthController],
   providers: [

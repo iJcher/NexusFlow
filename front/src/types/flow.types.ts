@@ -2,9 +2,9 @@
  * 流程管理相关类型定义
  */
 
-import type { NodeBase } from './flow-designer/NodeBase';
-import type { NodeLine } from './flow-designer/NodeLine';
-import type { AnyVariable } from './flow-designer/Parameters/Variable';
+import type { NodeBase } from './flow-designer/NodeBase'
+import type { NodeLine } from './flow-designer/NodeLine'
+import type { AnyVariable } from './flow-designer/Parameters/Variable'
 
 /**
  * 流程类型枚举
@@ -15,7 +15,7 @@ import type { AnyVariable } from './flow-designer/Parameters/Variable';
 export enum FlowType {
   LogicFlow = 'LogicFlow',
   AIFlow = 'AIFlow',
-  ApprovalFlow = 'ApprovalFlow'
+  ApprovalFlow = 'ApprovalFlow',
 }
 
 /**
@@ -26,22 +26,22 @@ export interface IFlowConfigInfo {
   /**
    * 自定义变量列表
    */
-  variables?: AnyVariable[] | null;
-  
+  variables?: AnyVariable[] | null
+
   /**
    * 输入参数列表
    */
-  inputParameters?: AnyVariable[] | null;
-  
+  inputParameters?: AnyVariable[] | null
+
   /**
    * 节点列表
    */
-  nodes?: NodeBase[] | null;
-  
+  nodes?: NodeBase[] | null
+
   /**
    * 连接线列表
    */
-  lines?: NodeLine[] | null;
+  lines?: NodeLine[] | null
 }
 
 /**
@@ -50,21 +50,21 @@ export interface IFlowConfigInfo {
  */
 export interface IFlowDto {
   /** 流程ID，创建时为null */
-  id?: number | null;
+  id?: number | null
   /** 流程显示名称 */
-  displayName?: string | null;
+  displayName?: string | null
   /** 流程类型 */
-  flowType?: FlowType;
+  flowType?: FlowType
   /** 流程描述 */
-  description?: string | null;
+  description?: string | null
   /** 运行配置信息 */
-  configInfoForRun?: IFlowConfigInfo | null;
+  configInfoForRun?: IFlowConfigInfo | null
   /** Web配置信息（JSON字符串） */
-  configInfoForWeb?: string | null;
+  configInfoForWeb?: string | null
   /** 最后修改时间 */
-  lastModified?: string | null;
+  lastModified?: string | null
   /** 最后修改人 */
-  lastModifyBy?: string | null;
+  lastModifyBy?: string | null
 }
 
 /**
@@ -72,15 +72,15 @@ export interface IFlowDto {
  */
 export interface ICreateFlowRequest {
   /** 流程显示名称 */
-  displayName: string;
+  displayName: string
   /** 流程类型 */
-  flowType: FlowType;
+  flowType: FlowType
   /** 流程描述 */
-  description?: string;
+  description?: string
   /** 运行配置信息 */
-  configInfoForRun?: IFlowConfigInfo | null;
+  configInfoForRun?: IFlowConfigInfo | null
   /** Web配置信息 */
-  configInfoForWeb?: string | null;
+  configInfoForWeb?: string | null
 }
 
 /**
@@ -88,15 +88,15 @@ export interface ICreateFlowRequest {
  */
 export interface IUpdateFlowRequest {
   /** 流程ID */
-  id: number;
+  id: number
   /** 流程显示名称 */
-  displayName?: string;
+  displayName?: string
   /** 流程描述 */
-  description?: string;
+  description?: string
   /** 运行配置信息 */
-  configInfoForRun?: IFlowConfigInfo | null;
+  configInfoForRun?: IFlowConfigInfo | null
   /** Web配置信息 */
-  configInfoForWeb?: string | null;
+  configInfoForWeb?: string | null
 }
 
 /**
@@ -104,11 +104,11 @@ export interface IUpdateFlowRequest {
  */
 export interface IGetFlowListRequest {
   /** 流程类型筛选，null表示获取所有类型 */
-  flowType?: FlowType | null;
+  flowType?: FlowType | null
   /** 页码，从1开始 */
-  pageIndex?: number;
+  pageIndex?: number
   /** 每页数量 */
-  pageSize?: number;
+  pageSize?: number
 }
 
 /**
@@ -117,23 +117,23 @@ export interface IGetFlowListRequest {
  */
 export interface IFlowRunLogDetail {
   /** 日志详情ID */
-  id: number;
+  id: number
   /** 运行日志主表ID */
-  flowRunLogId: number;
+  flowRunLogId: number
   /** 节点ID */
-  nodeId?: string | null;
+  nodeId?: string | null
   /** 节点名称 */
-  nodeName?: string | null;
+  nodeName?: string | null
   /** 节点类型 */
-  nodeType?: string | null;
+  nodeType?: string | null
   /** 是否执行成功 */
-  isSuccess: boolean;
+  isSuccess: boolean
   /** 节点执行产生的文本日志 */
-  logs?: string[] | null;
+  logs?: string[] | null
   /** 节点执行结果（结构化JSON） */
-  nodeResult?: unknown;
+  nodeResult?: unknown
   /** 日志记录创建时间 */
-  createdTime: string;
+  createdTime: string
 }
 
 /**
@@ -142,50 +142,49 @@ export interface IFlowRunLogDetail {
  */
 export interface IFlowRunLogDto {
   /** 日志ID/实例ID */
-  flowInstanceId: number;
+  flowInstanceId: number
   /** 对应的流程ID */
-  flowId: number;
+  flowId: number
   /** 流程显示名称 */
-  displayName?: string | null;
+  displayName?: string | null
   /** 流程类型 */
-  flowType: FlowType;
+  flowType: FlowType
   /** 节点运行详情 */
-  details?: IFlowRunLogDetail[] | null;
+  details?: IFlowRunLogDetail[] | null
   /** 运行开始时间 */
-  createdTime: string;
+  createdTime: string
   /** 运行结束时间 */
-  finishedTime?: string | null;
+  finishedTime?: string | null
   /** 运行耗时（毫秒） */
-  runDurationMs?: number;
+  runDurationMs?: number
   /** 触发运行的用户 */
-  runUser?: string | null;
+  runUser?: string | null
   /** 运行是否成功 */
-  isSuccess: boolean;
-  chatRequest?: AIChatRequest;
+  isSuccess: boolean
+  chatRequest?: AIChatRequest
 }
 
-
-    /**
+/**
  * AI 聊天请求模型
  */
 export interface AIChatRequest {
   /** 对话内容 */
-  query: string;
-  
+  query: string
+
   /** 用户标识, 前端可不传, 后端自动获取 */
-  user: string;
-  
+  user: string
+
   /** 会话ID，用于继续特定会话; 参考dify的逻辑, 传空的话, 则创建新的会话 */
-  conversationId?: string;
-  
+  conversationId?: string
+
   /** 响应模式: blocking 阻塞模式, streaming 流式模式 */
-  responseMode?: 'blocking' | 'streaming';
-  
+  responseMode?: 'blocking' | 'streaming'
+
   /** 附加输入参数, 该参数对应入参 */
-  inputs: Record<string, unknown>;
-  
+  inputs: Record<string, unknown>
+
   /** 文件列表，支持上传图片、文档等文件 */
-  files: AIFileRequest[];
+  files: AIFileRequest[]
 }
 
 /**
@@ -193,14 +192,14 @@ export interface AIChatRequest {
  */
 export interface AIFileRequest {
   /** 文件URL */
-  url: string;
-  
+  url: string
+
   /** 文件名称 */
-  name?: string;
-  
+  name?: string
+
   /** 文件大小（字节） */
-  size?: number;
-  
+  size?: number
+
   /** 文件MIME类型 */
-  mimeType?: string;
+  mimeType?: string
 }

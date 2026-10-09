@@ -1,16 +1,142 @@
+<script setup lang="ts">
+import type { Ref } from 'vue'
+import type { AnyExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
+import type { IFlowLLMProviderDto } from '@/types/llmProvider.types'
+import { ArrowDown, ArrowUp, MagicStick } from '@element-plus/icons-vue'
+import { computed, inject, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { LLMProviderService } from '@/services/llmProvider.service'
+import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
+import VariableSelector from '../components/VariableSelector.vue'
+
+const { t } = useI18n()
+
+const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
+const nodeId = inject<string>('nodeId')
+const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
+
+const collapsed = ref(false)
+const modelProviders = ref<IFlowLLMProviderDto[]>([])
+
+const displayName = ref(nodeData.value.displayName || 'LLM')
+const modelSelection = ref(nodeData.value.modelSelection || '')
+const temperature = ref(nodeData.value.temperature ?? 0.7)
+const memoryEnabled = ref(nodeData.value.memoryEnabled ?? false)
+const memoryRounds = ref(nodeData.value.memoryRounds ?? 5)
+const enableThinking = ref(nodeData.value.enableThinking ?? false)
+const variableSelectorVisible = ref(false)
+const variableTarget = ref<'systemPrompt' | 'userPrompt'>('userPrompt')
+
+function extractText(unit: AnyExpressionUnit | string | undefined): string {
+  if (!unit)
+    return ''
+  if (typeof unit === 'string')
+    return unit
+  if (unit.typeName === 'FullTextExpressionUnit')
+    return (unit as any).Text || ''
+  if (unit.typeName === 'JSExpressionUnit') {
+    const js = unit as any
+    return js.isFunctionMode ? js.functionCode : js.expressionCode
+  }
+  return ''
+}
+
+const systemPromptText = ref(extractText(nodeData.value.systemPrompt))
+const userPromptText = ref(extractText(nodeData.value.userPrompt))
+
+const modelDisplayName = computed(() => {
+  if (!modelSelection.value)
+    return 'No model'
+  const parts = modelSelection.value.split('|')
+  return parts.length === 2 ? parts[1] : modelSelection.value
+})
+
+function getFirstAvailableModel(providers: IFlowLLMProviderDto[]): string {
+  for (const provider of providers) {
+    const platformName = provider.platformName
+    const firstModelName = provider.llmNames?.[0]
+    if (platformName && firstModelName) {
+      return `${platformName}|${firstModelName}`
+    }
+  }
+  return ''
+}
+
+function update(key: string, value: any) {
+  onUpdate({ [key]: value })
+}
+
+function commitName() {
+  update('displayName', displayName.value || 'LLM')
+}
+
+function commitPrompt(key: string, text: string) {
+  const existing = nodeData.value[key] as AnyExpressionUnit | undefined
+  if (existing && existing.typeName === 'FullTextExpressionUnit') {
+    update(key, { ...existing, Text: text })
+  }
+  else {
+    update(key, ExpressionUnitFactory.createFullTextExpression(text))
+  }
+}
+
+function openVariableSelector(target: 'systemPrompt' | 'userPrompt') {
+  variableTarget.value = target
+  variableSelectorVisible.value = true
+}
+
+function handleVariableSelect(variable: VariableItem) {
+  const placeholder = `{{${variable.key}}}`
+  if (variableTarget.value === 'systemPrompt') {
+    systemPromptText.value += placeholder
+    commitPrompt('systemPrompt', systemPromptText.value)
+    return
+  }
+
+  userPromptText.value += placeholder
+  commitPrompt('userPrompt', userPromptText.value)
+}
+
+async function loadModelProviders() {
+  try {
+    const response = await LLMProviderService.getProviderList()
+    if (response.errCode === 0 && response.data) {
+      modelProviders.value = response.data
+      if (!modelSelection.value) {
+        const firstModel = getFirstAvailableModel(response.data)
+        if (firstModel) {
+          modelSelection.value = firstModel
+          update('modelSelection', firstModel)
+        }
+      }
+    }
+  }
+  catch (e) {
+    console.error('Failed to load model providers:', e)
+  }
+}
+
+onMounted(loadModelProviders)
+</script>
+
 <template>
   <div class="widget-node llm-widget">
     <div class="widget-header">
-      <el-icon :size="16" class="widget-icon"><MagicStick /></el-icon>
+      <el-icon :size="16" class="widget-icon">
+        <MagicStick />
+      </el-icon>
       <input
         v-model="displayName"
         class="widget-title-input"
         @mousedown.stop
         @blur="commitName"
         @keydown.enter="($event.target as HTMLInputElement)?.blur()"
-      />
+      >
       <button class="toggle-btn" @click.stop="collapsed = !collapsed" @mousedown.stop>
-        <el-icon :size="14"><ArrowUp v-if="!collapsed" /><ArrowDown v-else /></el-icon>
+        <el-icon :size="14">
+          <ArrowUp v-if="!collapsed" /><ArrowDown v-else />
+        </el-icon>
       </button>
     </div>
 
@@ -121,121 +247,6 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, inject, onMounted, type Ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { MagicStick, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
-import { LLMProviderService } from '@/services/llmProvider.service'
-import type { IFlowLLMProviderDto } from '@/types/llmProvider.types'
-import { ExpressionUnitFactory } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-import type { AnyExpressionUnit } from '@/types/flow-designer/ExpressionUnits/ExpressionUnitBase'
-import type { VariableItem } from '@/types/flow-designer/variableSelector.types'
-import VariableSelector from '../components/VariableSelector.vue'
-
-const { t } = useI18n()
-
-const nodeData = inject<Ref<Record<string, any>>>('nodeData')!
-const nodeId = inject<string>('nodeId')
-const onUpdate = inject<(patch: Record<string, any>) => void>('onUpdate')!
-
-const collapsed = ref(false)
-const modelProviders = ref<IFlowLLMProviderDto[]>([])
-
-const displayName = ref(nodeData.value.displayName || 'LLM')
-const modelSelection = ref(nodeData.value.modelSelection || '')
-const temperature = ref(nodeData.value.temperature ?? 0.7)
-const memoryEnabled = ref(nodeData.value.memoryEnabled ?? false)
-const memoryRounds = ref(nodeData.value.memoryRounds ?? 5)
-const enableThinking = ref(nodeData.value.enableThinking ?? false)
-const variableSelectorVisible = ref(false)
-const variableTarget = ref<'systemPrompt' | 'userPrompt'>('userPrompt')
-
-const extractText = (unit: AnyExpressionUnit | string | undefined): string => {
-  if (!unit) return ''
-  if (typeof unit === 'string') return unit
-  if (unit.typeName === 'FullTextExpressionUnit') return (unit as any).Text || ''
-  if (unit.typeName === 'JSExpressionUnit') {
-    const js = unit as any
-    return js.isFunctionMode ? js.functionCode : js.expressionCode
-  }
-  return ''
-}
-
-const systemPromptText = ref(extractText(nodeData.value.systemPrompt))
-const userPromptText = ref(extractText(nodeData.value.userPrompt))
-
-const modelDisplayName = computed(() => {
-  if (!modelSelection.value) return 'No model'
-  const parts = modelSelection.value.split('|')
-  return parts.length === 2 ? parts[1] : modelSelection.value
-})
-
-const getFirstAvailableModel = (providers: IFlowLLMProviderDto[]): string => {
-  for (const provider of providers) {
-    const platformName = provider.platformName
-    const firstModelName = provider.llmNames?.[0]
-    if (platformName && firstModelName) {
-      return `${platformName}|${firstModelName}`
-    }
-  }
-  return ''
-}
-
-const update = (key: string, value: any) => {
-  onUpdate({ [key]: value })
-}
-
-const commitName = () => {
-  update('displayName', displayName.value || 'LLM')
-}
-
-const commitPrompt = (key: string, text: string) => {
-  const existing = nodeData.value[key] as AnyExpressionUnit | undefined
-  if (existing && existing.typeName === 'FullTextExpressionUnit') {
-    update(key, { ...existing, Text: text })
-  } else {
-    update(key, ExpressionUnitFactory.createFullTextExpression(text))
-  }
-}
-
-const openVariableSelector = (target: 'systemPrompt' | 'userPrompt') => {
-  variableTarget.value = target
-  variableSelectorVisible.value = true
-}
-
-const handleVariableSelect = (variable: VariableItem) => {
-  const placeholder = `{{${variable.key}}}`
-  if (variableTarget.value === 'systemPrompt') {
-    systemPromptText.value += placeholder
-    commitPrompt('systemPrompt', systemPromptText.value)
-    return
-  }
-
-  userPromptText.value += placeholder
-  commitPrompt('userPrompt', userPromptText.value)
-}
-
-const loadModelProviders = async () => {
-  try {
-    const response = await LLMProviderService.getProviderList()
-    if (response.errCode === 0 && response.data) {
-      modelProviders.value = response.data
-      if (!modelSelection.value) {
-        const firstModel = getFirstAvailableModel(response.data)
-        if (firstModel) {
-          modelSelection.value = firstModel
-          update('modelSelection', firstModel)
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load model providers:', e)
-  }
-}
-
-onMounted(loadModelProviders)
-</script>
-
 <style scoped>
 .llm-widget {
   width: 100%;
@@ -250,8 +261,13 @@ onMounted(loadModelProviders)
   overflow-x: hidden;
 }
 
-.llm-widget::-webkit-scrollbar { width: 3px; }
-.llm-widget::-webkit-scrollbar-thumb { background: var(--nf-scrollbar, #52525b); border-radius: 2px; }
+.llm-widget::-webkit-scrollbar {
+  width: 3px;
+}
+.llm-widget::-webkit-scrollbar-thumb {
+  background: var(--nf-scrollbar, #52525b);
+  border-radius: 2px;
+}
 
 .widget-header {
   display: flex;
@@ -260,7 +276,10 @@ onMounted(loadModelProviders)
   flex-shrink: 0;
 }
 
-.widget-icon { color: var(--nf-text-secondary, #71717a); flex-shrink: 0; }
+.widget-icon {
+  color: var(--nf-text-secondary, #71717a);
+  flex-shrink: 0;
+}
 
 .widget-title-input {
   flex: 1;
@@ -321,17 +340,20 @@ onMounted(loadModelProviders)
   border: 1px solid rgba(0, 255, 159, 0.25);
   border-radius: 4px;
   background: transparent;
-  color: var(--nf-accent, #00FF9F);
+  color: var(--nf-accent, #00ff9f);
   font-size: 12px;
   line-height: 1.4;
   padding: 1px 6px;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .variable-btn:hover {
   border-color: rgba(0, 255, 159, 0.45);
-  color: var(--nf-accent-hover, #33FFB3);
+  color: var(--nf-accent-hover, #33ffb3);
   background: rgba(0, 255, 159, 0.06);
 }
 
@@ -363,7 +385,10 @@ onMounted(loadModelProviders)
   width: 90px;
 }
 
-.flex-1 { flex: 1; min-width: 0; }
+.flex-1 {
+  flex: 1;
+  min-width: 0;
+}
 
 .collapsed-summary {
   padding: 2px 0;

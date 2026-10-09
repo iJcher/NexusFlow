@@ -1,5 +1,5 @@
-import JSZip from 'jszip'
 import type { TApiResponse } from '@/types/ApiResponse{T}'
+import JSZip from 'jszip'
 import { HttpUtil } from '@/utils/http.util'
 
 export interface ISkillDto {
@@ -82,7 +82,8 @@ export class SkillService {
     const zip = new JSZip()
     const rootFolderName = (skill.name || 'skill').replace(/[^\w\-.]+/g, '-')
     const root = zip.folder(rootFolderName)
-    if (!root) throw new Error('Failed to create root folder in zip')
+    if (!root)
+      throw new Error('Failed to create root folder in zip')
 
     Object.entries(skill.files || {}).forEach(([path, content]) => {
       root.file(path, content ?? '')

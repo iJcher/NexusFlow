@@ -5,6 +5,11 @@ import { ChunkingService } from './chunking.service';
 import { RerankService } from './rerank.service';
 import { LlmProviderService } from '../llm-provider/llm-provider.service';
 import { nextId } from '../common/snowflake';
+import {
+  KnowledgeBaseEntity,
+  KnowledgeDocumentEntity,
+  Prisma,
+} from '@prisma/client';
 import * as path from 'path';
 
 /** RAG 二阶段检索：召回阶段一次取这么多倍 topK 当候选喂给 rerank */
@@ -48,7 +53,9 @@ export class KnowledgeService {
    *
    * 与 SkillService.getAvailableModels 同样的设计模式，保持架构一致。
    */
-  async getAvailableEmbeddingModels(userId: string): Promise<AvailableEmbeddingModelOption[]> {
+  async getAvailableEmbeddingModels(
+    userId: string,
+  ): Promise<AvailableEmbeddingModelOption[]> {
     const options: AvailableEmbeddingModelOption[] = [];
 
     const systemDefault = this.llmProviderService.getDefaultEmbeddingProvider();
@@ -61,10 +68,13 @@ export class KnowledgeService {
       });
     }
 
-    const userProviders = await this.llmProviderService.getList(undefined, userId);
+    const userProviders = await this.llmProviderService.getList(
+      undefined,
+      userId,
+    );
     const seen = new Set<string>();
     for (const provider of userProviders) {
-      const llmNames: string[] = (provider as any).llmNames || [];
+      const llmNames = provider.llmNames;
       for (const name of llmNames) {
         if (!name.toLowerCase().includes('embedding')) continue;
         const key = `user:${provider.id}:${name}`;
@@ -85,7 +95,14 @@ export class KnowledgeService {
   // ==================== 知识库 CRUD ====================
 
   async createKnowledgeBase(
-    dto: { name: string; description?: string; embeddingModel?: string; chunkSize?: number; chunkOverlap?: number; chunkStrategy?: string },
+    dto: {
+      name: string;
+      description?: string;
+      embeddingModel?: string;
+      chunkSize?: number;
+      chunkOverlap?: number;
+      chunkStrategy?: string;
+    },
     userId: string,
     userName: string,
   ) {
@@ -122,9 +139,14 @@ export class KnowledgeService {
     userId: string,
   ) {
     const { keyword, pageIndex = 1, pageSize = 20 } = params;
-    const where: any = { ownerUserId: BigInt(userId) };
+    const where: Prisma.KnowledgeBaseEntityWhereInput = {
+      ownerUserId: BigInt(userId),
+    };
     if (keyword) {
-      where.OR = [{ name: { contains: keyword } }, { description: { contains: keyword } }];
+      where.OR = [
+        { name: { contains: keyword } },
+        { description: { contains: keyword } },
+      ];
     }
 
     const [total, entities] = await Promise.all([
@@ -142,7 +164,14 @@ export class KnowledgeService {
 
   async updateKnowledgeBase(
     id: bigint,
-    dto: { name?: string; description?: string; embeddingModel?: string; chunkSize?: number; chunkOverlap?: number; chunkStrategy?: string },
+    dto: {
+      name?: string;
+      description?: string;
+      embeddingModel?: string;
+      chunkSize?: number;
+      chunkOverlap?: number;
+      chunkStrategy?: string;
+    },
     userId: string,
   ) {
     const entity = await this.prisma.knowledgeBaseEntity.findFirst({
@@ -150,13 +179,16 @@ export class KnowledgeService {
     });
     if (!entity) return null;
 
-    const updateData: any = {};
+    const updateData: Prisma.KnowledgeBaseEntityUpdateInput = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.embeddingModel !== undefined) updateData.embeddingModel = dto.embeddingModel;
+    if (dto.embeddingModel !== undefined)
+      updateData.embeddingModel = dto.embeddingModel;
     if (dto.chunkSize !== undefined) updateData.chunkSize = dto.chunkSize;
-    if (dto.chunkOverlap !== undefined) updateData.chunkOverlap = dto.chunkOverlap;
-    if (dto.chunkStrategy !== undefined) updateData.chunkStrategy = dto.chunkStrategy;
+    if (dto.chunkOverlap !== undefined)
+      updateData.chunkOverlap = dto.chunkOverlap;
+    if (dto.chunkStrategy !== undefined)
+      updateData.chunkStrategy = dto.chunkStrategy;
 
     const updated = await this.prisma.knowledgeBaseEntity.update({
       where: { id },
@@ -178,7 +210,11 @@ export class KnowledgeService {
     knowledgeBaseId: bigint,
     file: Express.Multer.File,
     userId: string,
-    options: { chunkSize?: number; chunkOverlap?: number; embeddingModel?: string } = {},
+    options: {
+      chunkSize?: number;
+      chunkOverlap?: number;
+      embeddingModel?: string;
+    } = {},
   ) {
     const kb = await this.prisma.knowledgeBaseEntity.findFirst({
       where: { id: knowledgeBaseId, ownerUserId: BigInt(userId) },
@@ -188,7 +224,10 @@ export class KnowledgeService {
     const embeddingModel = options.embeddingModel || kb.embeddingModel || '';
     const chunkSize = options.chunkSize || kb.chunkSize || 500;
     const chunkOverlap = options.chunkOverlap || kb.chunkOverlap || 50;
-    const chunkStrategy = (kb.chunkStrategy || 'paragraph') as 'fixed' | 'paragraph' | 'markdown';
+    const chunkStrategy = (kb.chunkStrategy || 'paragraph') as
+      | 'fixed'
+      | 'paragraph'
+      | 'markdown';
 
     const fileName = this.fixMulterFileName(file.originalname);
     const fileType = path.extname(fileName).toLowerCase();
@@ -212,8 +251,8 @@ export class KnowledgeService {
       chunkOverlap,
       chunkStrategy,
       ownerUserId: userId,
-    }).catch((e) => {
-      this.logger.error(`Document processing failed: ${e.message}`);
+    }).catch(() => {
+      this.logger.error('DOCUMENT_PROCESSING_FAILED');
     });
 
     return this.toDocDto(doc);
@@ -279,7 +318,9 @@ export class KnowledgeService {
           tokenCount: chunk.tokenCount,
         }));
 
-        await this.prisma.knowledgeDocChunkEntity.createMany({ data: chunkData });
+        await this.prisma.knowledgeDocChunkEntity.createMany({
+          data: chunkData,
+        });
 
         // 双写 pgvector：createMany 不能直接写 Unsupported("vector(1024)") 字段
         // 走 PG 自身的 text → vector cast，0 网络传输、0 应用层解析
@@ -292,8 +333,8 @@ export class KnowledgeService {
              WHERE id = ANY($1::bigint[]) AND "embeddingVec" IS NULL`,
             ids,
           );
-        } catch (e: any) {
-          this.logger.warn(`embeddingVec backfill failed for batch (will fallback at search time): ${e.message}`);
+        } catch {
+          this.logger.warn('EMBEDDING_VECTOR_BACKFILL_FAILED');
         }
       }
 
@@ -304,11 +345,11 @@ export class KnowledgeService {
 
       await this.updateKbStats(knowledgeBaseId);
       this.logger.log(`Document processed: ${docId}, ${chunks.length} chunks`);
-    } catch (e: any) {
-      this.logger.error(`Process document error: ${e.message}`, e.stack);
+    } catch {
+      this.logger.error('DOCUMENT_PROCESSING_FAILED');
       await this.prisma.knowledgeDocumentEntity.update({
         where: { id: docId },
-        data: { status: 'error', errorMsg: e.message },
+        data: { status: 'error', errorMsg: 'DOCUMENT_PROCESSING_FAILED' },
       });
     }
   }
@@ -331,7 +372,9 @@ export class KnowledgeService {
     });
     if (!doc || doc.knowledgeBase.ownerUserId !== BigInt(userId)) return false;
 
-    await this.prisma.knowledgeDocumentEntity.delete({ where: { id: documentId } });
+    await this.prisma.knowledgeDocumentEntity.delete({
+      where: { id: documentId },
+    });
     await this.updateKbStats(doc.knowledgeBaseId);
     return true;
   }
@@ -453,7 +496,11 @@ export class KnowledgeService {
     knowledgeBaseIds: bigint[],
     query: string,
     userId: string,
-    options: { topK?: number; threshold?: number; embeddingModel?: string } = {},
+    options: {
+      topK?: number;
+      threshold?: number;
+      embeddingModel?: string;
+    } = {},
   ) {
     const ownerId = BigInt(userId);
     const targetKnowledgeBaseIds = knowledgeBaseIds.length
@@ -474,7 +521,9 @@ export class KnowledgeService {
     }
 
     const results = await Promise.all(
-      targetKnowledgeBaseIds.map((id) => this.searchSimilar(id, query, userId, options)),
+      targetKnowledgeBaseIds.map((id) =>
+        this.searchSimilar(id, query, userId, options),
+      ),
     );
 
     return results
@@ -498,7 +547,7 @@ export class KnowledgeService {
     });
   }
 
-  private toKbDto(entity: any) {
+  private toKbDto(entity: KnowledgeBaseEntity) {
     return {
       id: entity.id.toString(),
       ownerUserId: entity.ownerUserId?.toString?.() ?? null,
@@ -517,7 +566,7 @@ export class KnowledgeService {
     };
   }
 
-  private toDocDto(entity: any) {
+  private toDocDto(entity: KnowledgeDocumentEntity) {
     return {
       id: entity.id.toString(),
       knowledgeBaseId: entity.knowledgeBaseId.toString(),

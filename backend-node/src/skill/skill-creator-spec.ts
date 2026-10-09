@@ -152,7 +152,10 @@ export function validateGeneratedSkill(payload: {
       });
     }
     if (desc.includes('<') || desc.includes('>')) {
-      errors.push({ field: 'description', message: 'description 不能包含 < 或 >' });
+      errors.push({
+        field: 'description',
+        message: 'description 不能包含 < 或 >',
+      });
     }
   }
 
@@ -163,7 +166,10 @@ export function validateGeneratedSkill(payload: {
   }
   const skillMd = payload.files['SKILL.md'];
   if (typeof skillMd !== 'string' || !skillMd.trim()) {
-    errors.push({ field: 'files["SKILL.md"]', message: 'files 必须包含非空 SKILL.md' });
+    errors.push({
+      field: 'files["SKILL.md"]',
+      message: 'files 必须包含非空 SKILL.md',
+    });
     return errors;
   }
 
@@ -190,7 +196,10 @@ export function validateGeneratedSkill(payload: {
       }
     }
     if (!keys.has('name')) {
-      errors.push({ field: 'files["SKILL.md"].frontmatter', message: 'frontmatter 缺少 name' });
+      errors.push({
+        field: 'files["SKILL.md"].frontmatter',
+        message: 'frontmatter 缺少 name',
+      });
     }
     if (!keys.has('description')) {
       errors.push({

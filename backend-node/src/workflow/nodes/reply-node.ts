@@ -1,6 +1,10 @@
 import { NodeConfig, FlowRuntimeContext, NodeExecuteResult } from '../types';
 import { createSuccessResult, FlowRuntime } from './node-base';
-import { computeExpression } from '../expression/expression-helper';
+import {
+  computeExpression,
+  extractByJsonPath,
+  expressionText,
+} from '../expression/expression-helper';
 
 export async function executeReplyNode(
   node: NodeConfig,
@@ -8,7 +12,9 @@ export async function executeReplyNode(
   runtime: FlowRuntime,
 ): Promise<NodeExecuteResult> {
   try {
-    const text = (await computeExpression(node.message, context, runtime))?.toString() || '';
+    const text =
+      (await computeExpression(node.message, context, runtime))?.toString() ||
+      '';
 
     const streamingExecutor = async function* (): AsyncGenerator<string> {
       if (text.trim()) {
@@ -19,9 +25,18 @@ export async function executeReplyNode(
       yield* streamPreviousNodeOutput(node, context, runtime);
     };
 
-    return createSuccessResult(node.id, { mode: 'streaming' }, streamingExecutor);
-  } catch (e: any) {
-    return { nodeId: node.id, isSuccess: false, errorMsg: `reply node failed: ${e.message}`, errorCode: 61002 };
+    return createSuccessResult(
+      node.id,
+      { mode: 'streaming' },
+      streamingExecutor,
+    );
+  } catch {
+    return {
+      nodeId: node.id,
+      isSuccess: false,
+      errorMsg: 'REPLY_NODE_FAILED',
+      errorCode: 61002,
+    };
   }
 }
 
@@ -30,7 +45,9 @@ async function* streamPreviousNodeOutput(
   context: FlowRuntimeContext,
   runtime: FlowRuntime,
 ): AsyncGenerator<string> {
-  const incomingLines = context.flowConfigInfoForRun.lines.filter((line) => line.toNodeId === node.id);
+  const incomingLines = context.flowConfigInfoForRun.lines.filter(
+    (line) => line.toNodeId === node.id,
+  );
   if (incomingLines.length === 0) {
     if (context.request?.query) yield context.request.query;
     return;
@@ -38,7 +55,10 @@ async function* streamPreviousNodeOutput(
 
   let previousResult: NodeExecuteResult | null = null;
   for (const incomingLine of incomingLines) {
-    const candidate = await runtime.getNodeExecuteResult(context, incomingLine.fromNodeId);
+    const candidate = await runtime.getNodeExecuteResult(
+      context,
+      incomingLine.fromNodeId,
+    );
     if (candidate?.isSuccess) {
       previousResult = candidate;
       break;
@@ -84,19 +104,25 @@ async function* parseAndStreamText(
 
     const reference = match[1].trim();
     if (reference.includes('.')) {
-      const parts = reference.split('.', 2);
+      const separator = reference.indexOf('.');
+      const parts = [
+        reference.slice(0, separator),
+        reference.slice(separator + 1),
+      ];
       const nodeId = parts[0].trim();
       const nodeResult = await runtime.getNodeExecuteResult(context, nodeId);
       if (nodeResult?.streamingExecutor) {
         yield* nodeResult.streamingExecutor();
       } else if (nodeResult?.result) {
         const value = extractByJsonPath(nodeResult.result, parts[1].trim());
-        if (value) yield String(value);
+        if (value != null) yield expressionText(value);
       }
     } else {
-      const variable = context.flowConfigInfoForRun?.variables?.find((v) => v.name === reference);
+      const variable = context.flowConfigInfoForRun?.variables?.find(
+        (v) => v.name === reference,
+      );
       const val = variable?.hasValue ? variable.value : variable?.defaultValue;
-      if (val !== undefined && val !== null) yield String(val);
+      if (val !== undefined && val !== null) yield expressionText(val);
     }
 
     lastIndex = match.index + match[0].length;
@@ -105,19 +131,4 @@ async function* parseAndStreamText(
   if (lastIndex < text.length) {
     yield text.substring(lastIndex);
   }
-}
-
-function extractByJsonPath(source: any, path: string): any {
-  if (!source) return null;
-  const parts = path.split('.');
-  let current = source;
-  for (const part of parts) {
-    if (current == null) return null;
-    if (typeof current === 'object' && part in current) {
-      current = current[part];
-    } else {
-      return null;
-    }
-  }
-  return current;
 }

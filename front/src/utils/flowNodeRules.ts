@@ -83,13 +83,15 @@ export const FLOW_NODE_RULES: Record<string, IFlowNodeRule> = {
 
 export function getAvailableNextNodeTypes(nodeType: string): string[] {
   const rule = FLOW_NODE_RULES[nodeType]
-  if (!rule?.allowNext) return ANY_EXECUTABLE_NODE
+  if (!rule?.allowNext)
+    return ANY_EXECUTABLE_NODE
   return rule.allowNext
 }
 
 export function getAvailablePrevNodeTypes(nodeType: string): string[] {
   const rule = FLOW_NODE_RULES[nodeType]
-  if (rule?.allowPrev) return rule.allowPrev
+  if (rule?.allowPrev)
+    return rule.allowPrev
   return ['StartNode', ...NON_TERMINAL_NODE]
 }
 
@@ -160,8 +162,10 @@ function wouldCreateCycle(sourceId: string, targetId: string, edges: IFlowRuleEd
 
   while (stack.length > 0) {
     const nodeId = stack.pop()
-    if (!nodeId || visited.has(nodeId)) continue
-    if (nodeId === sourceId) return true
+    if (!nodeId || visited.has(nodeId))
+      continue
+    if (nodeId === sourceId)
+      return true
 
     visited.add(nodeId)
     const nextNodes = nextMap.get(nodeId) || []

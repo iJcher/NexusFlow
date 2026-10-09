@@ -1,6 +1,11 @@
 import { Body, Controller, Get, Logger, Post, Query } from '@nestjs/common';
 import { SkillService } from './skill.service';
-import { CurrentUser, type AuthenticatedUser } from '../auth/current-user.decorator';
+import { SkillGenerateDto } from './skill.dto';
+import { assertJson } from '../runs/contracts';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../auth/current-user.decorator';
 import { JsonResponse } from '../common/response';
 
 @Controller('Skill')
@@ -10,9 +15,18 @@ export class SkillController {
   constructor(private readonly skillService: SkillService) {}
 
   @Post('PublishFromFlow')
-  async publishFromFlow(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+  async publishFromFlow(
+    @Body() dto: SkillGenerateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    assertJson(dto.inputSchema ?? {});
+    assertJson(dto.outputSchema ?? {});
     try {
-      const result = await this.skillService.publishFromFlow(BigInt(dto.flowId), user.id, dto);
+      const result = await this.skillService.publishFromFlow(
+        BigInt(dto.flowId),
+        user.id,
+        dto,
+      );
       if (!result) return JsonResponse.error('Flow not found');
       return JsonResponse.ok(result);
     } catch (err) {
@@ -21,9 +35,18 @@ export class SkillController {
   }
 
   @Post('GenerateFromFlow')
-  async generateFromFlow(@Body() dto: any, @CurrentUser() user: AuthenticatedUser) {
+  async generateFromFlow(
+    @Body() dto: SkillGenerateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    assertJson(dto.inputSchema ?? {});
+    assertJson(dto.outputSchema ?? {});
     try {
-      const result = await this.skillService.generateFromFlow(BigInt(dto.flowId), user.id, dto);
+      const result = await this.skillService.generateFromFlow(
+        BigInt(dto.flowId),
+        user.id,
+        dto,
+      );
       if (!result) return JsonResponse.error('Flow not found');
       return JsonResponse.ok(result);
     } catch (err) {
@@ -37,7 +60,10 @@ export class SkillController {
   }
 
   @Get('GetDetail')
-  async getDetail(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async getDetail(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!id) return JsonResponse.error('id is required');
     const skill = await this.skillService.getById(BigInt(id), user.id);
     if (!skill) return JsonResponse.error('Skill not found');
@@ -50,7 +76,10 @@ export class SkillController {
   }
 
   @Post('Delete')
-  async delete(@Query('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async delete(
+    @Query('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     const ok = await this.skillService.delete(BigInt(id), user.id);
     if (!ok) return JsonResponse.error('Skill not found');
     return JsonResponse.ok(true);
@@ -63,7 +92,10 @@ export class SkillController {
    */
   private toErrorResponse(err: unknown, scope: string): JsonResponse {
     const message = err instanceof Error ? err.message : String(err);
-    this.logger.error(`[${scope}] ${message}`, err instanceof Error ? err.stack : undefined);
+    this.logger.error(
+      `[${scope}] ${message}`,
+      err instanceof Error ? err.stack : undefined,
+    );
     return JsonResponse.error(message);
   }
 }

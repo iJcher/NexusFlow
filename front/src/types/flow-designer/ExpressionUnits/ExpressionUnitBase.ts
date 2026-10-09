@@ -4,20 +4,20 @@
  */
 export interface ExpressionUnitBase {
   /** 单元唯一标识 */
-  id: string;
-  
+  id: string
+
   /** 类型名称，用于多态序列化（对应C#的JsonConverter） */
-  typeName: string;
-  
+  typeName: string
+
   /** 子单元列表（支持嵌套） */
-  children?: ExpressionUnitBase[];
+  children?: ExpressionUnitBase[]
 }
 
 /**
  * 所有表达式单元类型的联合类型
  * 方便后续扩展其他类型的表达式单元
  */
-export type AnyExpressionUnit = JSExpressionUnit | FullTextMiniExpressionUnit | FullTextExpressionUnit;
+export type AnyExpressionUnit = JSExpressionUnit | FullTextMiniExpressionUnit | FullTextExpressionUnit
 
 /**
  * 表达式单元工厂
@@ -31,11 +31,11 @@ export class ExpressionUnitFactory {
     return {
       id: `jsexpr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       typeName: 'JSExpressionUnit',
-      functionCode: functionCode,
-      expressionCode: expressionCode,
+      functionCode,
+      expressionCode,
       isFunctionMode: false,
-      children: []
-    };
+      children: [],
+    }
   }
 
   /**
@@ -46,8 +46,8 @@ export class ExpressionUnitFactory {
       id: `ftmini_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       typeName: 'FullTextMiniExpressionUnit',
       Text: text,
-      children: []
-    };
+      children: [],
+    }
   }
 
   /**
@@ -58,11 +58,10 @@ export class ExpressionUnitFactory {
       id: `fulltext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       typeName: 'FullTextExpressionUnit',
       Text: text,
-      children: []
-    };
+      children: [],
+    }
   }
 }
-
 
 /**
  * JS表达式单元
@@ -76,15 +75,15 @@ export class ExpressionUnitFactory {
  */
 export interface JSExpressionUnit extends ExpressionUnitBase {
   /** 类型标识 */
-  typeName: 'JSExpressionUnit';
-  
+  typeName: 'JSExpressionUnit'
+
   /** JS函数字符串 */
-  functionCode: string;
+  functionCode: string
   /** 表达式代码字符串 */
-  expressionCode: string;
+  expressionCode: string
 
   /** 表达式模式 */
-  isFunctionMode: boolean;
+  isFunctionMode: boolean
 }
 
 /**
@@ -92,10 +91,10 @@ export interface JSExpressionUnit extends ExpressionUnitBase {
  */
 export interface FullTextMiniExpressionUnit extends ExpressionUnitBase {
   /** 类型标识 */
-  typeName: 'FullTextMiniExpressionUnit';
-  
+  typeName: 'FullTextMiniExpressionUnit'
+
   /** 富文本内容 */
-  Text: string;
+  Text: string
 }
 
 /**
@@ -104,13 +103,13 @@ export interface FullTextMiniExpressionUnit extends ExpressionUnitBase {
     {{变量名}}
     {{sys.xxx}}系统变量;
     {{节点id.属性}} 获取节点输出结果.
- 
+
     我们需要把{{}}中的内容解析出来，然后替换为对应的值, 返回出去
  */
 export interface FullTextExpressionUnit extends ExpressionUnitBase {
   /** 类型标识 */
-  typeName: 'FullTextExpressionUnit';
-  
+  typeName: 'FullTextExpressionUnit'
+
   /** 富文本内容 */
-  Text: string;
+  Text: string
 }

@@ -1,10 +1,10 @@
+import type { TApiResponse } from '@/types/ApiResponse{T}'
+import { ApiError } from '@/utils/http.util'
 /**
  * 装饰器工具
  * 提供异常处理和加载状态管理的高阶函数
  */
 import { MessageUtil } from './message.util'
-import { ApiError } from '@/utils/http.util'
-import type { TApiResponse } from '@/types/ApiResponse{T}'
 
 /**
  * 异常处理和加载状态的高阶函数
@@ -28,11 +28,7 @@ import type { TApiResponse } from '@/types/ApiResponse{T}'
  * };
  * ```
  */
-export const withLoading = async <T>(
-  action: () => Promise<T>,
-  loading: { value: boolean },
-  successMsg?: string
-): Promise<T> => {
+export async function withLoading<T>(action: () => Promise<T>, loading: { value: boolean }, successMsg?: string): Promise<T> {
   try {
     loading.value = true
     const result = await action()
@@ -41,18 +37,21 @@ export const withLoading = async <T>(
         errCode: 0,
         errMsg: successMsg,
         requestId: '',
-        data: null
+        data: null,
       } as TApiResponse<null>, successMsg)
     }
     return result
-  } catch (err) {
+  }
+  catch (err) {
     if (err instanceof ApiError) {
       MessageUtil.error(err.errMsg)
-    } else {
+    }
+    else {
       MessageUtil.error('操作失败，请稍后重试')
     }
     throw err
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }

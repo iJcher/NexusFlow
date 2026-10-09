@@ -2,12 +2,12 @@
  * 大模型提供者管理服务
  * 提供模型提供者的增删改查等API调用
  */
-import type { TApiResponse } from '@/types/ApiResponse{T}';
-import type { 
-  IFlowLLMProviderDto, 
-  IGetLLMProviderListParams 
-} from '@/types/llmProvider.types';
-import { HttpUtil } from '@/utils/http.util';
+import type { TApiResponse } from '@/types/ApiResponse{T}'
+import type {
+  IFlowLLMProviderDto,
+  IGetLLMProviderListParams,
+} from '@/types/llmProvider.types'
+import { HttpUtil } from '@/utils/http.util'
 
 export class LLMProviderService {
   /**
@@ -16,8 +16,8 @@ export class LLMProviderService {
    * @returns Promise<TApiResponse<IFlowLLMProviderDto>>
    */
   public static async createProvider(data: IFlowLLMProviderDto): Promise<TApiResponse<IFlowLLMProviderDto>> {
-    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowLLMProviderDto>>('/FlowLLMProvider/Create', data);
-    return response.data;
+    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowLLMProviderDto>>('/FlowLLMProvider/Create', data)
+    return response.data
   }
 
   /**
@@ -27,9 +27,9 @@ export class LLMProviderService {
    */
   public static async getProviderById(id: number): Promise<TApiResponse<IFlowLLMProviderDto>> {
     const response = await HttpUtil.getInstance().get<TApiResponse<IFlowLLMProviderDto>>('/FlowLLMProvider/GetById', {
-      params: { id }
-    });
-    return response.data;
+      params: { id },
+    })
+    return response.data
   }
 
   /**
@@ -41,10 +41,10 @@ export class LLMProviderService {
   public static async getProviderList(params?: IGetLLMProviderListParams): Promise<TApiResponse<IFlowLLMProviderDto[]>> {
     const response = await HttpUtil.getInstance().get<TApiResponse<IFlowLLMProviderDto[]>>('/FlowLLMProvider/GetList', {
       params: {
-        platformName: params?.platformName
-      }
-    });
-    return response.data;
+        platformName: params?.platformName,
+      },
+    })
+    return response.data
   }
 
   /**
@@ -53,8 +53,8 @@ export class LLMProviderService {
    * @returns Promise<TApiResponse<IFlowLLMProviderDto>>
    */
   public static async updateProvider(data: IFlowLLMProviderDto): Promise<TApiResponse<IFlowLLMProviderDto>> {
-    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowLLMProviderDto>>('/FlowLLMProvider/Update', data);
-    return response.data;
+    const response = await HttpUtil.getInstance().post<TApiResponse<IFlowLLMProviderDto>>('/FlowLLMProvider/Update', data)
+    return response.data
   }
 
   /**
@@ -65,8 +65,8 @@ export class LLMProviderService {
    */
   public static async deleteProvider(id: number): Promise<TApiResponse<boolean>> {
     const response = await HttpUtil.getInstance().post<TApiResponse<boolean>>('/FlowLLMProvider/Delete', null, {
-      params: { id }
-    });
-    return response.data;
+      params: { id },
+    })
+    return response.data
   }
 }

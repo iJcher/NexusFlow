@@ -1,38 +1,375 @@
+<script setup lang="ts">
+import type { AnyVariable } from '@/types/flow-designer/Parameters/Variable'
+import { Coin, VideoPlay } from '@element-plus/icons-vue'
+import { VueFlow } from '@vue-flow/core'
+import { MiniMap } from '@vue-flow/minimap'
+import { ElMessage } from 'element-plus'
+import { storeToRefs } from 'pinia'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import { useFlowPersistenceVF } from '@/composables/useFlowPersistenceVF'
+import { useVueFlowSetup } from '@/composables/useVueFlowSetup'
+
+import { useFlowDesignerStore } from '@/stores/flowDesigner'
+import FlowChatTest from '@/views/flow/chat-test/index.vue'
+
+import CanvasControlBar from './components/CanvasControlBar.vue'
+import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
+import NodeContextMenu from './components/NodeContextMenu.vue'
+import NodePalette from './components/NodePalette.vue'
+import VariableManager from './components/VariableManager.vue'
+
+import AssignVFNode from './vf-nodes/AssignVFNode.vue'
+import ConditionVFNode from './vf-nodes/ConditionVFNode.vue'
+import GroupVFNode from './vf-nodes/GroupVFNode.vue'
+import HttpVFNode from './vf-nodes/HttpVFNode.vue'
+import JSCodeVFNode from './vf-nodes/JSCodeVFNode.vue'
+import KnowledgeVFNode from './vf-nodes/KnowledgeVFNode.vue'
+import LLMVFNode from './vf-nodes/LLMVFNode.vue'
+import ReplyVFNode from './vf-nodes/ReplyVFNode.vue'
+import ResultVFNode from './vf-nodes/ResultVFNode.vue'
+import StartVFNode from './vf-nodes/StartVFNode.vue'
+
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/minimap/dist/style.css'
+
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const canvasRef = ref<HTMLElement | null>(null)
+const rightMenuRef = ref<InstanceType<typeof FlowRightMenuComponent> | null>(null)
+const flowStore = useFlowDesignerStore()
+const chatTestDrawerVisible = ref(false)
+const viewportWidth = ref<number>(window.innerWidth)
+const chatTestDrawerStyle = computed<Record<string, string>>(() => ({
+  '--el-drawer-padding-primary': '0',
+  'margin': '0',
+  'padding': '0',
+  'background': '#020406',
+}))
+const chatTestDrawerSize = computed<string>(() => {
+  if (viewportWidth.value <= 900) {
+    return '100%'
+  }
+  if (viewportWidth.value <= 1366) {
+    return '55%'
+  }
+  return '40%'
+})
+
+// 变量管理 drawer
+const variablesDrawerVisible = ref(false)
+const variablesActiveTab = ref<'session' | 'input'>('session')
+
+const { currentSessionVariables, currentInputParameters } = storeToRefs(flowStore)
+const sessionVariables = computed<AnyVariable[]>(() => currentSessionVariables.value)
+const inputParameters = computed<AnyVariable[]>(() => currentInputParameters.value)
+// 变量名唯一性校验跨两个集合，传给 VariableManager 用
+const allVariables = computed<AnyVariable[]>(() => [
+  ...sessionVariables.value,
+  ...inputParameters.value,
+])
+
+function openVariablesDrawer() {
+  variablesDrawerVisible.value = true
+}
+
+const handleAddSessionVariable = (v: AnyVariable) => flowStore.addSessionVariable(v)
+const handleUpdateSessionVariable = (v: AnyVariable) => flowStore.updateSessionVariable(v)
+const handleDeleteSessionVariable = (v: AnyVariable) => flowStore.removeSessionVariable(v)
+
+const handleAddInputParameter = (v: AnyVariable) => flowStore.addInputParameter(v)
+const handleUpdateInputParameter = (v: AnyVariable) => flowStore.updateInputParameter(v)
+const handleDeleteInputParameter = (v: AnyVariable) => flowStore.removeInputParameter(v)
+
+const flowType = computed(() => route.params.flowType as string)
+const flowId = computed(() => route.params.id ? Number(route.params.id) : null)
+
+const flowTitle = computed(() => {
+  const titles: Record<string, string> = {
+    logic: t('flowDesigner.logicFlowTitle'),
+    ai: t('flowDesigner.aiFlowTitle'),
+    approval: t('flowDesigner.approvalFlowTitle'),
+  }
+  return titles[flowType.value] || t('flowDesigner.title')
+})
+
+const {
+  nodes: _nodes,
+  edges: _edges,
+  canvasMode,
+  currentZoomPercent,
+  availableNodes,
+  currentFlowName,
+  initCanvas,
+  addNodeAtCenter,
+  addNodeAndConnect,
+  addNodeBeforeAndConnect,
+  deleteNode,
+  deleteEdge,
+  zoomIn,
+  zoomOut,
+  resetZoom,
+  setCanvasMode,
+  isGroupSelecting,
+  toggleGroupSelect,
+  createGroupFromSelection,
+  deleteGroup,
+  getGraphData,
+  renderGraphData,
+  project,
+} = useVueFlowSetup(
+  flowType,
+  flowId,
+  loadDesignerFlow,
+)
+
+const persistence = useFlowPersistenceVF(
+  flowType,
+  flowId,
+  currentFlowName,
+  getGraphData,
+  renderGraphData,
+)
+
+async function loadDesignerFlow(id: number) {
+  return persistence.loadFlowData(id)
+}
+
+provide('canvasMode', canvasMode)
+provide('availableNodes', availableNodes)
+provide('addNodeAndConnect', addNodeAndConnect)
+provide('addNodeBeforeAndConnect', addNodeBeforeAndConnect)
+provide('deleteGroup', deleteGroup)
+
+let groupMouseUpCleanup: (() => void) | null = null
+
+watch(isGroupSelecting, (active) => {
+  if (groupMouseUpCleanup) {
+    groupMouseUpCleanup()
+    groupMouseUpCleanup = null
+  }
+
+  if (active && canvasRef.value) {
+    const container = canvasRef.value
+    let dragged = false
+
+    const onMouseDown = () => {
+      dragged = false
+    }
+    const onMouseMove = () => {
+      dragged = true
+    }
+    const onMouseUp = () => {
+      if (!dragged)
+        return
+      setTimeout(() => {
+        createGroupFromSelection()
+      }, 60)
+    }
+
+    container.addEventListener('mousedown', onMouseDown, true)
+    container.addEventListener('mousemove', onMouseMove, true)
+    container.addEventListener('mouseup', onMouseUp, true)
+
+    groupMouseUpCleanup = () => {
+      container.removeEventListener('mousedown', onMouseDown, true)
+      container.removeEventListener('mousemove', onMouseMove, true)
+      container.removeEventListener('mouseup', onMouseUp, true)
+    }
+  }
+})
+
+// Context menu state
+const contextMenuVisible = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const clickCanvasPosition = ref({ x: 0, y: 0 })
+const nodeContextMenuVisible = ref(false)
+const nodeContextMenuPosition = ref({ x: 0, y: 0 })
+const contextMenuTargetType = ref<'node' | 'edge' | null>(null)
+const contextMenuTargetId = ref<string | null>(null)
+
+function handleCanvasContextMenu(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.closest('.vue-flow__node') || target.closest('.vue-flow__edge'))
+    return
+
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    const projected = project({ x: event.clientX - rect.left, y: event.clientY - rect.top })
+    clickCanvasPosition.value = { x: projected.x, y: projected.y }
+  }
+
+  contextMenuVisible.value = true
+  event.stopPropagation()
+}
+
+function handleNodeContextMenu({ event, node }: { event: MouseEvent | TouchEvent, node: any }) {
+  event.preventDefault()
+  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
+  nodeContextMenuPosition.value = pos
+  contextMenuTargetType.value = 'node'
+  contextMenuTargetId.value = node.id
+  nodeContextMenuVisible.value = true
+  contextMenuVisible.value = false
+}
+
+function handleEdgeContextMenu({ event, edge }: { event: MouseEvent | TouchEvent, edge: any }) {
+  event.preventDefault()
+  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
+  nodeContextMenuPosition.value = pos
+  contextMenuTargetType.value = 'edge'
+  contextMenuTargetId.value = edge.id
+  nodeContextMenuVisible.value = true
+  contextMenuVisible.value = false
+}
+
+function closeContextMenu() {
+  contextMenuVisible.value = false
+  rightMenuRef.value?.closeSelector()
+}
+
+function closeNodeContextMenu() {
+  nodeContextMenuVisible.value = false
+  contextMenuTargetType.value = null
+  contextMenuTargetId.value = null
+}
+
+function handleDeleteTarget(targetType: 'node' | 'edge', targetId: string) {
+  if (targetType === 'node') {
+    deleteNode(targetId)
+    ElMessage.success(t('flowDesigner.nodeDeleted'))
+  }
+  else if (targetType === 'edge') {
+    deleteEdge(targetId)
+    ElMessage.success(t('flowDesigner.edgeDeleted'))
+  }
+}
+
+function handleAddNodeFromMenu(nodeType: string) {
+  addNodeAtCenter(nodeType, clickCanvasPosition.value)
+}
+
+function addNodeFromPalette(nodeType: string) {
+  if (!canvasRef.value)
+    return
+  const rect = canvasRef.value.getBoundingClientRect()
+  const centerX = rect.width / 2
+  const centerY = rect.height / 2
+  const projected = project({ x: centerX, y: centerY })
+  const offsetX = (Math.random() - 0.5) * 120
+  const offsetY = (Math.random() - 0.5) * 80
+  addNodeAtCenter(nodeType, { x: projected.x + offsetX, y: projected.y + offsetY })
+}
+
+async function closeWindow() {
+  if (!flowId.value) {
+    router.back()
+    return
+  }
+
+  await persistence.saveFlow({ silent: true })
+  router.back()
+}
+
+async function openChatTest() {
+  if (!flowId.value) {
+    ElMessage.warning(t('flowDesigner.flowIdNotExist'))
+    return
+  }
+  const passed = await persistence.validateAndSave()
+  if (!passed) {
+    return
+  }
+  chatTestDrawerVisible.value = true
+}
+
+function _handleOpenAddNodeDialog() {
+  const centerX = window.innerWidth / 2
+  const centerY = window.innerHeight / 2
+
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    const projected = project({ x: rect.width / 2, y: rect.height / 2 })
+    clickCanvasPosition.value = { x: projected.x, y: projected.y }
+  }
+
+  setTimeout(() => {
+    rightMenuRef.value?.openSelectorAt({ x: centerX - 210, y: centerY - 250 })
+  })
+}
+
+function closeAllMenusFn() {
+  closeContextMenu()
+  closeNodeContextMenu()
+}
+
+function handleResize() {
+  viewportWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  handleResize()
+  const flowIdString = flowId.value ? flowId.value.toString() : `temp-${Date.now()}`
+  flowStore.initFlow(flowIdString, currentFlowName.value || t('flowDesigner.unnamedFlow'))
+  initCanvas()
+  document.addEventListener('click', closeAllMenusFn)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  document.removeEventListener('click', closeAllMenusFn)
+  if (groupMouseUpCleanup) {
+    groupMouseUpCleanup()
+    groupMouseUpCleanup = null
+  }
+})
+</script>
+
 <template>
   <div class="flow-editor-page">
     <header class="editor-header">
       <div class="header-left">
         <button class="fui-back-btn" @click="closeWindow">
-          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M9 3L5 7l4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14"><path d="M9 3L5 7l4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </button>
         <span class="header-title">{{ flowTitle }}</span>
       </div>
-      
+
       <div class="header-center">
         <span class="flow-name-badge">{{ currentFlowName || t('flowDesigner.unnamedFlow') }}</span>
       </div>
 
       <div class="header-right">
         <button class="fui-btn fui-btn--primary" @click="openVariablesDrawer">
-          <el-icon :size="13"><Coin /></el-icon>
+          <el-icon :size="13">
+            <Coin />
+          </el-icon>
           <span>{{ t('flowDesigner.variables') }}</span>
         </button>
         <button class="fui-btn fui-btn--primary" @click="openChatTest">
-          <el-icon :size="13"><VideoPlay /></el-icon>
+          <el-icon :size="13">
+            <VideoPlay />
+          </el-icon>
           <span>{{ t('flowDesigner.run') }}</span>
         </button>
       </div>
     </header>
 
-    <div class="canvas-area" ref="canvasRef" @contextmenu.prevent="handleCanvasContextMenu">
+    <div ref="canvasRef" class="canvas-area" @contextmenu.prevent="handleCanvasContextMenu">
       <VueFlow
         id="nexusflow-canvas"
         :selection-key-code="isGroupSelecting ? true : 'Shift'"
         :pan-on-drag="!isGroupSelecting && canvasMode === 'move'"
         :nodes-draggable="!isGroupSelecting && canvasMode === 'move'"
+        class="vue-flow-canvas"
         @node-context-menu="handleNodeContextMenu"
         @edge-context-menu="handleEdgeContextMenu"
-        class="vue-flow-canvas"
       >
         <MiniMap position="bottom-right" />
 
@@ -69,7 +406,7 @@
       </VueFlow>
     </div>
 
-    <CanvasControlBar 
+    <CanvasControlBar
       :zoom-percent="currentZoomPercent"
       @zoom-in="zoomIn"
       @zoom-out="zoomOut"
@@ -158,334 +495,13 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, provide, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { VideoPlay, Coin } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { storeToRefs } from 'pinia'
-import { VueFlow } from '@vue-flow/core'
-import { MiniMap } from '@vue-flow/minimap'
-import '@vue-flow/core/dist/style.css'
-import '@vue-flow/core/dist/theme-default.css'
-import '@vue-flow/minimap/dist/style.css'
-
-import { useFlowDesignerStore } from '@/stores/flowDesigner'
-import type { AnyVariable } from '@/types/flow-designer/Parameters/Variable'
-
-import FlowRightMenuComponent from './components/FlowRightMenuComponent.vue'
-import CanvasControlBar from './components/CanvasControlBar.vue'
-import NodeContextMenu from './components/NodeContextMenu.vue'
-import NodePalette from './components/NodePalette.vue'
-import VariableManager from './components/VariableManager.vue'
-
-import StartVFNode from './vf-nodes/StartVFNode.vue'
-import LLMVFNode from './vf-nodes/LLMVFNode.vue'
-import ReplyVFNode from './vf-nodes/ReplyVFNode.vue'
-import ConditionVFNode from './vf-nodes/ConditionVFNode.vue'
-import AssignVFNode from './vf-nodes/AssignVFNode.vue'
-import JSCodeVFNode from './vf-nodes/JSCodeVFNode.vue'
-import HttpVFNode from './vf-nodes/HttpVFNode.vue'
-import ResultVFNode from './vf-nodes/ResultVFNode.vue'
-import KnowledgeVFNode from './vf-nodes/KnowledgeVFNode.vue'
-import GroupVFNode from './vf-nodes/GroupVFNode.vue'
-
-import { useVueFlowSetup } from '@/composables/useVueFlowSetup'
-import { useFlowPersistenceVF } from '@/composables/useFlowPersistenceVF'
-import FlowChatTest from '@/views/flow/chat-test/index.vue'
-
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const canvasRef = ref<HTMLElement | null>(null)
-const rightMenuRef = ref<InstanceType<typeof FlowRightMenuComponent> | null>(null)
-const flowStore = useFlowDesignerStore()
-const chatTestDrawerVisible = ref(false)
-const viewportWidth = ref<number>(window.innerWidth)
-const chatTestDrawerStyle = computed<Record<string, string>>(() => ({
-  '--el-drawer-padding-primary': '0',
-  margin: '0',
-  padding: '0',
-  background: '#020406',
-}))
-const chatTestDrawerSize = computed<string>(() => {
-  if (viewportWidth.value <= 900) {
-    return '100%'
-  }
-  if (viewportWidth.value <= 1366) {
-    return '55%'
-  }
-  return '40%'
-})
-
-// 变量管理 drawer
-const variablesDrawerVisible = ref(false)
-const variablesActiveTab = ref<'session' | 'input'>('session')
-
-const { currentSessionVariables, currentInputParameters } = storeToRefs(flowStore)
-const sessionVariables = computed<AnyVariable[]>(() => currentSessionVariables.value)
-const inputParameters = computed<AnyVariable[]>(() => currentInputParameters.value)
-// 变量名唯一性校验跨两个集合，传给 VariableManager 用
-const allVariables = computed<AnyVariable[]>(() => [
-  ...sessionVariables.value,
-  ...inputParameters.value,
-])
-
-const openVariablesDrawer = () => {
-  variablesDrawerVisible.value = true
-}
-
-const handleAddSessionVariable = (v: AnyVariable) => flowStore.addSessionVariable(v)
-const handleUpdateSessionVariable = (v: AnyVariable) => flowStore.updateSessionVariable(v)
-const handleDeleteSessionVariable = (v: AnyVariable) => flowStore.removeSessionVariable(v)
-
-const handleAddInputParameter = (v: AnyVariable) => flowStore.addInputParameter(v)
-const handleUpdateInputParameter = (v: AnyVariable) => flowStore.updateInputParameter(v)
-const handleDeleteInputParameter = (v: AnyVariable) => flowStore.removeInputParameter(v)
-
-const flowType = computed(() => route.params.flowType as string)
-const flowId = computed(() => route.params.id ? Number(route.params.id) : null)
-
-const flowTitle = computed(() => {
-  const titles: Record<string, string> = {
-    logic: t('flowDesigner.logicFlowTitle'),
-    ai: t('flowDesigner.aiFlowTitle'),
-    approval: t('flowDesigner.approvalFlowTitle'),
-  }
-  return titles[flowType.value] || t('flowDesigner.title')
-})
-
-const {
-  nodes,
-  edges,
-  canvasMode,
-  currentZoomPercent,
-  availableNodes,
-  currentFlowName,
-  initCanvas,
-  addNodeAtCenter,
-  addNodeAndConnect,
-  addNodeBeforeAndConnect,
-  deleteNode,
-  deleteEdge,
-  zoomIn,
-  zoomOut,
-  resetZoom,
-  setCanvasMode,
-  isGroupSelecting,
-  toggleGroupSelect,
-  createGroupFromSelection,
-  deleteGroup,
-  getGraphData,
-  renderGraphData,
-  project,
-} = useVueFlowSetup(
-  flowType,
-  flowId,
-  async (id: number) => persistence.loadFlowData(id),
-)
-
-const persistence = useFlowPersistenceVF(
-  flowType,
-  flowId,
-  currentFlowName,
-  getGraphData,
-  renderGraphData,
-)
-
-provide('canvasMode', canvasMode)
-provide('availableNodes', availableNodes)
-provide('addNodeAndConnect', addNodeAndConnect)
-provide('addNodeBeforeAndConnect', addNodeBeforeAndConnect)
-provide('deleteGroup', deleteGroup)
-
-let groupMouseUpCleanup: (() => void) | null = null
-
-watch(isGroupSelecting, (active) => {
-  if (groupMouseUpCleanup) {
-    groupMouseUpCleanup()
-    groupMouseUpCleanup = null
-  }
-
-  if (active && canvasRef.value) {
-    const container = canvasRef.value
-    let dragged = false
-
-    const onMouseDown = () => { dragged = false }
-    const onMouseMove = () => { dragged = true }
-    const onMouseUp = () => {
-      if (!dragged) return
-      setTimeout(() => {
-        createGroupFromSelection()
-      }, 60)
-    }
-
-    container.addEventListener('mousedown', onMouseDown, true)
-    container.addEventListener('mousemove', onMouseMove, true)
-    container.addEventListener('mouseup', onMouseUp, true)
-
-    groupMouseUpCleanup = () => {
-      container.removeEventListener('mousedown', onMouseDown, true)
-      container.removeEventListener('mousemove', onMouseMove, true)
-      container.removeEventListener('mouseup', onMouseUp, true)
-    }
-  }
-})
-
-// Context menu state
-const contextMenuVisible = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-const clickCanvasPosition = ref({ x: 0, y: 0 })
-const nodeContextMenuVisible = ref(false)
-const nodeContextMenuPosition = ref({ x: 0, y: 0 })
-const contextMenuTargetType = ref<'node' | 'edge' | null>(null)
-const contextMenuTargetId = ref<string | null>(null)
-
-const handleCanvasContextMenu = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  if (target.closest('.vue-flow__node') || target.closest('.vue-flow__edge')) return
-
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-
-  if (canvasRef.value) {
-    const rect = canvasRef.value.getBoundingClientRect()
-    const projected = project({ x: event.clientX - rect.left, y: event.clientY - rect.top })
-    clickCanvasPosition.value = { x: projected.x, y: projected.y }
-  }
-
-  contextMenuVisible.value = true
-  event.stopPropagation()
-}
-
-const handleNodeContextMenu = ({ event, node }: { event: MouseEvent | TouchEvent, node: any }) => {
-  event.preventDefault()
-  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
-  nodeContextMenuPosition.value = pos
-  contextMenuTargetType.value = 'node'
-  contextMenuTargetId.value = node.id
-  nodeContextMenuVisible.value = true
-  contextMenuVisible.value = false
-}
-
-const handleEdgeContextMenu = ({ event, edge }: { event: MouseEvent | TouchEvent, edge: any }) => {
-  event.preventDefault()
-  const pos = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 }
-  nodeContextMenuPosition.value = pos
-  contextMenuTargetType.value = 'edge'
-  contextMenuTargetId.value = edge.id
-  nodeContextMenuVisible.value = true
-  contextMenuVisible.value = false
-}
-
-const closeContextMenu = () => {
-  contextMenuVisible.value = false
-  rightMenuRef.value?.closeSelector()
-}
-
-const closeNodeContextMenu = () => {
-  nodeContextMenuVisible.value = false
-  contextMenuTargetType.value = null
-  contextMenuTargetId.value = null
-}
-
-const handleDeleteTarget = (targetType: 'node' | 'edge', targetId: string) => {
-  if (targetType === 'node') {
-    deleteNode(targetId)
-    ElMessage.success(t('flowDesigner.nodeDeleted'))
-  } else if (targetType === 'edge') {
-    deleteEdge(targetId)
-    ElMessage.success(t('flowDesigner.edgeDeleted'))
-  }
-}
-
-const handleAddNodeFromMenu = (nodeType: string) => {
-  addNodeAtCenter(nodeType, clickCanvasPosition.value)
-}
-
-const addNodeFromPalette = (nodeType: string) => {
-  if (!canvasRef.value) return
-  const rect = canvasRef.value.getBoundingClientRect()
-  const centerX = rect.width / 2
-  const centerY = rect.height / 2
-  const projected = project({ x: centerX, y: centerY })
-  const offsetX = (Math.random() - 0.5) * 120
-  const offsetY = (Math.random() - 0.5) * 80
-  addNodeAtCenter(nodeType, { x: projected.x + offsetX, y: projected.y + offsetY })
-}
-
-const closeWindow = async () => {
-  if (!flowId.value) {
-    router.back()
-    return
-  }
-
-  await persistence.saveFlow({ silent: true })
-  router.back()
-}
-
-const openChatTest = async () => {
-  if (!flowId.value) {
-    ElMessage.warning(t('flowDesigner.flowIdNotExist'))
-    return
-  }
-  const passed = await persistence.validateAndSave()
-  if (!passed) {
-    return
-  }
-  chatTestDrawerVisible.value = true
-}
-
-const handleOpenAddNodeDialog = () => {
-  const centerX = window.innerWidth / 2
-  const centerY = window.innerHeight / 2
-
-  if (canvasRef.value) {
-    const rect = canvasRef.value.getBoundingClientRect()
-    const projected = project({ x: rect.width / 2, y: rect.height / 2 })
-    clickCanvasPosition.value = { x: projected.x, y: projected.y }
-  }
-
-  setTimeout(() => {
-    rightMenuRef.value?.openSelectorAt({ x: centerX - 210, y: centerY - 250 })
-  })
-}
-
-const closeAllMenusFn = () => {
-  closeContextMenu()
-  closeNodeContextMenu()
-}
-
-const handleResize = () => {
-  viewportWidth.value = window.innerWidth
-}
-
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-  handleResize()
-  const flowIdString = flowId.value ? flowId.value.toString() : `temp-${Date.now()}`
-  flowStore.initFlow(flowIdString, currentFlowName.value || t('flowDesigner.unnamedFlow'))
-  initCanvas()
-  document.addEventListener('click', closeAllMenusFn)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  document.removeEventListener('click', closeAllMenusFn)
-  if (groupMouseUpCleanup) {
-    groupMouseUpCleanup()
-    groupMouseUpCleanup = null
-  }
-})
-</script>
-
 <style scoped>
 .flow-editor-page {
   width: 100vw;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #05070A;
+  background: #05070a;
   overflow: hidden;
   font-family: var(--nf-font-display);
 }
@@ -496,7 +512,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  border-bottom: 1px solid #141A22;
+  border-bottom: 1px solid #141a22;
   background: rgba(8, 11, 16, 0.9);
   backdrop-filter: blur(12px);
   flex-shrink: 0;
@@ -520,9 +536,9 @@ onBeforeUnmount(() => {
   width: 32px;
   height: 32px;
   border-radius: 4px;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   background: transparent;
-  color: #5A6A7C;
+  color: #5a6a7c;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -539,7 +555,7 @@ onBeforeUnmount(() => {
   font-family: var(--nf-font-display);
   font-size: 13px;
   font-weight: 600;
-  color: #A0B0C0;
+  color: #a0b0c0;
   letter-spacing: 0.03em;
 }
 
@@ -547,11 +563,11 @@ onBeforeUnmount(() => {
   font-family: var(--nf-font-display);
   font-size: 12px;
   font-weight: 500;
-  color: #5A6A7C;
+  color: #5a6a7c;
   padding: 4px 14px;
   background: transparent;
   border-radius: 4px;
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
 }
 
 /* ── Buttons ── */
@@ -583,12 +599,12 @@ onBeforeUnmount(() => {
 
 .fui-btn--ghost {
   background: transparent;
-  color: #5A6A7C;
-  border: 1px solid #1E2733;
+  color: #5a6a7c;
+  border: 1px solid #1e2733;
 }
 .fui-btn--ghost:hover {
   border-color: rgba(0, 255, 159, 0.2);
-  color: #A0B0C0;
+  color: #a0b0c0;
 }
 
 .canvas-area {
@@ -618,14 +634,13 @@ onBeforeUnmount(() => {
 /* ambient breathe halo, keep opacity under 0.03 */
 .canvas-area::after {
   z-index: 0;
-  background:
-    radial-gradient(
-      ellipse 60% 48% at 52% 46%,
-      rgba(0, 255, 159, 0.026) 0%,
-      rgba(0, 255, 159, 0.012) 32%,
-      rgba(0, 255, 159, 0.003) 62%,
-      transparent 100%
-    );
+  background: radial-gradient(
+    ellipse 60% 48% at 52% 46%,
+    rgba(0, 255, 159, 0.026) 0%,
+    rgba(0, 255, 159, 0.012) 32%,
+    rgba(0, 255, 159, 0.003) 62%,
+    transparent 100%
+  );
 }
 
 .vue-flow-canvas {
@@ -641,7 +656,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.vue-flow__edge-path) {
-  stroke: #1E2733;
+  stroke: #1e2733;
   stroke-width: 1.5;
 }
 
@@ -659,14 +674,14 @@ onBeforeUnmount(() => {
 
 :deep(.vue-flow__controls) {
   background: rgba(8, 11, 16, 0.9);
-  border: 1px solid #1E2733;
+  border: 1px solid #1e2733;
   border-radius: 4px;
 }
 
 :deep(.vue-flow__controls-button) {
   background: transparent;
   border: none;
-  color: #5A6A7C;
+  color: #5a6a7c;
 }
 :deep(.vue-flow__controls-button:hover) {
   color: var(--nf-accent);
@@ -674,7 +689,7 @@ onBeforeUnmount(() => {
 
 :deep(.vue-flow__minimap) {
   background: rgba(8, 11, 16, 0.9);
-  border: 1px solid #141A22;
+  border: 1px solid #141a22;
   border-radius: 4px;
 }
 
@@ -730,9 +745,9 @@ onBeforeUnmount(() => {
 <style>
 .input-dialog .el-dialog__header,
 .session-dialog .el-dialog__header {
-  background: #080B10;
-  border-bottom: 1px solid #141A22;
-  color: #E8EAF0;
+  background: #080b10;
+  border-bottom: 1px solid #141a22;
+  color: #e8eaf0;
 }
 
 .input-dialog .el-dialog__title,
@@ -740,14 +755,14 @@ onBeforeUnmount(() => {
   font-family: var(--nf-font-display);
   font-size: 15px;
   font-weight: 700;
-  color: #E8EAF0;
+  color: #e8eaf0;
 }
 
 .input-dialog.el-dialog,
 .session-dialog.el-dialog {
   z-index: 2000 !important;
-  background: #080B10;
-  border: 1px solid #1E2733;
+  background: #080b10;
+  border: 1px solid #1e2733;
 }
 
 .el-overlay.is-message-box {
