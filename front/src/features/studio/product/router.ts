@@ -1,10 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Studio from './Studio.vue'
 
-// Hash history keeps the isolated rebuild entry deployable beside the old app.
-// These are independent resource routes, not editor panels inside the library.
+// The main entry and existing /rebuild.html bookmarks use the same workbench.
+// Resolve the base from the current entry instead of forcing the old alias.
 export const studioRouter = createRouter({
-  history: createWebHashHistory('/rebuild.html'),
+  history: createWebHashHistory(),
   routes: [
     { path: '/', redirect: '/agents' },
     { path: '/agents/:id?', component: Studio },

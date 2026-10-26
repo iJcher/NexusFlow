@@ -50,7 +50,7 @@ def environment():
             if separator and key in allowed and value.strip().strip('"').strip("'"):
                 env[allowed[key]] = value.strip().strip('"').strip("'")
     smtp_allowed={'SMTP_HOST','SMTP_PORT','SMTP_SECURE','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'}
-    for smtp_source in [ROOT/'.env.live',ROOT/'backend-node/.env',local_source]:
+    for smtp_source in [ROOT/'.env.live',local_source]:
         if smtp_source.exists():
             for line in smtp_source.read_text(encoding='utf-8-sig').splitlines():
                 key,separator,value=line.strip().partition('=')

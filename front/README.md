@@ -1,6 +1,6 @@
 # NexusFlow 前端
 
-Vue 3 + TypeScript + Vue Flow。新工作台入口为 `/rebuild.html`，`/` 保留旧前端入口。
+Vue 3 + TypeScript + Vue Flow。工作台默认入口为 `/`，已有 `/rebuild.html` 地址继续可用，两者使用同一套 Java/Python 后端。
 
 ```powershell
 pnpm install --frozen-lockfile

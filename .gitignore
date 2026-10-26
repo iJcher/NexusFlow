@@ -309,7 +309,6 @@ rag-seeds/
 .env.*
 !.env.example
 !.env.test.example
-backend-node/*-junit.xml
 
 # Rebuild local runtimes, databases, credentials and build output
 **/.local/

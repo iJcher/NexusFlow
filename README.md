@@ -2,7 +2,7 @@
 
 可视化 Agentic Workflow 编排平台，使用 **Vue 3 + Spring Boot + Python LangChain/LangGraph + PostgreSQL** 构建。
 
-当前分支是 Java / LangGraph 架构重构版本。新版工作台入口为 `/rebuild.html`，运行新栈无需启动旧 NestJS 后端。旧后端源码暂留，最终退役尚未完成。
+当前分支使用 Java / LangGraph 架构，工作台默认入口为 `/`，已有 `/rebuild.html` 地址继续可用。后端由 Spring Boot 控制面与 Python Runtime 组成。
 
 ## 核心功能
 
@@ -22,7 +22,6 @@
 | `front/src/features/studio/product/` | 新工作台、画布、Agent 配置、对话调试 |
 | `contracts/execution-dsl/v2/` | 运行所需 DSL、事件 Schema 及 API 协议 |
 | `deploy/rebuild/` | 本机启动脚本、配置模板和使用说明 |
-| `backend-node/` | 尚未退役的旧后端，新工作台不依赖其执行引擎 |
 
 ## 启动
 
@@ -48,7 +47,7 @@
    .\runtime-python\.venv\Scripts\python.exe deploy/rebuild/dev.py front
    ```
 
-4. 打开 <http://127.0.0.1:30061/rebuild.html>，通过邮箱验证码登录。
+4. 打开 <http://127.0.0.1:30061/>，通过邮箱验证码登录。
 
 更多配置和重启说明见 [运行手册](deploy/rebuild/README.md)，执行协议见 [API](contracts/execution-dsl/v2/API.md)。数据库、凭据、原始对话和本机执行归档均不随代码上传。
 
@@ -60,4 +59,4 @@
 
 ## 当前边界
 
-目前为单活动 Python Runtime、本机开发部署。多 Worker 高可用、外部业务写入 Exactly-Once、复杂语义记忆检索、长程资源治理和旧 Runtime 最终删除仍未交付。累计 Token 预留保持不限量，权限、调用次数、输入窗口、超时和取消仍生效。
+目前为单活动 Python Runtime、本机开发部署。多 Worker 高可用、外部业务写入 Exactly-Once、复杂语义记忆检索、长程资源治理和公网生产部署仍未交付。累计 Token 预留保持不限量，权限、调用次数、输入窗口、超时和取消仍生效。

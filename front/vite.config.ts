@@ -1,60 +1,46 @@
-import process from 'node:process'
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import Components from 'unplugin-vue-components/vite'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 
-const apiPrefixPattern = /^\/api/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd())
-
-  return {
-    plugins: [
-      UnoCSS(),
-      vue(),
-      AutoImport({
-        imports: ['vue', 'vue-router', 'pinia', 'vue-i18n'],
-        resolvers: [ElementPlusResolver()],
-        dts: 'src/auto-imports.d.ts',
-      }),
-      Components({
-        resolvers: [ElementPlusResolver()],
-        dts: 'src/components.d.ts',
-      }),
-    ],
-    resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
+export default defineConfig({
+  plugins: [
+    UnoCSS(),
+    vue(),
+    AutoImport({
+      imports: ['vue', 'vue-router', 'pinia', 'vue-i18n'],
+      resolvers: [ElementPlusResolver()],
+      dts: 'src/auto-imports.d.ts',
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()],
+      dts: 'src/components.d.ts',
+    }),
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+  server: {
+    port: 30061,
+    host: '127.0.0.1',
+    proxy: {
+      '/api/v2': {
+        target: 'http://127.0.0.1:19081',
+        changeOrigin: true,
       },
     },
-    server: {
-      port: 30051,
-      host: '0.0.0.0',
-      proxy: {
-        '/api/v2': {
-          target: 'http://127.0.0.1:19081',
-          changeOrigin: true,
-        },
-        '/api': {
-          target: env.VITE_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:30050',
-          changeOrigin: true,
-          cookiePathRewrite: { '/auth': '/api/auth' },
-          ...(env.VITE_PROXY_STRIP_PREFIX === 'true'
-            ? { rewrite: (path: string) => path.replace(apiPrefixPattern, '') }
-            : {}),
-        },
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        rebuild: fileURLToPath(new URL('./rebuild.html', import.meta.url)),
       },
     },
-    build: {
-      rollupOptions: {
-        input: {
-          main: fileURLToPath(new URL('./index.html', import.meta.url)),
-          rebuild: fileURLToPath(new URL('./rebuild.html', import.meta.url)),
-        },
-      },
-    },
-  }
+  },
 })

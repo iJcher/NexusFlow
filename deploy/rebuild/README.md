@@ -1,6 +1,6 @@
 # 新工作台运行说明
 
-本启动器运行 Spring Boot 控制面、Python LangGraph Runtime 和 Vue Studio，不启动旧 NestJS Runtime。当前为 Windows 本机环境，不是公网生产部署方案。
+本启动器运行 Spring Boot 控制面、Python LangGraph Runtime 和 Vue Studio。当前为 Windows 本机环境，不是公网生产部署方案。
 
 ## 配置
 
@@ -16,7 +16,7 @@ PowerShell 设置 `$env:NF_POSTGRES_BIN` 为 PostgreSQL bin 目录。可选 `$en
 
 | 服务 | 地址 |
 | --- | --- |
-| Vue Studio | http://127.0.0.1:30061/rebuild.html |
+| Vue Studio | http://127.0.0.1:30061/（兼容 /rebuild.html） |
 | Java 控制面 | http://127.0.0.1:19081 |
 | Python Runtime | http://127.0.0.1:19082 |
 | PostgreSQL | 127.0.0.1:19432/nexus_rebuild |
