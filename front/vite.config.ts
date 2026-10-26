@@ -34,6 +34,10 @@ export default defineConfig(({ mode }) => {
       port: 30051,
       host: '0.0.0.0',
       proxy: {
+        '/api/v2': {
+          target: 'http://127.0.0.1:19081',
+          changeOrigin: true,
+        },
         '/api': {
           target: env.VITE_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:30050',
           changeOrigin: true,
@@ -41,6 +45,14 @@ export default defineConfig(({ mode }) => {
           ...(env.VITE_PROXY_STRIP_PREFIX === 'true'
             ? { rewrite: (path: string) => path.replace(apiPrefixPattern, '') }
             : {}),
+        },
+      },
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          rebuild: fileURLToPath(new URL('./rebuild.html', import.meta.url)),
         },
       },
     },

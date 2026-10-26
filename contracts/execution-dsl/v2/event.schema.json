@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nexusflow:execution-event:2.0",
+  "type": "object",
+  "required": ["eventId", "runId", "seq", "invocationId", "parentInvocationId", "scope", "nodeId", "attemptId", "type", "commitStatus", "checkpointRef", "payloadVersion", "time", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {"type": "string", "minLength": 1},
+    "runId": {"type": "string", "format": "uuid"},
+    "seq": {"type": "integer", "minimum": 1},
+    "invocationId": {"type": ["string", "null"]},
+    "parentInvocationId": {"type": ["string", "null"]},
+    "scope": {"enum": ["ROOT", "INVOCATION"]},
+    "nodeId": {"type": ["string", "null"]},
+    "attemptId": {"type": "string"},
+    "type": {"type": "string", "minLength": 1},
+    "commitStatus": {"enum": ["PROGRESS", "COMMITTED"]},
+    "checkpointRef": {"type": ["string", "null"]},
+    "payloadVersion": {"const": "2.0"},
+    "time": {"type": "string", "format": "date-time"},
+    "data": {"type": "object"}
+  }
+}

@@ -1,18 +1,13 @@
 {
-  "name": "nexusflow-verification",
+  "name": "nexusflow",
   "private": true,
   "packageManager": "pnpm@11.22.0",
-  "engines": { "node": ">=22.13.0" },
-  "scripts": {
-    "verify:stage": "tsx scripts/verify-stage.ts",
-    "verify:all": "tsx scripts/verify-stage.ts ALL",
-    "verify:p02": "tsx scripts/verify-p02.ts",
-    "test:e2e": "playwright test",
-    "test:auth": "pnpm --dir backend-node test:auth"
+  "engines": {
+    "node": ">=22.13.0"
   },
-  "devDependencies": {
-    "@playwright/test": "1.63.0",
-    "dotenv": "18.0.5",
-    "tsx": "4.23.15"
+  "scripts": {
+    "dev:studio": "pnpm --dir front dev --host 127.0.0.1 --port 30061",
+    "build:studio": "pnpm --dir front build",
+    "build:control": "mvn -f backend-java/pom.xml package"
   }
 }

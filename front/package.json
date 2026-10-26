@@ -10,9 +10,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "test": "vitest run",
-    "test:auth": "vitest run src/views/login/__tests__ src/stores/__tests__/auth.spec.ts src/utils/__tests__/auth-session.spec.ts"
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@arms/rum-browser": "^0.1.8",

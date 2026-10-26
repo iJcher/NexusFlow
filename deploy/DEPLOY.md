@@ -1,5 +1,7 @@
 # NEXUS 部署指南
 
+> 本文用于旧 NestJS 部署。重构分支的新 Java/Python 本机启动见 [rebuild/README.md](rebuild/README.md)，当前未交付新栈的公网生产部署。
+
 ## 架构总览
 
 ```

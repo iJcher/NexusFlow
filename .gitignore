@@ -310,3 +310,31 @@ rag-seeds/
 !.env.example
 !.env.test.example
 backend-node/*-junit.xml
+
+# Rebuild local runtimes, databases, credentials and build output
+**/.local/
+**/.venv/
+backend-java/target/
+**/.pytest_cache/
+
+# Publication scope: local verification, plans and development records stay local
+/tests/
+/experiments/
+/docs/
+/.cursor/
+/AGENTS.md
+/NEXUS_ENTERPRISE_PLAN.md
+/skills-lock.json
+/scripts/
+**/__tests__/
+**/test/
+**/tests/
+**/*.spec.ts
+**/*.test.ts
+**/*.e2e-spec.ts
+**/vitest.config.*
+/playwright.config.ts
+/.env.test.example
+/docker-compose.test.yml
+/nexus-deploy.tar.gz
+/deploy/feishu-deploy-content.md

@@ -14,18 +14,10 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "test:auth": "jest --config test/jest-auth-e2e.json --runInBand",
-    "test:runs:unit": "jest --config test/jest-runs-unit.json --runInBand",
-    "test:runs:e2e": "jest --config test/jest-runs-e2e.json --runInBand",
     "start:worker": "node dist/run-worker",
     "start:worker:dev": "ts-node src/run-worker.ts",
     "secrets:inspect": "ts-node scripts/migrate-connection-secrets.ts --dry-run",
     "secrets:migrate": "ts-node scripts/migrate-connection-secrets.ts --apply",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:rag": "ts-node --transpile-only scripts/seed-rag.ts"
   },
   "dependencies": {

@@ -1,0 +1,10 @@
+# Trusted execution bundles use byte-level source digests.
+# Preserve stored bytes across checkout; -text disables EOL conversion, not text diffs.
+backend-java/** -text
+runtime-python/** -text
+contracts/** -text
+front/src/features/studio/** -text
+front/src/services/v2/** -text
+front/src/types/execution-v2.types.ts -text
+front/src/rebuild-main.ts -text
+front/rebuild.html -text

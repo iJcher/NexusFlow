@@ -1,0 +1,10 @@
+CREATE TABLE account (id uuid PRIMARY KEY, username text NOT NULL UNIQUE, password_hash text NOT NULL);
+CREATE TABLE workspace (id uuid PRIMARY KEY, name text NOT NULL);
+CREATE TABLE membership (workspace_id uuid REFERENCES workspace, account_id uuid REFERENCES account, role text NOT NULL, PRIMARY KEY(workspace_id,account_id));
+CREATE TABLE auth_session (token_hash text PRIMARY KEY, account_id uuid REFERENCES account, expires_at timestamptz NOT NULL);
+CREATE TABLE definition (id uuid PRIMARY KEY, workspace_id uuid REFERENCES workspace, name text NOT NULL, kind text NOT NULL CHECK(kind IN ('workflow','agent')), revision bigint NOT NULL DEFAULT 1, spec jsonb NOT NULL, editor jsonb NOT NULL DEFAULT '{}', updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE definition_version (id uuid PRIMARY KEY, definition_id uuid REFERENCES definition, workspace_id uuid REFERENCES workspace, ordinal integer NOT NULL, hash text NOT NULL, spec jsonb NOT NULL, manifest jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(definition_id,ordinal), UNIQUE(definition_id,hash));
+CREATE TABLE run_request (id uuid PRIMARY KEY, workspace_id uuid REFERENCES workspace, account_id uuid REFERENCES account, version_id uuid REFERENCES definition_version, command_id uuid NOT NULL UNIQUE, created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE control_outbox (id uuid PRIMARY KEY, workspace_id uuid REFERENCES workspace, request_key text NOT NULL, request_hash text NOT NULL, payload jsonb NOT NULL, state text NOT NULL DEFAULT 'ACCEPTED', attempts integer NOT NULL DEFAULT 0, next_attempt timestamptz NOT NULL DEFAULT now(), created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(workspace_id,request_key));
+CREATE TABLE control_audit (id bigserial PRIMARY KEY, workspace_id uuid NOT NULL, actor_id uuid NOT NULL, action text NOT NULL, resource_id uuid NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX outbox_due ON control_outbox(next_attempt) WHERE state='ACCEPTED';

@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nexusflow:execution:2.0",
+  "type": "object",
+  "required": [
+    "dslVersion",
+    "kind",
+    "definitionKey",
+    "inputSchema",
+    "outputSchema",
+    "budget"
+  ],
+  "properties": {
+    "dslVersion": {
+      "const": "2.0"
+    },
+    "kind": {
+      "enum": [
+        "workflow",
+        "agent"
+      ]
+    },
+    "definitionKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$"
+    },
+    "inputSchema": {
+      "type": "object"
+    },
+    "outputSchema": {
+      "type": "object"
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "channels": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "schema",
+              "reducer"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "schema": {
+                "type": "object"
+              },
+              "reducer": {
+                "enum": [
+                  "last_value",
+                  "collect_by_id_v1"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "maxModelCalls",
+        "maxToolCalls",
+        "maxTokens",
+        "timeoutSeconds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "maxModelCalls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "maxToolCalls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 128,
+          "maximum": 100000
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 600
+        }
+      }
+    },
+    "body": {
+      "$ref": "#/$defs/sequence"
+    },
+    "agent": {
+      "type": "object",
+      "required": [
+        "prompt",
+        "modelConnectionRef",
+        "tools"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "modelConnectionRef": {
+          "enum": [
+            "fixture",
+            "validation-model"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "maxItems": 8,
+          "items": {
+            "enum": [
+              "inspect_text",
+              "word_count",
+              "web_read",
+              "github_search",
+              "github_repository"
+            ]
+          }
+        },
+        "toolPolicy": { "enum": ["auto", "restricted"] },
+        "contextPolicy": { "type":"object", "additionalProperties":false, "required":["triggerTokens","maxInputTokens","keepMessages"], "properties":{
+          "triggerTokens":{"type":"integer","minimum":256,"maximum":128000},
+          "maxInputTokens":{"type":"integer","minimum":1024,"maximum":256000},
+          "keepMessages":{"type":"integer","minimum":4,"maximum":40}
+        } },
+        "remoteTools": { "type": "array", "uniqueItems": true, "maxItems": 64, "items": { "type": "string", "pattern": "^mcp_[a-f0-9]{32}_[a-f0-9]{16}$" } },
+        "executionTools": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "description",
+              "versionRef"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,47}$"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "versionRef": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "workflow"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "body"
+        ],
+        "not": {
+          "required": [
+            "agent"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "agent"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "agent"
+        ],
+        "not": {
+          "required": [
+            "body"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sequence": {
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "sequence"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "steps": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": [
+        "left",
+        "operator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/binding"
+        },
+        "operator": {
+          "enum": [
+            "eq",
+            "ne",
+            "contains",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "exists"
+          ]
+        },
+        "right": {}
+      }
+    },
+    "binding": {
+      "type": "object",
+      "required": [
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "input",
+            "state",
+            "node_output",
+            "output",
+            "literal"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "value": {},
+        "key": {
+          "type": "string"
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "$ref": "#/$defs/binding"
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+        },
+        "type": {
+          "enum": [
+            "input",
+            "transform",
+            "agent_call",
+            "tool",
+            "output",
+            "branch",
+            "parallel",
+            "human",
+            "workflow_call"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "input": {
+          "$ref": "#/$defs/mapping"
+        },
+        "write": {
+          "$ref": "#/$defs/mapping"
+        },
+        "value": {
+          "$ref": "#/$defs/binding"
+        },
+        "versionRef": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "toolRef": {
+          "enum": [
+            "inspect_text",
+            "word_count",
+            "web_read",
+            "github_search",
+            "github_repository"
+          ]
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": [
+              "when",
+              "body"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "when": {
+                "$ref": "#/$defs/condition"
+              },
+              "body": {
+                "$ref": "#/$defs/sequence"
+              }
+            }
+          }
+        },
+        "default": {
+          "$ref": "#/$defs/sequence"
+        },
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/sequence"
+          }
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "prompt": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "retry": {
+          "type": "object",
+          "required": [
+            "maxAttempts"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        },
+        "onError": {
+          "enum": [
+            "fail",
+            "continue"
+          ]
+        }
+      }
+    }
+  }
+}
